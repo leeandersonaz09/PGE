@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (dominioUsuario && dominios.includes(dominioUsuario)) {
       setUser(user);
+      router.push("/dashboard"); // 👈 ADICIONE ISSO
     } else {
       supabase.auth.signOut();
       setUser(null);
