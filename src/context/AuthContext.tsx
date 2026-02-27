@@ -10,7 +10,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Configuração estável do cliente Supabase para ambiente SSR (Next.js 16)
+  // Inicialização do cliente Supabase com travas de segurança para produção
   const supabase = useMemo(
     () =>
       createBrowserClient(
@@ -18,8 +18,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           auth: {
-            // Importante: Impede que o cliente tente processar o código da URL,
-            // deixando essa tarefa exclusiva para o seu arquivo /auth/callback/route.ts
+            // ESSENCIAL: Impede que o navegador tente trocar o código da URL.
+            // Isso evita o erro 404 PKCE e o conflito com o seu route.ts
             detectSessionInUrl: false,
             persistSession: true,
             autoRefreshToken: true,
@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    // Escuta as mudanças de estado (o route.ts vai gerar o evento de login via cookie)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (dominioUsuario && dominiosAutorizados.includes(dominioUsuario)) {
           setUser(session.user);
         } else {
-          // Expulsa usuários fora do domínio do colégio
+          // Bloqueio imediato para e-mails não autorizados
           await supabase.auth.signOut();
           setUser(null);
           alert(
@@ -66,17 +67,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginGoogle = async () => {
     try {
-      // Forçamos a URL de produção para evitar que o código fique "preso" na URL do Dashboard
-      const productionURL = "https://pgegea.netlify.app/auth/callback";
+      // Forçamos o redirecionamento direto para o seu "porteiro" no servidor
+      const callbackURL = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: productionURL,
+          redirectTo: callbackURL,
           queryParams: {
             access_type: "offline",
             prompt: "select_account",
-            hd: "cspba.com.br",
+            hd: "cspba.com.br", // Sugestão de domínio para o Google
           },
         },
       });
