@@ -30,21 +30,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        // Tenta buscar a sessão
         const {
           data: { session },
+          error,
         } = await supabase.auth.getSession();
 
         if (session?.user) {
           const email = session.user.email;
-          const dominiosAutorizados = ["cspba.com.br", "anchietaba.com.br"];
+          const dominios = ["cspba.com.br", "anchietaba.com.br"];
           const dominioUsuario = email?.split("@")[1];
 
-          if (dominioUsuario && dominiosAutorizados.includes(dominioUsuario)) {
+          if (dominioUsuario && dominios.includes(dominioUsuario)) {
             setUser(session.user);
           }
+        } else if (error) {
+          console.error("Erro na sessão:", error.message);
         }
       } catch (error) {
-        console.error("Erro na inicialização:", error);
+        console.error("Erro fatal:", error);
       } finally {
         setLoading(false);
       }

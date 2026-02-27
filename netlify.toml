@@ -6,5 +6,22 @@
   package = "@netlify/plugin-nextjs"
 
 [build.environment]
-  # Esta flag ajuda na performance das rotas de API
+  # Força o uso de Edge Functions para maior velocidade nas rotas de API
   NEXT_USE_NETLIFY_EDGE = "true"
+  # Garante que o Next.js trate o ambiente como produção estrita
+  NODE_ENV = "production"
+
+# --- CONFIGURAÇÕES DE ROTEAMENTO E CACHE ---
+
+[[headers]]
+  for = "/auth/callback"
+  [headers.values]
+    # Impede que o Netlify faça cache do código de autenticação
+    cache-control = "no-cache, no-store, max-age=0, must-revalidate"
+    content-type = "application/json"
+
+[[redirects]]
+  from = "/auth/callback"
+  to = "/auth/callback"
+  status = 200
+  force = true # Força o processamento pelo arquivo route.ts, ignorando cache
