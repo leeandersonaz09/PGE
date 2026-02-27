@@ -2,14 +2,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-// Força o processamento dinâmico para evitar que o Netlify versione esta rota
+// Força o processamento dinâmico e impede cache do Netlify
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-
-  // Redireciona para o dashboard por padrão
   const next = searchParams.get("next") ?? "/dashboard";
 
   if (code) {
@@ -25,34 +23,47 @@ export async function GET(request: Request) {
           },
           set(name: string, value: string, options: CookieOptions) {
             try {
-              cookieStore.set({ name, value, ...options });
+              // AJUSTE PARA PRODUÇÃO: Forçamos as flags de segurança para o Netlify
+              cookieStore.set({
+                name,
+                value,
+                ...options,
+                path: "/", // Garante acesso em todas as rotas
+                sameSite: "lax",
+                secure: true, // Obrigatório para HTTPS
+              });
             } catch (error) {
-              // O Middleware gerencia atualizações de cookies se necessário
+              // O Middleware lidará com isso se falhar aqui
             }
           },
           remove(name: string, options: CookieOptions) {
             try {
-              cookieStore.set({ name, value: "", ...options });
+              cookieStore.set({
+                name,
+                value: "",
+                ...options,
+                path: "/",
+              });
             } catch (error) {
-              // O Middleware gerencia remoções de cookies
+              // O Middleware lidará com isso
             }
           },
         },
       }
     );
 
-    // Troca o código pela sessão no lado do servidor
+    // Troca o código pela sessão
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // Adicionado timestamp (?t=) para forçar o navegador a ignorar caches antigos
       const redirectUrl = new URL(next, origin);
+      // O timestamp ajuda a evitar o cache da página de destino
       redirectUrl.searchParams.set("t", Date.now().toString());
 
       return NextResponse.redirect(redirectUrl.toString());
     }
   }
 
-  // Em caso de erro na troca de código, retorna à home com parâmetro de erro
+  // Se houver erro, volta para a home com o motivo
   return NextResponse.redirect(`${origin}/?error=auth_callback_failed`);
 }
