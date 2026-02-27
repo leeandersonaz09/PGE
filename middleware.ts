@@ -38,12 +38,11 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // IMPORTANTE: Deixa a rota de /auth livre para o route.ts trabalhar
+  // IMPORTANTE: Ignora a rota de auth para o route.ts trabalhar sozinho
   if (request.nextUrl.pathname.startsWith("/auth")) {
     return response;
   }
 
-  // Isso atualiza o token de sessão se necessário
   await supabase.auth.getUser();
 
   return response;
@@ -51,9 +50,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Aplica em tudo, exceto arquivos estáticos e a própria rota de auth
-     */
     "/((?!_next/static|_next/image|favicon.ico|auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
