@@ -11,7 +11,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  // Garante que o pathname nunca quebre a renderização se for indefinido
+  // Se o pathname for undefined no primeiro milissegundo, assume string vazia
   const pathname = usePathname() || "";
   const { logout, user } = useAuth();
 
@@ -20,17 +20,16 @@ export default function DashboardLayout({
   const userPhoto =
     user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
-  // Lógica limpa para saber qual aba está ativa
   const isInicio = pathname === "/dashboard" || pathname === "/dashboard/";
   const isAlunos = pathname.includes("/alunos");
 
   return (
-    <div className="flex flex-col h-screen bg-[#f1f5f9] font-sans">
-      {/* HEADER PRINCIPAL - shrink-0 impede que a barra seja esmagada */}
+    <div className="flex flex-col h-screen w-full bg-[#f1f5f9] font-sans overflow-hidden">
+      {/* HEADER AZUL - shrink-0 garante que a altura seja respeitada */}
       <header className="bg-[#3182ce] text-white p-2 flex justify-between items-center text-[11px] px-4 shadow-md z-50 shrink-0">
         <div className="flex items-center gap-3">
           <span className="font-semibold tracking-tight">
-            PGE - Portal de Gestão Educacional (2026)
+            PGE - Portal de Gestão Educacional
           </span>
 
           {user && (
@@ -62,9 +61,9 @@ export default function DashboardLayout({
         </button>
       </header>
 
-      {/* BARRA DE ABAS - shrink-0 obriga o navegador a desenhar os 36px de altura */}
-      <div className="bg-[#cbd5e0] flex items-end px-2 h-9 border-b border-gray-400 gap-1 shrink-0 w-full overflow-x-auto">
-        {/* ABA INÍCIO (Sempre visível) */}
+      {/* BARRA DE ABAS - Esta div vai aparecer SEMPRE, independente do estado */}
+      <div className="bg-[#cbd5e0] flex items-end px-2 h-9 border-b border-gray-400 gap-1 shrink-0 w-full">
+        {/* ABA INÍCIO */}
         <Link
           href="/dashboard"
           className={`flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold transition-all ${
@@ -76,7 +75,7 @@ export default function DashboardLayout({
           <Home size={14} /> INÍCIO
         </Link>
 
-        {/* ABA ALUNOS (Aparece ao clicar no módulo de Alunos) */}
+        {/* ABA ALUNOS */}
         {isAlunos && (
           <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
             <GraduationCap size={14} className="text-blue-600" />
@@ -91,9 +90,8 @@ export default function DashboardLayout({
         )}
       </div>
 
-      {/* ÁREA PRINCIPAL DOS MÓDULOS OU TABELAS */}
-      {/* Mudamos para overflow-auto para a rolagem acontecer apenas aqui dentro */}
-      <main className="flex-1 overflow-auto bg-white relative">{children}</main>
+      {/* O main deve ter overflow-auto para rolar apenas o conteúdo, e não a tela toda */}
+      <main className="flex-1 bg-white overflow-auto relative">{children}</main>
     </div>
   );
 }
