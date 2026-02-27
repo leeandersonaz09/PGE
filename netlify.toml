@@ -6,9 +6,5 @@
   package = "@netlify/plugin-nextjs"
 
 [build.environment]
+  # Esta flag ajuda na performance das rotas de API
   NEXT_USE_NETLIFY_EDGE = "true"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
