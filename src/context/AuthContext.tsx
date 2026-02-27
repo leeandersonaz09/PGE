@@ -10,7 +10,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Inicialização do cliente Supabase com travas de segurança para produção
+  // Inicialização estável do cliente Supabase
   const supabase = useMemo(
     () =>
       createBrowserClient(
@@ -18,9 +18,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           auth: {
-            // ESSENCIAL: Impede que o navegador tente trocar o código da URL.
-            // Isso evita o erro 404 PKCE e o conflito com o seu route.ts
-            detectSessionInUrl: false,
+            detectSessionInUrl: false, // Evita erro 404 PKCE em produção
             persistSession: true,
             autoRefreshToken: true,
           },
@@ -30,7 +28,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    // Escuta as mudanças de estado (o route.ts vai gerar o evento de login via cookie)
+    // FUNÇÃO VITAL: Busca a sessão nos cookies assim que o app monta
+    const initializeAuth = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user) {
+          const email = session.user.email;
+          const dominiosAutorizados = ["cspba.com.br", "anchietaba.com.br"];
+          const dominioUsuario = email?.split("@")[1];
+
+          if (dominioUsuario && dominiosAutorizados.includes(dominioUsuario)) {
+            setUser(session.user);
+          }
+        }
+      } catch (error) {
+        console.error("Erro na inicialização:", error);
+      } finally {
+        setLoading(false); // Libera as abas após a checagem
+      }
+    };
+
+    initializeAuth();
+
+    // Escuta mudanças de estado (Login/Logout)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -39,16 +61,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const dominiosAutorizados = ["cspba.com.br", "anchietaba.com.br"];
         const dominioUsuario = email?.split("@")[1];
 
-        // Trava de segurança por domínio institucional
         if (dominioUsuario && dominiosAutorizados.includes(dominioUsuario)) {
           setUser(session.user);
         } else {
-          // Bloqueio imediato para e-mails não autorizados
           await supabase.auth.signOut();
           setUser(null);
-          alert(
-            "Acesso Negado: Utilize apenas seu e-mail institucional (@cspba.com.br ou @anchietaba.com.br)."
-          );
           router.push("/");
         }
       } else {
@@ -67,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginGoogle = async () => {
     try {
-      // Forçamos o redirecionamento direto para o seu "porteiro" no servidor
+      // Redirecionamento absoluto para o callback de produção
       const callbackURL = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
@@ -77,14 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           queryParams: {
             access_type: "offline",
             prompt: "select_account",
-            hd: "cspba.com.br", // Sugestão de domínio para o Google
+            hd: "cspba.com.br",
           },
         },
       });
       if (error) throw error;
     } catch (error) {
       console.error("Erro no login:", error);
-      alert("Erro ao conectar com o Google.");
     }
   };
 
