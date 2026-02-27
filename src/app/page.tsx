@@ -1,56 +1,96 @@
 "use client";
 import { useAuth } from "@/context/AuthContext";
+import { LogIn, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
-  // Importamos a função de login real do nosso contexto
   const { loginGoogle } = useAuth();
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center p-4">
-      {/* CARD DE LOGIN */}
-      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-200">
-        {/* TÍTULO DO PORTAL */}
-        <h1 className="text-[#0056f1] text-2xl font-bold text-center mb-8 uppercase tracking-wide">
-          PGE - Portal de Gestão
-        </h1>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#E87B35]">
+      {/* PADRÃO DE FUNDO PERSONALIZADO: 
+        Usamos um gradiente radial e um padrão de "dots" (pontos) 
+        inspirado no globo da logomarca do CSP.
+      */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#E87B35] via-[#D1621D] to-[#002B54] opacity-95"></div>
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `radial-gradient(#ffffff 1px, transparent 1px)`,
+            backgroundSize: "30px 30px",
+          }}
+        ></div>
 
-        {/* BOTÃO GOOGLE REAL */}
+        {/* Círculos de luz decorativos para dar modernidade */}
+        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-white/10 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-15%] left-[-10%] w-[600px] h-[600px] bg-[#002B54]/40 rounded-full blur-[100px]"></div>
+      </div>
+
+      {/* CARD DE LOGIN - Estilo Glassmorphism */}
+      <div className="relative z-10 bg-white/95 backdrop-blur-md p-10 rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] w-full max-w-md border border-white/40 transform transition-all hover:scale-[1.01]">
+        {/* LOGO OFICIAL */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="mb-6 drop-shadow-md">
+            <img
+              src="https://www.cspba.com.br/wp-content/uploads/2025/01/logo-1.png"
+              alt="Logo Colégio São Paulo"
+              className="h-28 w-auto object-contain"
+            />
+          </div>
+
+          <div className="text-center">
+            <h1 className="text-[#002B54] text-5xl font-black tracking-tighter italic leading-none">
+              PGE
+            </h1>
+            <p className="text-[#E87B35] text-[10px] font-black uppercase tracking-[0.3em] mt-2 ml-1">
+              Colégio São Paulo - Itaigara
+            </p>
+          </div>
+          <div className="w-16 h-1 bg-[#002B54] mt-6 rounded-full opacity-20"></div>
+        </div>
+
+        <p className="text-slate-500 text-center mb-10 text-sm font-medium leading-relaxed">
+          Portal de Gestão Unificado. <br />
+          Identifique-se com sua conta institucional.
+        </p>
+
+        {/* BOTÃO GOOGLE PREMIUM CUSTOMIZADO */}
         <button
           onClick={loginGoogle}
-          className="w-full flex items-center justify-center gap-3 border-2 border-gray-300 p-3 rounded-md hover:bg-gray-50 transition-all group"
+          className="w-full flex items-center justify-center gap-4 bg-white border-2 border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-2xl hover:border-[#E87B35]/30 transition-all duration-500 group active:scale-95"
         >
-          {/* LOGO GOOGLE */}
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
-            <path
-              fill="#EA4335"
-              d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115z"
-            />
-            <path
-              fill="#34A853"
-              d="M16.04 18.013c-1.09.593-2.325.917-3.62.917-2.85 0-5.27-1.876-6.105-4.432L2.246 17.58C4.316 21.43 8.356 24 12.38 24c3.147 0 6.012-1.047 8.243-2.822l-4.583-3.165z"
-            />
-            <path
-              fill="#4285F4"
-              d="M19.82 12.11c0-.796-.073-1.564-.207-2.31H12v4.363h4.412c-.19 1.023-.767 1.888-1.636 2.47l4.583 3.166C21.996 17.5 24 14.81 24 12.11z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.266 9.765l-4.026-3.115C.44 7.935 0 9.932 0 12c0 2.063.44 4.055 1.233 5.827l4.032-3.116C5.064 13.91 5 12.98 5 12c0-.793.094-1.56.266-2.235z"
-            />
-          </svg>
+          <div className="bg-white p-1 rounded-lg">
+            <svg className="w-6 h-6" viewBox="0 0 24 24">
+              <path
+                fill="#EA4335"
+                d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 15.787 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.747-.067-1.48-.187-2.053H12.48z"
+              />
+            </svg>
+          </div>
 
-          {/* TEXTO DO BOTÃO */}
-          <span className="text-gray-700 font-semibold text-base group-hover:text-black">
-            Entrar com Google
+          <span className="text-[#002B54] font-black text-lg tracking-tight">
+            Acessar com Google
           </span>
+          <LogIn
+            size={20}
+            className="text-[#E87B35] group-hover:translate-x-1 transition-transform duration-300"
+          />
         </button>
 
-        {/* RODAPÉ DO LOGIN */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-400 text-xs">
-            © 2026 Portal de Gestão Educacional - Lee Anderson
+        {/* FOOTER DO CARD */}
+        <div className="mt-12 pt-6 border-t border-slate-100 flex justify-center items-center gap-2">
+          <ShieldCheck size={14} className="text-emerald-500" />
+          <p className="text-slate-400 text-[9px] uppercase font-bold tracking-[0.2em]">
+            Ambiente Seguro & Monitorado
           </p>
         </div>
+      </div>
+
+      {/* CRÉDITOS EXTERNOS */}
+      <div className="absolute bottom-8 w-full text-center">
+        <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.4em]">
+          PGE Salvador © 2026 | Developed by Lee Anderson
+        </p>
       </div>
     </div>
   );
