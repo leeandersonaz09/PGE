@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 
@@ -10,9 +10,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  // Inicialização estável com a trava para erro 404 (PKCE)
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          auth: {
+            detectSessionInUrl: false, // ESSENCIAL: Evita que o cliente tente processar o código 2x
+            persistSession: true,
+            autoRefreshToken: true,
+          },
+        }
+      ),
+    []
   );
 
   useEffect(() => {
@@ -28,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (dominioUsuario && dominiosAutorizados.includes(dominioUsuario)) {
           setUser(session.user);
         } else {
-          // Se o domínio não for autorizado, desloga e avisa o usuário
           await supabase.auth.signOut();
           setUser(null);
           alert(
@@ -55,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
+          // Garante o fluxo para o seu arquivo /auth/callback/route.ts
           redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             access_type: "offline",
