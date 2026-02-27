@@ -22,7 +22,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex flex-col h-screen bg-[#f1f5f9] font-sans">
-      {/* HEADER */}
+      {/* HEADER SUPERIOR */}
       <header className="bg-[#3182ce] text-white p-2 flex justify-between items-center text-[11px] px-4 shadow-md z-50">
         <div className="flex items-center gap-3">
           <span className="font-semibold tracking-tight">
@@ -59,9 +59,9 @@ export default function DashboardLayout({
         </button>
       </header>
 
-      {/* TABS */}
+      {/* TABS - REMOVIDO O BLOQUEIO DE USER PARA NUNCA DESAPARECEREM */}
       <div className="bg-[#cbd5e0] flex items-end px-2 h-9 border-b border-gray-400 gap-1">
-        {/* INÍCIO - Agora usando startsWith para não bugar com parâmetros de URL */}
+        {/* INÍCIO - Sempre estruturalmente presente no HTML */}
         <Link
           href="/dashboard"
           className={`flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold transition-all ${
@@ -73,8 +73,8 @@ export default function DashboardLayout({
           <Home size={14} /> INÍCIO
         </Link>
 
-        {/* ALUNOS - Melhoramos a detecção da rota */}
-        {pathname.includes("/dashboard/alunos") && (
+        {/* ALUNOS - Depende estritamente do endereço na barra do navegador */}
+        {pathname?.includes("/alunos") && (
           <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400">
             <GraduationCap size={14} className="text-blue-600" />
             ALUNOS
