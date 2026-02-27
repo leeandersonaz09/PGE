@@ -4,7 +4,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { X, LogOut, User, Home, GraduationCap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export default function DashboardLayout({
   children,
@@ -14,17 +13,6 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { logout, user, loading } = useAuth();
-
-  const [openTabs, setOpenTabs] = useState<string[]>([]);
-
-  // 👇 Abre automaticamente a aba ALUNOS se entrar na rota
-  useEffect(() => {
-    if (pathname.startsWith("/dashboard/alunos")) {
-      setOpenTabs((prev) =>
-        prev.includes("alunos") ? prev : [...prev, "alunos"]
-      );
-    }
-  }, [pathname]);
 
   const userName =
     user?.user_metadata?.full_name || user?.user_metadata?.name || "Usuário";
@@ -85,8 +73,8 @@ export default function DashboardLayout({
           <Home size={14} /> INÍCIO
         </Link>
 
-        {/* ALUNOS */}
-        {openTabs.includes("alunos") && (
+        {/* ALUNOS - controlado pela rota */}
+        {pathname.startsWith("/dashboard/alunos") && (
           <div
             className={`flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative ${
               pathname.startsWith("/dashboard/alunos")
@@ -97,10 +85,7 @@ export default function DashboardLayout({
             <GraduationCap size={14} className="text-blue-600" />
             ALUNOS
             <button
-              onClick={() => {
-                setOpenTabs((prev) => prev.filter((tab) => tab !== "alunos"));
-                router.push("/dashboard");
-              }}
+              onClick={() => router.push("/dashboard")}
               className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
             >
               <X size={14} />
