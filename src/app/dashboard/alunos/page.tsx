@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
+// Importamos o cliente centralizado que você já configurou
 import { supabase } from "@/lib/supabase";
-import { auth } from "@/lib/firebase"; // Certifique-se que o caminho está correto
-import { onAuthStateChanged } from "firebase/auth";
+import { useAuth } from "@/context/AuthContext";
 import { Search, Loader2, AlertCircle } from "lucide-react";
 import ModalDetalhesAluno from "@/components/ModalDetalhesAluno";
 import ModalOcorrencia from "@/components/ModalOcorrencia";
@@ -10,8 +10,8 @@ import ModalOcorrencia from "@/components/ModalOcorrencia";
 export default function AlunosPage() {
   const [todosAlunos, setTodosAlunos] = useState<any[]>([]);
   const [resultados, setResultados] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const { user, loading: authLoading } = useAuth();
+  const [dataLoading, setDataLoading] = useState(false);
 
   const [filtroSerie, setFiltroSerie] = useState("");
   const [filtroTurma, setFiltroTurma] = useState("");
@@ -19,38 +19,40 @@ export default function AlunosPage() {
   const [selecionado, setSelecionado] = useState<any>(null);
   const [mostrarOcorrencia, setMostrarOcorrencia] = useState(false);
 
-  // INTEGRANDO FIREBASE AUTH COM A BUSCA DO SUPABASE
- // INTEGRANDO FIREBASE AUTH COM A NOSSA API SEGURA
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-    setLoading(true);
-    if (firebaseUser) {
-      setUser(firebaseUser);
+  // BUSCA DE DADOS
+  useEffect(() => {
+    async function carregarAlunos() {
+      // Só busca se o usuário estiver logado
+      if (!user) return;
 
-      // Volta a busca direta pelo cliente Supabase
-      const { data, error } = await supabase
-        .from("alunos")
-        .select("*")
-        .order("nome", { ascending: true });
+      setDataLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("alunos")
+          .select("*")
+          .order("nome", { ascending: true });
 
-      if (!error) {
-        setTodosAlunos(data || []);
-        setResultados(data || []);
+        if (!error) {
+          setTodosAlunos(data || []);
+          setResultados(data || []);
+        } else {
+          console.error("Erro Supabase:", error.message);
+        }
+      } catch (err) {
+        console.error("Erro na requisição:", err);
+      } finally {
+        setDataLoading(false);
       }
-    } else {
-      setUser(null);
     }
-    setLoading(false);
-  });
 
-  return () => unsubscribe();
-}, []);
+    carregarAlunos();
+  }, [user]); // Removido supabase das dependências para evitar loops
 
   // FILTROS DINÂMICOS
   const listaSeries = useMemo(() => {
     const series = todosAlunos.map((a) => String(a.serie));
     return Array.from(new Set(series)).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true }),
+      a.localeCompare(b, undefined, { numeric: true })
     );
   }, [todosAlunos]);
 
@@ -60,12 +62,11 @@ useEffect(() => {
       new Set(
         todosAlunos
           .filter((a) => String(a.serie) === filtroSerie)
-          .map((a) => a.turma),
-      ),
+          .map((a) => a.turma)
+      )
     ).sort();
   }, [filtroSerie, todosAlunos]);
 
-  // LÓGICA DE BUSCA
   const realizarBusca = () => {
     const filtrados = todosAlunos.filter((aluno) => {
       const nomeMatch = aluno.nome
@@ -89,8 +90,16 @@ useEffect(() => {
     }
   };
 
-  // TELA DE ACESSO NEGADO
-  if (!loading && !user) {
+  // ESTADOS DE CARREGAMENTO E ACESSO
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="animate-spin text-blue-600" size={32} />
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-red-600 gap-2 p-4 text-center">
         <AlertCircle size={48} />
@@ -155,7 +164,7 @@ useEffect(() => {
 
       {/* ÁREA DA TABELA */}
       <div className="overflow-auto flex-1 bg-gray-50">
-        {loading ? (
+        {dataLoading ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-blue-600 italic">
             <Loader2 className="animate-spin" size={24} />
             <span>Sincronizando com a base de Salvador...</span>
@@ -185,7 +194,9 @@ useEffect(() => {
                   <tr
                     key={aluno.id}
                     onClick={() => setSelecionado(aluno)}
-                    className={`hover:bg-blue-50 cursor-pointer border-b border-gray-100 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"}`}
+                    className={`hover:bg-blue-50 cursor-pointer border-b border-gray-100 transition-colors ${
+                      index % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"
+                    }`}
                   >
                     <td className="border-r border-gray-100 p-1 text-center font-mono text-gray-500">
                       {aluno.id}
@@ -195,7 +206,11 @@ useEffect(() => {
                     </td>
                     <td className="border-r border-gray-100 p-1 text-center font-bold">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] ${aluno.status === "CURSANDO" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                        className={`px-2 py-0.5 rounded-full text-[10px] ${
+                          aluno.status === "CURSANDO"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
                       >
                         {aluno.status}
                       </span>
@@ -214,7 +229,7 @@ useEffect(() => {
                     colSpan={5}
                     className="p-10 text-center text-gray-400 italic"
                   >
-                    Nenhum aluno encontrado para os filtros aplicados.
+                    Nenhum aluno encontrado.
                   </td>
                 </tr>
               )}

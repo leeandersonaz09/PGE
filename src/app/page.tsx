@@ -1,16 +1,35 @@
 "use client";
-import { useAuth } from "@/context/AuthContext";
+import { createBrowserClient } from "@supabase/ssr";
 import { LogIn, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
-  const { loginGoogle } = useAuth();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  const handleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: "offline",
+          prompt: "select_account",
+          hd: "cspba.com.br",
+        },
+      },
+    });
+
+    if (error) {
+      console.error("Erro ao iniciar login:", error.message);
+      alert("Erro ao conectar com o Google.");
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#E87B35]">
-      {/* PADRÃO DE FUNDO PERSONALIZADO: 
-        Usamos um gradiente radial e um padrão de "dots" (pontos) 
-        inspirado no globo da logomarca do CSP.
-      */}
+      {/* PADRÃO DE FUNDO - Exatamente como o original */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-[#E87B35] via-[#D1621D] to-[#002B54] opacity-95"></div>
         <div
@@ -20,15 +39,13 @@ export default function LoginPage() {
             backgroundSize: "30px 30px",
           }}
         ></div>
-
-        {/* Círculos de luz decorativos para dar modernidade */}
         <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-white/10 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-[-15%] left-[-10%] w-[600px] h-[600px] bg-[#002B54]/40 rounded-full blur-[100px]"></div>
       </div>
 
-      {/* CARD DE LOGIN - Estilo Glassmorphism */}
-      <div className="relative z-10 bg-white/95 backdrop-blur-md p-10 rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] w-full max-w-md border border-white/40 transform transition-all hover:scale-[1.01]">
-        {/* LOGO OFICIAL */}
+      {/* CARD DE LOGIN - Recuperado o max-w-md e o espaçamento central */}
+      <div className="relative z-10 bg-white/95 backdrop-blur-md p-10 rounded-[2.5rem] shadow-[0_25px_50_rgba(0,0,0,0.5)] w-full max-w-md border border-white/40 transform transition-all hover:scale-[1.01]">
+        {/* LOGO E TÍTULO */}
         <div className="flex flex-col items-center mb-8">
           <div className="mb-6 drop-shadow-md">
             <img
@@ -54,9 +71,9 @@ export default function LoginPage() {
           Identifique-se com sua conta institucional.
         </p>
 
-        {/* BOTÃO GOOGLE PREMIUM CUSTOMIZADO */}
+        {/* BOTÃO GOOGLE PREMIUM */}
         <button
-          onClick={loginGoogle}
+          onClick={handleLogin}
           className="w-full flex items-center justify-center gap-4 bg-white border-2 border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-2xl hover:border-[#E87B35]/30 transition-all duration-500 group active:scale-95"
         >
           <div className="bg-white p-1 rounded-lg">
@@ -89,7 +106,7 @@ export default function LoginPage() {
       {/* CRÉDITOS EXTERNOS */}
       <div className="absolute bottom-8 w-full text-center">
         <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.4em]">
-          PGE Salvador © 2026 | Developed by Lee Anderson
+          PGE © 2026 | Developed by Lee Brasil
         </p>
       </div>
     </div>

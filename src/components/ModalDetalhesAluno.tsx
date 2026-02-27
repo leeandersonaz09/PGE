@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { auth } from "@/lib/firebase"; // Importante para validar quem é o dono do registro
+import { useAuth } from "@/context/AuthContext";
 import {
   X,
   FileText,
@@ -28,6 +28,7 @@ export default function ModalDetalhesAluno({
   const [abaAtiva, setAbaAtiva] = useState<"dados" | "historico">("dados");
   const [historico, setHistorico] = useState<any[]>([]);
   const [loadingHist, setLoadingHist] = useState(false);
+  const { user } = useAuth(); // Lógica nova do Supabase
 
   useEffect(() => {
     if (abaAtiva === "historico" && aluno) {
@@ -48,12 +49,9 @@ export default function ModalDetalhesAluno({
   }
 
   async function excluirOcorrencia(id: string, donoId: string) {
-    const usuarioLogado = auth.currentUser;
-
-    // Trava de segurança no Front-end
-    if (!usuarioLogado || usuarioLogado.uid !== donoId) {
+    if (!user || user.id !== donoId) {
       alert(
-        "Operação negada: Apenas o autor original pode excluir este registro.",
+        "Operação negada: Apenas o autor original pode excluir este registro."
       );
       return;
     }
@@ -66,7 +64,6 @@ export default function ModalDetalhesAluno({
     if (error) {
       alert("Erro ao excluir do banco de dados: " + error.message);
     } else {
-      // Remove da lista localmente para atualizar a tela na hora
       setHistorico((prev) => prev.filter((item) => item.id !== id));
     }
   }
@@ -99,13 +96,21 @@ export default function ModalDetalhesAluno({
             <div className="flex gap-1 mt-2">
               <button
                 onClick={() => setAbaAtiva("dados")}
-                className={`px-4 py-1 border border-b-0 rounded-t-sm font-bold shadow-sm transition-colors ${abaAtiva === "dados" ? "bg-white text-blue-700 border-blue-400" : "bg-blue-500 text-white hover:bg-blue-600"}`}
+                className={`px-4 py-1 border border-b-0 rounded-t-sm font-bold shadow-sm transition-colors ${
+                  abaAtiva === "dados"
+                    ? "bg-white text-blue-700 border-blue-400"
+                    : "bg-blue-500 text-white hover:bg-blue-600"
+                }`}
               >
                 Dados Cadastrais
               </button>
               <button
                 onClick={() => setAbaAtiva("historico")}
-                className={`px-4 py-1 border border-b-0 rounded-t-sm font-bold shadow-sm transition-colors ${abaAtiva === "historico" ? "bg-white text-blue-700 border-blue-400" : "bg-blue-500 text-white hover:bg-blue-600"}`}
+                className={`px-4 py-1 border border-b-0 rounded-t-sm font-bold shadow-sm transition-colors ${
+                  abaAtiva === "historico"
+                    ? "bg-white text-blue-700 border-blue-400"
+                    : "bg-blue-500 text-white hover:bg-blue-600"
+                }`}
               >
                 Ocorrências
               </button>
@@ -117,7 +122,7 @@ export default function ModalDetalhesAluno({
         <div className="p-4 space-y-6 overflow-y-auto bg-white max-h-[70vh] min-h-[450px]">
           {abaAtiva === "dados" ? (
             <div className="space-y-6 animate-in fade-in duration-300">
-              {/* INFO ACADÊMICA E E-MAIL DO ALUNO */}
+              {/* INFO ACADÊMICA E E-MAIL - RECUPERADO */}
               <fieldset className="border border-gray-200 p-4 rounded-md relative bg-gray-50/30">
                 <legend className="absolute -top-3 left-4 bg-white px-2 text-blue-600 font-bold text-[10px] uppercase italic">
                   Informações Acadêmicas & Contato
@@ -153,7 +158,11 @@ export default function ModalDetalhesAluno({
                         Status
                       </span>
                       <div
-                        className={`p-1.5 rounded text-center font-bold border ${aluno.status === "CURSANDO" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}
+                        className={`p-1.5 rounded text-center font-bold border ${
+                          aluno.status === "CURSANDO"
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : "bg-red-50 text-red-700 border-red-200"
+                        }`}
                       >
                         {aluno.status}
                       </div>
@@ -178,7 +187,7 @@ export default function ModalDetalhesAluno({
                 </div>
               </fieldset>
 
-              {/* RESPONSÁVEIS */}
+              {/* RESPONSÁVEIS - RECUPERADO TOTAL */}
               <div className="grid grid-cols-3 gap-4">
                 {/* PAI */}
                 <fieldset className="border border-gray-200 p-3 rounded-md bg-blue-50/5 relative">
@@ -311,7 +320,7 @@ export default function ModalDetalhesAluno({
               </div>
             </div>
           ) : (
-            /* ABA HISTÓRICO COM LIXEIRA INTELIGENTE */
+            /* ABA HISTÓRICO - Lógica Supabase mantida */
             <div className="flex flex-col h-full animate-in slide-in-from-bottom-2">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-blue-800 flex items-center gap-2">
@@ -333,46 +342,38 @@ export default function ModalDetalhesAluno({
               ) : (
                 <div className="space-y-3 pb-4">
                   {historico.length > 0 ? (
-                    historico.map((oc) => {
-                      // Verifica se o usuário logado é o dono do registro
-                      const isDono =
-                        auth.currentUser?.uid === oc.colaborador_id;
-
-                      return (
-                        <div
-                          key={oc.id}
-                          className="border border-gray-200 p-3 rounded-sm bg-gray-50 hover:bg-blue-50 transition-colors shadow-sm relative group"
-                        >
-                          <div className="flex justify-between text-[10px] text-gray-500 mb-2 border-b border-gray-100 pb-1 italic">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-blue-600 uppercase">
-                                COLABORADOR: {oc.colaborador_nome || "SISTEMA"}
-                              </span>
-                              <span className="font-bold">
-                                {new Date(oc.data).toLocaleString("pt-BR")}
-                              </span>
-                            </div>
-
-                            {/* ÍCONE DE LIXEIRA - SÓ APARECE PARA O DONO */}
-                            {isDono && (
-                              <button
-                                onClick={() =>
-                                  excluirOcorrencia(oc.id, oc.colaborador_id)
-                                }
-                                className="flex items-center gap-1 text-red-400 hover:text-red-600 transition-colors p-1"
-                                title="Excluir meu registro"
-                              >
-                                <Trash2 size={13} />
-                                <span className="font-bold">EXCLUIR</span>
-                              </button>
-                            )}
+                    historico.map((oc) => (
+                      <div
+                        key={oc.id}
+                        className="border border-gray-200 p-3 rounded-sm bg-gray-50 hover:bg-blue-50 transition-colors shadow-sm relative group"
+                      >
+                        <div className="flex justify-between text-[10px] text-gray-500 mb-2 border-b border-gray-100 pb-1 italic">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-blue-600 uppercase">
+                              COLABORADOR: {oc.colaborador_nome || "SISTEMA"}
+                            </span>
+                            <span className="font-bold">
+                              {new Date(oc.data).toLocaleString("pt-BR")}
+                            </span>
                           </div>
-                          <p className="text-gray-700 leading-relaxed text-justify text-[11px]">
-                            {oc.texto}
-                          </p>
+                          {user?.id === oc.colaborador_id && (
+                            <button
+                              onClick={() =>
+                                excluirOcorrencia(oc.id, oc.colaborador_id)
+                              }
+                              className="flex items-center gap-1 text-red-400 hover:text-red-600 transition-colors p-1"
+                              title="Excluir meu registro"
+                            >
+                              <Trash2 size={13} />{" "}
+                              <span className="font-bold">EXCLUIR</span>
+                            </button>
+                          )}
                         </div>
-                      );
-                    })
+                        <p className="text-gray-700 leading-relaxed text-justify text-[11px]">
+                          {oc.texto}
+                        </p>
+                      </div>
+                    ))
                   ) : (
                     <div className="text-center py-20 text-gray-400 italic border-2 border-dashed border-gray-100 rounded-lg">
                       Não existem ocorrências registradas para este aluno.

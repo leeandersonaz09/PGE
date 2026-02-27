@@ -2,13 +2,15 @@
   "name": "pge",
   "version": "0.1.0",
   "private": true,
-"scripts": {
-  "dev": "next dev",
-  "build": "next build || exit 0", 
-  "start": "next start",
-  "lint": "next lint"
-},
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build || exit 0",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.98.0",
     "firebase": "^12.9.0",
     "firebase-admin": "^13.7.0",
