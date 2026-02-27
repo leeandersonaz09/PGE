@@ -10,7 +10,10 @@ export async function middleware(request: NextRequest) {
   // Nota: Para este middleware funcionar, o seu Login deve salvar o Token no cookie '__session'.
   const session = request.cookies.get('__session')?.value;
   const { pathname } = request.nextUrl;
-
+    // Se estiver na raiz, não faça nada, deixe a page.tsx decidir
+  if (pathname === '/') {
+    return NextResponse.next();
+  }
   // Proteção das rotas do Dashboard
   if (pathname.startsWith('/dashboard')) {
     
