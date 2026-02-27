@@ -11,25 +11,33 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
   const { logout, user, loading } = useAuth();
+
+  // 1. TRAVA DE SESSÃO: Impede que a tela carregue "vazia" (como na sua print)
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#f1f5f9] text-blue-600 font-bold text-sm italic">
+        Sincronizando credenciais...
+      </div>
+    );
+  }
 
   const userName =
     user?.user_metadata?.full_name || user?.user_metadata?.name || "Usuário";
-
   const userPhoto =
     user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
-    <div className="flex flex-col h-screen bg-[#f1f5f9] font-sans">
-      {/* HEADER - Adicionado 'shrink-0' para o flexbox não esmagá-lo */}
+    <div className="flex flex-col h-screen w-full bg-[#f1f5f9] font-sans overflow-hidden">
+      {/* 2. HEADER - O 'shrink-0' blinda a barra contra esmagamento do CSS */}
       <header className="shrink-0 bg-[#3182ce] text-white p-2 flex justify-between items-center text-[11px] px-4 shadow-md z-50">
         <div className="flex items-center gap-3">
           <span className="font-semibold tracking-tight">
             PGE - Portal de Gestão Educacional (2026)
           </span>
 
-          {!loading && user && (
+          {user && (
             <div className="flex items-center gap-2 border-l border-blue-400 pl-4 ml-2">
               <span className="italic text-blue-100 hidden sm:inline">
                 Olá, {userName.split(" ")[0]}
@@ -59,7 +67,7 @@ export default function DashboardLayout({
         </button>
       </header>
 
-      {/* TABS - Adicionado 'shrink-0' para fixar a altura em h-9 aconteça o que acontecer */}
+      {/* 3. TABS - O 'shrink-0' garante que as abas NUNCA sumam */}
       <div className="shrink-0 bg-[#cbd5e0] flex items-end px-2 h-9 border-b border-gray-400 gap-1">
         <Link
           href="/dashboard"
@@ -72,13 +80,14 @@ export default function DashboardLayout({
           <Home size={14} /> INÍCIO
         </Link>
 
-        {pathname?.includes("/dashboard/alunos") && (
+        {pathname.includes("/dashboard/alunos") && (
           <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400">
             <GraduationCap size={14} className="text-blue-600" />
             ALUNOS
             <button
               onClick={() => router.push("/dashboard")}
               className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+              title="Fechar módulo"
             >
               <X size={14} />
             </button>
@@ -86,8 +95,8 @@ export default function DashboardLayout({
         )}
       </div>
 
-      {/* MAIN - Adicionado 'overflow-auto' para que apenas o conteúdo da página role, mantendo as barras paradas */}
-      <main className="flex-1 overflow-auto bg-white">{children}</main>
+      {/* 4. MAIN - 'overflow-auto' (NÃO hidden) obriga o conteúdo a rolar só aqui dentro */}
+      <main className="flex-1 overflow-auto bg-white relative">{children}</main>
     </div>
   );
 }
