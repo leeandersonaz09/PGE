@@ -10,7 +10,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Inicialização estável do cliente Supabase
   const supabase = useMemo(
     () =>
       createBrowserClient(
@@ -18,9 +17,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           auth: {
-            detectSessionInUrl: false, // Evita erro 404 PKCE em produção
+            detectSessionInUrl: false, // O route.ts cuidará disso no servidor
             persistSession: true,
             autoRefreshToken: true,
+            flowType: "pkce", // Força o fluxo de segurança para evitar o erro 404
           },
         }
       ),
@@ -28,12 +28,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    // FUNÇÃO VITAL: Busca a sessão nos cookies assim que o app monta
     const initializeAuth = async () => {
       try {
         const {
           data: { session },
         } = await supabase.auth.getSession();
+
         if (session?.user) {
           const email = session.user.email;
           const dominiosAutorizados = ["cspba.com.br", "anchietaba.com.br"];
@@ -46,13 +46,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Erro na inicialização:", error);
       } finally {
-        setLoading(false); // Libera as abas após a checagem
+        setLoading(false);
       }
     };
 
     initializeAuth();
 
-    // Escuta mudanças de estado (Login/Logout)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -84,17 +83,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginGoogle = async () => {
     try {
-      // Redirecionamento absoluto para o callback de produção
       const callbackURL = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: callbackURL,
+          skipBrowserRedirect: false, // Garante que o fluxo de redirecionamento ocorra após o login
           queryParams: {
             access_type: "offline",
             prompt: "select_account",
-            hd: "cspba.com.br",
+            hd: "cspba.com.br", // Restrição de domínio sugerida ao Google
           },
         },
       });

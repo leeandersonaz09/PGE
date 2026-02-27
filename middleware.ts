@@ -8,6 +8,9 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  // Adiciona cabeçalho para evitar cache do middleware no Netlify
+  response.headers.set("x-middleware-cache", "no-cache");
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -43,6 +46,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // Refresca a sessão do usuário se necessário
   await supabase.auth.getUser();
 
   return response;
@@ -50,6 +54,11 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    /*
+     * Aplica o middleware em todas as rotas, exceto:
+     * - arquivos estáticos (_next/static, images, favicon)
+     * - rota de autenticação (/auth)
+     */
     "/((?!_next/static|_next/image|favicon.ico|auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
