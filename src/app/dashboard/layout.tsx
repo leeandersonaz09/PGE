@@ -26,7 +26,7 @@ export default function DashboardLayout({
       <Header />
 
       {/* 3. Componente das Abas isolado */}
-      <TabsBar />
+      
 
       {/* 4. MAIN - 'overflow-auto' obriga o conteúdo a rolar só aqui dentro */}
       <main className="flex-1 overflow-auto bg-white relative">{children}</main>
