@@ -1,29 +1,25 @@
 "use client";
-import { createBrowserClient } from "@supabase/ssr";
+
 import { LogIn, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const { loginGoogle } = useAuth();
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: {
-          access_type: "offline",
-          prompt: "select_account",
-          hd: "cspba.com.br",
-        },
-      },
-    });
+    if (loading) return;
 
-    if (error) {
-      console.error("Erro ao iniciar login:", error.message);
+    try {
+      setLoading(true);
+      await loginGoogle();
+      // não precisa setLoading(false)
+      // pois haverá redirecionamento
+    } catch (error: any) {
+      console.error("Erro ao iniciar login:", error?.message);
       alert("Erro ao conectar com o Google.");
+      setLoading(false);
     }
   };
 
@@ -43,7 +39,7 @@ export default function LoginPage() {
         <div className="absolute bottom-[-15%] left-[-10%] w-[600px] h-[600px] bg-[#002B54]/40 rounded-full blur-[100px]"></div>
       </div>
 
-      {/* CARD DE LOGIN - Recuperado o max-w-md e o espaçamento central */}
+      {/* CARD DE LOGIN */}
       <div className="relative z-10 bg-white/95 backdrop-blur-md p-10 rounded-[2.5rem] shadow-[0_25px_50_rgba(0,0,0,0.5)] w-full max-w-md border border-white/40 transform transition-all hover:scale-[1.01]">
         {/* LOGO E TÍTULO */}
         <div className="flex flex-col items-center mb-8">
@@ -74,7 +70,8 @@ export default function LoginPage() {
         {/* BOTÃO GOOGLE PREMIUM */}
         <button
           onClick={handleLogin}
-          className="w-full flex items-center justify-center gap-4 bg-white border-2 border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-2xl hover:border-[#E87B35]/30 transition-all duration-500 group active:scale-95"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-4 bg-white border-2 border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-2xl hover:border-[#E87B35]/30 transition-all duration-500 group active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
         >
           <div className="bg-white p-1 rounded-lg">
             <svg className="w-6 h-6" viewBox="0 0 24 24">
@@ -86,8 +83,9 @@ export default function LoginPage() {
           </div>
 
           <span className="text-[#002B54] font-black text-lg tracking-tight">
-            Acessar com Google
+            {loading ? "Conectando..." : "Acessar com Google"}
           </span>
+
           <LogIn
             size={20}
             className="text-[#E87B35] group-hover:translate-x-1 transition-transform duration-300"

@@ -1,22 +1,33 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  output: "standalone",
+
+  reactStrictMode: true,
+
   images: {
+    unoptimized: true, // importante na Netlify
     remotePatterns: [
-      { protocol: 'https', hostname: '**.supabase.co' },
-      { protocol: 'https', hostname: '**.cspba.com.br' },
+      { protocol: "https", hostname: "**.supabase.co" },
+      { protocol: "https", hostname: "**.cspba.com.br" },
     ],
   },
-  // ESTA PARTE RESOLVE O ERRO DE COOP
+
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: "/(.*)",
         headers: [
+          // Corrige problema de OAuth popup Google
           {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin-allow-popups',
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+
+          // Evita cache agressivo que quebra sessão
+          {
+            key: "Cache-Control",
+            value: "no-store",
           },
         ],
       },

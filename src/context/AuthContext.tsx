@@ -1,119 +1,84 @@
 "use client";
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 
 const AuthContext = createContext<any>(null);
+
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      flowType: "pkce",
+    },
+  }
+);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const supabase = useMemo(
-    () =>
-      createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          auth: {
-            detectSessionInUrl: false, // O route.ts cuidará disso no servidor
-            persistSession: true,
-            autoRefreshToken: true,
-            flowType: "pkce", // Força o fluxo de segurança para evitar o erro 404
-          },
-        }
-      ),
-    []
-  );
-
   useEffect(() => {
     const initializeAuth = async () => {
-      try {
-        // Tenta buscar a sessão
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-        if (session?.user) {
-          const email = session.user.email;
-          const dominios = ["cspba.com.br", "anchietaba.com.br"];
-          const dominioUsuario = email?.split("@")[1];
-
-          if (dominioUsuario && dominios.includes(dominioUsuario)) {
-            setUser(session.user);
-          }
-        } else if (error) {
-          console.error("Erro na sessão:", error.message);
-        }
-      } catch (error) {
-        console.error("Erro fatal:", error);
-      } finally {
-        setLoading(false);
+      if (session?.user) {
+        validateUser(session.user);
       }
+
+      setLoading(false);
     };
 
     initializeAuth();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        const email = session.user.email;
-        const dominiosAutorizados = ["cspba.com.br", "anchietaba.com.br"];
-        const dominioUsuario = email?.split("@")[1];
-
-        if (dominioUsuario && dominiosAutorizados.includes(dominioUsuario)) {
-          setUser(session.user);
-        } else {
-          await supabase.auth.signOut();
-          setUser(null);
-          router.push("/");
-        }
+        validateUser(session.user);
       } else {
         setUser(null);
-        if (event === "SIGNED_OUT") {
-          router.push("/");
-        }
       }
-      setLoading(false);
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router, supabase]);
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const loginGoogle = async () => {
-    try {
-      const callbackURL = `${window.location.origin}/auth/callback`;
+  const validateUser = (user: any) => {
+    const dominios = ["cspba.com.br", "anchietaba.com.br"];
+    const dominioUsuario = user.email?.split("@")[1];
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: callbackURL,
-          skipBrowserRedirect: false, // Garante que o fluxo de redirecionamento ocorra após o login
-          queryParams: {
-            access_type: "offline",
-            prompt: "select_account",
-            hd: "cspba.com.br", // Restrição de domínio sugerida ao Google
-          },
-        },
-      });
-      if (error) throw error;
-    } catch (error) {
-      console.error("Erro no login:", error);
+    if (dominioUsuario && dominios.includes(dominioUsuario)) {
+      setUser(user);
+    } else {
+      supabase.auth.signOut();
+      setUser(null);
+      router.push("/");
     }
   };
 
+  const loginGoogle = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        queryParams: {
+          access_type: "offline",
+          prompt: "select_account",
+        },
+      },
+    });
+  };
+
   const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push("/");
-    } catch (error) {
-      console.error("Erro ao sair:", error);
-    }
+    await supabase.auth.signOut();
+    router.push("/");
   };
 
   return (
