@@ -10,7 +10,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Inicialização estável com a trava para erro 404 (PKCE)
+  // Configuração estável do cliente Supabase para ambiente SSR (Next.js 16)
   const supabase = useMemo(
     () =>
       createBrowserClient(
@@ -18,7 +18,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           auth: {
-            detectSessionInUrl: false, // ESSENCIAL: Evita que o cliente tente processar o código 2x
+            // Importante: Impede que o cliente tente processar o código da URL,
+            // deixando essa tarefa exclusiva para o seu arquivo /auth/callback/route.ts
+            detectSessionInUrl: false,
             persistSession: true,
             autoRefreshToken: true,
           },
@@ -36,10 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const dominiosAutorizados = ["cspba.com.br", "anchietaba.com.br"];
         const dominioUsuario = email?.split("@")[1];
 
-        // --- TRAVA DE SEGURANÇA POR DOMÍNIO ---
+        // Trava de segurança por domínio institucional
         if (dominioUsuario && dominiosAutorizados.includes(dominioUsuario)) {
           setUser(session.user);
         } else {
+          // Expulsa usuários fora do domínio do colégio
           await supabase.auth.signOut();
           setUser(null);
           alert(
@@ -63,11 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginGoogle = async () => {
     try {
+      // Forçamos a URL de produção para evitar que o código fique "preso" na URL do Dashboard
+      const productionURL = "https://pgegea.netlify.app/auth/callback";
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // Garante o fluxo para o seu arquivo /auth/callback/route.ts
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: productionURL,
           queryParams: {
             access_type: "offline",
             prompt: "select_account",
