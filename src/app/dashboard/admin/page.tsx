@@ -186,35 +186,44 @@ const salvarAlteracoes = async () => {
   if (!editandoUser) return;
   setSalvando(true);
 
-  console.log("Tentando salvar para o UID:", editandoUser.user_id);
-  console.log("Dados enviados:", {
-    is_admin: editandoUser.is_admin,
-    sedes_permitidas: editandoUser.sedes_permitidas,
-    modulos_permitidos: editandoUser.modulos_permitidos,
-  });
+  // LOGS DE DEBUG: Abra o console do navegador (F12) para ver se os dados estão certos
+  console.log("Tentando salvar para UID:", editandoUser.user_id);
+
+  // Garantimos que os IDs das sedes sejam Números inteiros, removendo duplicatas
+  const sedesFormatadas = Array.from(
+    new Set(editandoUser.sedes_permitidas?.map((id: any) => Number(id)) || []),
+  );
+  const modulosFormatados = Array.from(
+    new Set(editandoUser.modulos_permitidos || []),
+  );
 
   const { data, error, status } = await supabase
     .from("permissoes_usuarios")
     .update({
       is_admin: editandoUser.is_admin,
-      sedes_permitidas: editandoUser.sedes_permitidas,
-      modulos_permitidos: editandoUser.modulos_permitidos,
+      sedes_permitidas: sedesFormatadas,
+      modulos_permitidos: modulosFormatados,
     })
     .eq("user_id", editandoUser.user_id)
-    .select(); // O .select() força o banco a retornar o que foi alterado
+    .select(); // Força o Supabase a retornar o dado alterado
 
   if (error) {
     console.error("Erro detalhado do Supabase:", error);
-    alert(`Erro ao salvar: ${error.message} (Status: ${status})`);
+    alert(`Erro técnico: ${error.message} (Código: ${error.code})`);
   } else if (data && data.length > 0) {
-    console.log("Salvo com sucesso! Dados retornados:", data);
+    console.log("✅ Salvo com sucesso! Resposta do banco:", data);
     setModalAberto(false);
-    // Recarrega os dados para garantir que a tabela mostre o novo valor do banco
+    // Recarrega a lista para mostrar os novos privilégios na tabela principal
     await carregarDadosIniciais();
+    alert("Permissões atualizadas com sucesso!");
   } else {
-    // Se caiu aqui, o SQL rodou mas não achou a linha ou o RLS bloqueou silenciosamente
+    // Se o banco não retornar erro mas a data vier vazia, o RLS bloqueou você
+    console.error(
+      "Aviso: O banco não retornou erro, mas não alterou nada. Status:",
+      status,
+    );
     alert(
-      "Atenção: O banco não foi alterado. Verifique se você tem permissões de Administrador.",
+      "Atenção: Você não tem permissão de Administrador no banco de dados para realizar esta alteração.",
     );
   }
 
