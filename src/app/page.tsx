@@ -52,7 +52,7 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center">
-            <h1 className="text-[[#E87B35] text-5xl font-black tracking-tighter italic leading-none">
+            <h1 className="text-[#E87B35] text-5xl font-black tracking-tighter italic leading-none">
               PGE
             </h1>
           </div>
