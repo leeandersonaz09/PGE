@@ -52,12 +52,9 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center">
-            <h1 className="text-[#002B54] text-5xl font-black tracking-tighter italic leading-none">
+            <h1 className="text-[[#E87B35] text-5xl font-black tracking-tighter italic leading-none">
               PGE
             </h1>
-            <p className="text-[#E87B35] text-[10px] font-black uppercase tracking-[0.3em] mt-2 ml-1">
-              Colégio São Paulo - Itaigara
-            </p>
           </div>
           <div className="w-16 h-1 bg-[#002B54] mt-6 rounded-full opacity-20"></div>
         </div>
