@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { X, Home, GraduationCap, Stethoscope } from "lucide-react";
+import {
+  X,
+  Home,
+  GraduationCap,
+  Stethoscope,
+  ClipboardList,
+} from "lucide-react";
 import Link from "next/link";
 
 export default function TabsBar() {
@@ -13,6 +19,7 @@ export default function TabsBar() {
   const isInicio = pathname === "/dashboard" || pathname === "/dashboard/";
   const isAlunos = pathname.includes("/alunos");
   const isRepouso = pathname.includes("/repouso");
+  const isHistorico = pathname.includes("/historico");
 
   return (
     // 2. O 'shrink-0' é o nosso escudo de proteção contra o Flexbox
@@ -55,6 +62,23 @@ export default function TabsBar() {
         <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
           <Stethoscope size={14} className="text-[#4db6ac]" />
           SALA DE REPOUSO
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+            title="Fechar aba"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* =========================================
+          ABA 4: HISTÓRICO DE ATENDIMENTOS
+      ========================================= */}
+      {isHistorico && (
+        <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
+          <ClipboardList size={14} className="text-[#8b5cf6]" />
+          HISTÓRICO MÉDICO
           <button
             onClick={() => router.push("/dashboard")}
             className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"

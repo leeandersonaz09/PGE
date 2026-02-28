@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { GraduationCap, Stethoscope } from "lucide-react";
+import { GraduationCap, Stethoscope, ClipboardList } from "lucide-react";
 
 // Lista simplificada com apenas os dois módulos solicitados
 const modulos = [
@@ -13,8 +13,14 @@ const modulos = [
   {
     nome: "Encaminhar Sala de Repouso",
     icon: <Stethoscope size={32} />,
-    rota: "#",
+    rota: "/dashboard/repouso",
     cor: "bg-[#4db6ac]",
+  },
+  {
+    nome: "Histórico de Atendimentos",
+    icon: <ClipboardList size={32} />,
+    rota: "/dashboard/historico",
+    cor: "bg-[#8b5cf6]", // Uma cor roxa legal para diferenciar dos outros
   },
 ];
 
