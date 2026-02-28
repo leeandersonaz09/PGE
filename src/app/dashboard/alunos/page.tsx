@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
-// Importamos o cliente centralizado que você já configurou
+// Importamos o cliente centralizado
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useColigada } from "@/context/ColigadaContext"; // <-- Importamos o contexto das coligadas
 import { Search, Loader2, AlertCircle } from "lucide-react";
 import ModalDetalhesAluno from "@/components/ModalDetalhesAluno";
 import ModalOcorrencia from "@/components/ModalOcorrencia";
@@ -11,6 +12,7 @@ export default function AlunosPage() {
   const [todosAlunos, setTodosAlunos] = useState<any[]>([]);
   const [resultados, setResultados] = useState<any[]>([]);
   const { user, loading: authLoading } = useAuth();
+  const { coligadaAtual, loadingColigadas } = useColigada(); // <-- Puxamos a unidade ativa
   const [dataLoading, setDataLoading] = useState(false);
 
   const [filtroSerie, setFiltroSerie] = useState("");
@@ -19,17 +21,24 @@ export default function AlunosPage() {
   const [selecionado, setSelecionado] = useState<any>(null);
   const [mostrarOcorrencia, setMostrarOcorrencia] = useState(false);
 
-  // BUSCA DE DADOS
+  // BUSCA DE DADOS - Agora depende da Coligada Selecionada
   useEffect(() => {
     async function carregarAlunos() {
-      // Só busca se o usuário estiver logado
-      if (!user) return;
+      // Só busca se o usuário estiver logado e a coligada estiver definida
+      if (!user || !coligadaAtual) return;
 
       setDataLoading(true);
+
+      // Resetamos os filtros locais ao trocar de unidade para evitar conflitos
+      setFiltroSerie("");
+      setFiltroTurma("");
+      setBuscaNome("");
+
       try {
         const { data, error } = await supabase
           .from("alunos")
           .select("*")
+          .eq("sede_id", coligadaAtual.id) // <-- FILTRO MÁGICO: Só traz alunos desta coligada
           .order("nome", { ascending: true });
 
         if (!error) {
@@ -46,13 +55,13 @@ export default function AlunosPage() {
     }
 
     carregarAlunos();
-  }, [user]); // Removido supabase das dependências para evitar loops
+  }, [user, coligadaAtual]); // Re-executa sempre que você mudar a coligada no Header!
 
   // FILTROS DINÂMICOS
   const listaSeries = useMemo(() => {
     const series = todosAlunos.map((a) => String(a.serie));
     return Array.from(new Set(series)).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true })
+      a.localeCompare(b, undefined, { numeric: true }),
     );
   }, [todosAlunos]);
 
@@ -62,8 +71,8 @@ export default function AlunosPage() {
       new Set(
         todosAlunos
           .filter((a) => String(a.serie) === filtroSerie)
-          .map((a) => a.turma)
-      )
+          .map((a) => a.turma),
+      ),
     ).sort();
   }, [filtroSerie, todosAlunos]);
 
@@ -91,7 +100,7 @@ export default function AlunosPage() {
   };
 
   // ESTADOS DE CARREGAMENTO E ACESSO
-  if (authLoading) {
+  if (authLoading || loadingColigadas) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="animate-spin text-blue-600" size={32} />
@@ -115,6 +124,12 @@ export default function AlunosPage() {
     <div className="flex flex-col h-full bg-white font-sans text-[11px] text-gray-800">
       {/* BARRA DE FILTROS */}
       <div className="bg-[#cbd5e0] p-1 flex gap-2 items-center border-b border-gray-400">
+        <div className="flex items-center gap-1 px-2 border-r border-gray-400 mr-1">
+          <span className="font-bold text-blue-700 uppercase">
+            {coligadaAtual?.sigla}
+          </span>
+        </div>
+
         <select
           value={filtroSerie}
           onChange={(e) => {
@@ -167,7 +182,7 @@ export default function AlunosPage() {
         {dataLoading ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-blue-600 italic">
             <Loader2 className="animate-spin" size={24} />
-            <span>Sincronizando com a base de Salvador...</span>
+            <span>Sincronizando com a base de {coligadaAtual?.nome}...</span>
           </div>
         ) : (
           <table className="w-full border-collapse bg-white">
@@ -229,7 +244,7 @@ export default function AlunosPage() {
                     colSpan={5}
                     className="p-10 text-center text-gray-400 italic"
                   >
-                    Nenhum aluno encontrado.
+                    Nenhum aluno encontrado em {coligadaAtual?.nome}.
                   </td>
                 </tr>
               )}

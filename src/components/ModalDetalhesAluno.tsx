@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useColigada } from "@/context/ColigadaContext"; // <-- Importamos o cérebro das coligadas
 import {
   X,
   FileText,
@@ -28,20 +29,26 @@ export default function ModalDetalhesAluno({
   const [abaAtiva, setAbaAtiva] = useState<"dados" | "historico">("dados");
   const [historico, setHistorico] = useState<any[]>([]);
   const [loadingHist, setLoadingHist] = useState(false);
-  const { user } = useAuth(); // Lógica nova do Supabase
+  const { user } = useAuth();
+
+  // Puxamos a coligada atual para usar nos filtros e no título
+  const { coligadaAtual } = useColigada();
 
   useEffect(() => {
-    if (abaAtiva === "historico" && aluno) {
+    if (abaAtiva === "historico" && aluno && coligadaAtual) {
       buscarOcorrencias();
     }
-  }, [abaAtiva, aluno]);
+  }, [abaAtiva, aluno, coligadaAtual]);
 
   async function buscarOcorrencias() {
+    if (!coligadaAtual) return;
+
     setLoadingHist(true);
     const { data, error } = await supabase
       .from("ocorrencias")
       .select("*")
       .eq("aluno_id", aluno.id)
+      .eq("sede_id", coligadaAtual.id) // <-- FILTRO DE SEGURANÇA DA COLIGADA
       .order("data", { ascending: false });
 
     if (!error) setHistorico(data || []);
@@ -51,7 +58,7 @@ export default function ModalDetalhesAluno({
   async function excluirOcorrencia(id: string, donoId: string) {
     if (!user || user.id !== donoId) {
       alert(
-        "Operação negada: Apenas o autor original pode excluir este registro."
+        "Operação negada: Apenas o autor original pode excluir este registro.",
       );
       return;
     }
@@ -75,7 +82,8 @@ export default function ModalDetalhesAluno({
       <div className="bg-white w-full max-w-[1100px] border border-gray-400 shadow-2xl flex flex-col overflow-hidden rounded-sm">
         {/* HEADER */}
         <div className="bg-[#3182ce] p-1 px-3 text-white flex justify-between items-center font-bold">
-          <span>Prontuário do Aluno - PGE Salvador</span>
+          {/* TÍTULO DINÂMICO BASEADO NA COLIGADA */}
+          <span>Prontuário do Aluno - {coligadaAtual?.nome || "PGE"}</span>
           <button
             onClick={onClose}
             className="hover:text-red-200 transition-colors"

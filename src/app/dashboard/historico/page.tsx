@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useColigada } from "@/context/ColigadaContext"; // <-- Importamos o contexto
 import {
   Search,
   Loader2,
@@ -16,23 +17,29 @@ export default function HistoricoRepousoPage() {
   const [loadingDados, setLoadingDados] = useState(true);
   const [buscaNome, setBuscaNome] = useState("");
 
+  const { coligadaAtual, loadingColigadas } = useColigada(); // <-- Puxamos a unidade ativa
+
   useEffect(() => {
-    carregarHistorico();
-  }, []);
+    if (coligadaAtual) {
+      carregarHistorico();
+    }
+  }, [coligadaAtual]); // Recarrega sempre que mudar a coligada no Header
 
   const carregarHistorico = async () => {
+    if (!coligadaAtual) return;
     setLoadingDados(true);
 
-    // Busca apenas os que já foram atendidos e junta com os dados do aluno
+    // Busca apenas os que já foram atendidos, junta com os dados do aluno e FILTRA POR SEDE
     const { data, error } = await supabase
       .from("encaminhamentos_repouso")
       .select(
         `
         *,
         aluno:alunos(id, nome, turma, serie)
-      `
+      `,
       )
       .eq("status", "atendido")
+      .eq("sede_id", coligadaAtual.id) // <-- FILTRO MÁGICO DE SEDE
       .order("hora_atendimento", { ascending: false });
 
     if (!error && data) {
@@ -55,15 +62,15 @@ export default function HistoricoRepousoPage() {
       return;
     }
     const filtrados = historico.filter((item) =>
-      item.aluno?.nome?.toLowerCase().includes(buscaNome.toLowerCase())
+      item.aluno?.nome?.toLowerCase().includes(buscaNome.toLowerCase()),
     );
     setResultados(filtrados);
   };
 
   // --- FUNÇÃO DE EXPORTAR PARA EXCEL (CSV) ---
   const exportarExcel = () => {
-    // Cabeçalhos das colunas
     const cabecalhos = [
+      "Unidade",
       "RA",
       "Nome do Aluno",
       "Série",
@@ -76,13 +83,13 @@ export default function HistoricoRepousoPage() {
       "Destino",
     ];
 
-    // Mapeia os dados substituindo quebras de linha e aspas para não quebrar o Excel
     const linhas = resultados.map((item) => {
       const dataFormatada = item.hora_atendimento
         ? new Date(item.hora_atendimento).toLocaleString("pt-BR")
         : "";
 
       return [
+        coligadaAtual?.sigla || "",
         item.aluno?.id || "",
         item.aluno?.nome || "",
         `${item.aluno?.serie || ""}º Ano`,
@@ -95,40 +102,55 @@ export default function HistoricoRepousoPage() {
         item.destino === "sala"
           ? "Liberado para Sala"
           : item.destino === "casa"
-          ? "Liberado para Casa"
-          : item.destino,
+            ? "Liberado para Casa"
+            : item.destino,
       ];
     });
 
-    // Junta tudo com ponto e vírgula (padrão do Excel em português)
     const conteudoCsv = [
       cabecalhos.join(";"),
       ...linhas.map((linha) => linha.join(";")),
     ].join("\n");
 
-    // O \ufeff garante que o Excel leia os acentos (UTF-8)
     const blob = new Blob(["\ufeff" + conteudoCsv], {
       type: "text/csv;charset=utf-8;",
     });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `Historico_Enfermaria_${new Date()
+
+    // Nome do arquivo agora inclui a sigla da unidade
+    const nomeArquivo = `Historico_Enfermaria_${coligadaAtual?.sigla}_${new Date()
       .toLocaleDateString("pt-BR")
       .replace(/\//g, "-")}.csv`;
+
+    link.download = nomeArquivo;
     link.click();
   };
+
+  if (loadingColigadas) {
+    return (
+      <div className="flex items-center justify-center h-full text-[#3182ce] font-bold italic">
+        Sincronizando Unidade...
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-white font-sans text-[11px] text-gray-800">
       {/* BARRA SUPERIOR E FILTROS */}
       <div className="bg-[#cbd5e0] p-2 flex justify-between items-center border-b border-gray-400">
         <div className="flex gap-2 items-center flex-1">
+          {/* Indicador de Unidade Atual */}
+          <div className="bg-white border border-gray-400 rounded-sm px-2 h-7 flex items-center font-bold text-blue-700 uppercase mr-1">
+            {coligadaAtual?.sigla}
+          </div>
+
           <input
             type="text"
             value={buscaNome}
             onChange={(e) => setBuscaNome(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && realizarBusca()}
-            placeholder="Buscar por nome do aluno..."
+            placeholder={`Buscar em ${coligadaAtual?.nome}...`}
             className="border border-gray-400 rounded-sm px-2 h-7 w-full max-w-md bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#3182ce]"
           />
           <button
@@ -153,7 +175,7 @@ export default function HistoricoRepousoPage() {
         {loadingDados ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-[#3182ce] italic">
             <Loader2 className="animate-spin" size={24} />
-            <span>Carregando histórico de atendimentos...</span>
+            <span>Consultando base de {coligadaAtual?.nome}...</span>
           </div>
         ) : (
           <table className="w-full border-collapse bg-white">
@@ -192,14 +214,14 @@ export default function HistoricoRepousoPage() {
                     <td className="border-r border-gray-100 p-2 text-center font-bold text-gray-500">
                       {item.hora_atendimento
                         ? new Date(item.hora_atendimento).toLocaleDateString(
-                            "pt-BR"
+                            "pt-BR",
                           )
                         : "--"}
                       <span className="block text-[9px] font-normal">
                         {item.hora_atendimento
                           ? new Date(item.hora_atendimento).toLocaleTimeString(
                               "pt-BR",
-                              { hour: "2-digit", minute: "2-digit" }
+                              { hour: "2-digit", minute: "2-digit" },
                             )
                           : ""}
                       </span>
@@ -254,7 +276,8 @@ export default function HistoricoRepousoPage() {
                     <div className="flex flex-col items-center gap-2">
                       <AlertCircle size={32} />
                       <span className="italic text-sm">
-                        Nenhum atendimento finalizado encontrado no histórico.
+                        Nenhum atendimento finalizado encontrado em{" "}
+                        {coligadaAtual?.nome}.
                       </span>
                     </div>
                   </td>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useColigada } from "@/context/ColigadaContext";
 import { supabase } from "@/lib/supabase";
 import {
   Plus,
@@ -29,6 +30,8 @@ type Encaminhamento = {
 
 export default function SalaRepousoPage() {
   const { user } = useAuth();
+  const { coligadaAtual, loadingColigadas } = useColigada();
+
   const userName =
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
@@ -51,41 +54,37 @@ export default function SalaRepousoPage() {
 
   // Estados para Atendimento
   const [cardSelecionado, setCardSelecionado] = useState<Encaminhamento | null>(
-    null
+    null,
   );
   const [obsAtendimento, setObsAtendimento] = useState("");
   const [destino, setDestino] = useState<"sala" | "casa" | "">("");
 
-  // --- BUSCA INICIAL DE DADOS (SUPABASE) ---
   useEffect(() => {
-    carregarDados();
-  }, []);
+    if (user && coligadaAtual) {
+      carregarDados();
+    }
+  }, [user, coligadaAtual]);
 
   const carregarDados = async () => {
+    if (!coligadaAtual) return;
     setLoadingDados(true);
 
-    // 1. Busca todos os alunos para a barra de pesquisa
     const { data: dadosAlunos } = await supabase
       .from("alunos")
       .select("id, nome, turma")
+      .eq("sede_id", coligadaAtual.id)
       .order("nome");
 
     if (dadosAlunos) setAlunosDb(dadosAlunos);
 
-    // 2. Busca apenas os encaminhamentos "aguardando" com os dados do aluno junto (JOIN)
     const { data: dadosEncaminhamentos } = await supabase
       .from("encaminhamentos_repouso")
-      .select(
-        `
-        *,
-        aluno:alunos(id, nome, turma)
-      `
-      )
+      .select(`*, aluno:alunos(id, nome, turma)`)
       .eq("status", "aguardando")
+      .eq("sede_id", coligadaAtual.id)
       .order("created_at", { ascending: true });
 
     if (dadosEncaminhamentos) {
-      // O Supabase retorna o JOIN como array/objeto, vamos garantir o formato
       const formatados = dadosEncaminhamentos.map((enc: any) => ({
         ...enc,
         aluno: Array.isArray(enc.aluno) ? enc.aluno[0] : enc.aluno,
@@ -96,13 +95,12 @@ export default function SalaRepousoPage() {
     setLoadingDados(false);
   };
 
-  // --- FUNÇÕES DE AÇÃO (SUPABASE) ---
   const alunosFiltrados = alunosDb.filter((a) =>
-    a.nome.toLowerCase().includes(busca.toLowerCase())
+    a.nome.toLowerCase().includes(busca.toLowerCase()),
   );
 
   const handleSalvarEncaminhamento = async () => {
-    if (!alunoSelecionado || !sintoma) return;
+    if (!alunoSelecionado || !sintoma || !coligadaAtual) return;
     setIsSalvando(true);
 
     const horaAtual = new Date().toLocaleTimeString("pt-BR", {
@@ -117,28 +115,25 @@ export default function SalaRepousoPage() {
         encaminhado_por: userName,
         hora_encaminhamento: horaAtual,
         status: "aguardando",
+        sede_id: coligadaAtual.id,
       },
     ]);
 
     if (!error) {
-      await carregarDados(); // Recarrega a lista
+      await carregarDados();
       setModalNovoOpen(false);
       setAlunoSelecionado(null);
       setSintoma("");
       setBusca("");
-    } else {
-      alert("Erro ao salvar encaminhamento. Tente novamente.");
-      console.error(error);
     }
     setIsSalvando(false);
   };
 
   const handleExcluirEncaminhamento = async (
     id: string,
-    e: React.MouseEvent
+    e: React.MouseEvent,
   ) => {
     e.stopPropagation();
-
     if (window.confirm("Tem certeza que deseja apagar este encaminhamento?")) {
       const { error } = await supabase
         .from("encaminhamentos_repouso")
@@ -147,8 +142,6 @@ export default function SalaRepousoPage() {
 
       if (!error) {
         setEncaminhamentos(encaminhamentos.filter((enc) => enc.id !== id));
-      } else {
-        alert("Erro ao excluir.");
       }
     }
   };
@@ -170,29 +163,37 @@ export default function SalaRepousoPage() {
 
     if (!error) {
       setEncaminhamentos(
-        encaminhamentos.filter((e) => e.id !== cardSelecionado.id)
+        encaminhamentos.filter((e) => e.id !== cardSelecionado.id),
       );
       setModalAtenderOpen(false);
       setCardSelecionado(null);
       setObsAtendimento("");
       setDestino("");
-    } else {
-      alert("Erro ao finalizar atendimento.");
     }
     setIsSalvando(false);
   };
 
+  if (loadingColigadas) {
+    return (
+      <div className="p-10 text-center text-blue-600 font-bold italic">
+        Sincronizando Unidade...
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 min-h-full bg-gray-50 flex flex-col gap-6">
-      {/* HEADER DA PÁGINA */}
       <div className="flex justify-between items-center border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <Stethoscope className="text-[#3182ce]" size={28} />
-            Sala de Repouso
+            Sala de Repouso - {coligadaAtual?.sigla || "PGE"}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Gerenciamento de encaminhamentos e atendimentos.
+            Unidade Atual:{" "}
+            <span className="font-bold text-blue-600">
+              {coligadaAtual?.nome}
+            </span>
           </p>
         </div>
         <button
@@ -203,20 +204,19 @@ export default function SalaRepousoPage() {
         </button>
       </div>
 
-      {/* FILA DE AGUARDANDO (CARDS) */}
       <div>
         <h2 className="text-md font-bold text-gray-700 mb-4 flex items-center gap-2">
           <AlertCircle size={18} className="text-orange-500" />
-          Alunos Aguardando Atendimento ({encaminhamentos.length})
+          Aguardando Atendimento ({encaminhamentos.length})
         </h2>
 
         {loadingDados ? (
           <div className="text-center py-10 text-gray-400 font-semibold animate-pulse">
-            Carregando fila de atendimento...
+            Buscando fila...
           </div>
         ) : encaminhamentos.length === 0 ? (
           <div className="text-center py-10 text-gray-400 bg-white rounded-lg border border-dashed">
-            Nenhum aluno aguardando na sala de repouso.
+            Nenhum aluno aguardando.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -229,42 +229,29 @@ export default function SalaRepousoPage() {
                 }}
                 className="bg-white border-l-4 border-orange-500 p-4 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 relative"
               >
-                {/* TOPO DO CARD: Hora e Lixeira */}
                 <div className="absolute top-3 right-3 flex items-center gap-2">
                   <div className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-full flex items-center gap-1">
                     <Clock size={12} /> {enc.hora_encaminhamento}
                   </div>
-
-                  {enc.encaminhado_por === userName && (
-                    <button
-                      onClick={(e) => handleExcluirEncaminhamento(enc.id, e)}
-                      className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-full transition-colors"
-                      title="Excluir encaminhamento"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => handleExcluirEncaminhamento(enc.id, e)}
+                    className="text-red-400 hover:text-red-600 p-1.5 rounded-full transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
-
-                <h3 className="font-bold text-gray-800 text-lg pr-20">
+                <h3 className="font-bold text-gray-900 text-lg pr-20 uppercase">
                   {enc.aluno?.nome}
                 </h3>
                 <p className="text-xs text-gray-500 mb-3 font-semibold">
                   {enc.aluno?.turma}
                 </p>
-
-                <div className="bg-gray-50 p-2 rounded text-sm text-gray-700 mb-3 border">
-                  <span className="font-bold text-gray-600 block text-xs mb-1">
-                    Motivo / Sintoma:
-                  </span>
+                <div className="bg-gray-50 p-2 rounded text-sm text-gray-800 mb-3 border font-medium">
                   {enc.sintoma}
                 </div>
-
-                <div className="flex items-center gap-1 text-xs text-gray-500">
+                <div className="flex items-center gap-1 text-xs text-gray-500 font-bold">
                   <User size={12} />
-                  <span>
-                    Encaminhado por: <b>{enc.encaminhado_por}</b>
-                  </span>
+                  <span>Por: {enc.encaminhado_por}</span>
                 </div>
               </div>
             ))}
@@ -272,9 +259,7 @@ export default function SalaRepousoPage() {
         )}
       </div>
 
-      {/* ========================================================
-          MODAL 1: NOVO ENCAMINHAMENTO
-      ======================================================== */}
+      {/* MODAL 1: NOVO ENCAMINHAMENTO */}
       {modalNovoOpen && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -303,63 +288,55 @@ export default function SalaRepousoPage() {
                     />
                     <input
                       type="text"
-                      placeholder="Digite o nome do aluno..."
-                      className="w-full border rounded-lg pl-10 pr-3 py-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#3182ce]"
+                      placeholder="Pesquisar..."
+                      className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-[#3182ce] outline-none font-medium"
                       value={busca}
                       onChange={(e) => setBusca(e.target.value)}
                     />
                   </div>
-                  <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
+                  <div className="border rounded-lg max-h-48 overflow-y-auto divide-y bg-white">
                     {alunosFiltrados.map((a) => (
                       <div
                         key={a.id}
                         onClick={() => setAlunoSelecionado(a)}
-                        className="p-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                        className="p-3 hover:bg-blue-50 cursor-pointer flex justify-between text-gray-900"
                       >
-                        <span className="font-semibold text-sm text-gray-800">
-                          {a.nome}
-                        </span>
-                        <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                        <span className="font-bold text-sm">{a.nome}</span>
+                        <span className="text-xs text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded">
                           {a.turma}
                         </span>
                       </div>
                     ))}
-                    {alunosFiltrados.length === 0 && (
-                      <div className="p-4 text-center text-sm text-gray-500">
-                        Nenhum aluno encontrado.
-                      </div>
-                    )}
                   </div>
                 </>
               ) : (
                 <div className="animate-in fade-in slide-in-from-right-4">
                   <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg flex justify-between items-center mb-4">
                     <div>
-                      <p className="text-xs text-blue-600 font-bold uppercase">
-                        Aluno Selecionado
+                      <p className="text-[10px] text-blue-600 font-black">
+                        ALUNO SELECIONADO
                       </p>
-                      <p className="font-bold text-gray-800">
+                      <p className="font-bold text-gray-900">
                         {alunoSelecionado.nome} ({alunoSelecionado.turma})
                       </p>
                     </div>
                     <button
                       onClick={() => setAlunoSelecionado(null)}
-                      className="text-xs text-blue-600 underline hover:text-blue-800"
+                      className="text-xs text-blue-600 font-bold underline"
                     >
                       Trocar
                     </button>
                   </div>
-
                   <label className="text-sm font-bold text-gray-700 mb-1 block">
-                    O que o aluno está sentindo?
+                    Relato do Sintoma:
                   </label>
                   <textarea
                     rows={4}
-                    className="w-full border rounded-lg p-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#3182ce] resize-none"
-                    placeholder="Descreva detalhadamente o motivo do encaminhamento..."
+                    className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-[#3182ce] outline-none resize-none font-medium"
+                    placeholder="Descreva o que o aluno está sentindo..."
                     value={sintoma}
                     onChange={(e) => setSintoma(e.target.value)}
-                  ></textarea>
+                  />
                 </div>
               )}
             </div>
@@ -367,25 +344,23 @@ export default function SalaRepousoPage() {
             <div className="border-t p-4 bg-gray-50 flex justify-end gap-2">
               <button
                 onClick={() => setModalNovoOpen(false)}
-                className="px-4 py-2 text-gray-600 text-sm font-bold hover:bg-gray-200 rounded-md"
+                className="px-4 py-2 text-gray-600 text-sm font-black"
               >
-                Cancelar
+                CANCELAR
               </button>
               <button
                 onClick={handleSalvarEncaminhamento}
                 disabled={!alunoSelecionado || !sintoma || isSalvando}
-                className="bg-[#3182ce] text-white px-4 py-2 text-sm font-bold rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[#3182ce] text-white px-6 py-2 text-sm font-black rounded-md hover:bg-blue-700 disabled:opacity-50 uppercase shadow-md"
               >
-                {isSalvando ? "Salvando..." : "Confirmar Encaminhamento"}
+                {isSalvando ? "Salvando..." : "Confirmar"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========================================================
-          MODAL 2: ATENDIMENTO DO ALUNO
-      ======================================================== */}
+      {/* MODAL 2: ATENDIMENTO */}
       {modalAtenderOpen && cardSelecionado && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -403,7 +378,7 @@ export default function SalaRepousoPage() {
 
             <div className="p-6 overflow-y-auto flex-1">
               <div className="mb-4">
-                <h3 className="text-xl font-bold text-gray-800">
+                <h3 className="text-xl font-black uppercase text-gray-900">
                   {cardSelecionado.aluno?.nome}
                 </h3>
                 <p className="text-sm font-bold text-gray-500">
@@ -412,49 +387,45 @@ export default function SalaRepousoPage() {
               </div>
 
               <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg mb-5">
-                <p className="text-xs text-orange-600 font-bold uppercase mb-1">
+                <p className="text-[10px] text-orange-600 font-black uppercase mb-1">
                   Motivo do Encaminhamento
                 </p>
-                <p className="text-sm text-gray-800">
+                <p className="text-sm text-gray-900 font-medium">
                   {cardSelecionado.sintoma}
-                </p>
-                <p className="text-xs text-gray-500 mt-2 italic">
-                  Encaminhado por {cardSelecionado.encaminhado_por} às{" "}
-                  {cardSelecionado.hora_encaminhamento}
                 </p>
               </div>
 
               <label className="text-sm font-bold text-gray-700 mb-1 block">
-                Observações do Atendimento (Opcional)
+                Observações do Atendimento:
               </label>
               <textarea
                 rows={3}
-                className="w-full border rounded-lg p-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none mb-5"
-                placeholder="Ex: Foi medicado com paracetamol, mediu a pressão..."
+                className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-orange-500 outline-none resize-none mb-5 font-medium"
+                placeholder="Descreva o procedimento realizado..."
                 value={obsAtendimento}
                 onChange={(e) => setObsAtendimento(e.target.value)}
-              ></textarea>
+              />
 
               <label className="text-sm font-bold text-gray-700 mb-2 block">
-                Destino do Aluno após atendimento:
+                Destino do Aluno:
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setDestino("sala")}
-                  className={`border-2 rounded-lg p-3 text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all ${
+                  className={`border-2 rounded-lg p-3 text-sm font-black flex flex-col items-center transition-all ${
                     destino === "sala"
-                      ? "border-[#3182ce] bg-blue-50 text-[#3182ce]"
-                      : "border-gray-200 text-gray-500 hover:border-blue-300"
+                      ? "border-blue-600 bg-blue-50 text-blue-700"
+                      : "border-gray-200 text-gray-400 bg-white"
                   }`}
                 >
                   Liberado para Sala
                 </button>
                 <button
                   onClick={() => setDestino("casa")}
-                  className={`border-2 rounded-lg p-3 text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all ${
+                  className={`border-2 rounded-lg p-3 text-sm font-black flex flex-col items-center transition-all ${
                     destino === "casa"
-                      ? "border-green-500 bg-green-50 text-green-600"
-                      : "border-gray-200 text-gray-500 hover:border-green-300"
+                      ? "border-green-600 bg-green-50 text-green-700"
+                      : "border-gray-200 text-gray-400 bg-white"
                   }`}
                 >
                   Liberado para Casa
@@ -465,17 +436,16 @@ export default function SalaRepousoPage() {
             <div className="border-t p-4 bg-gray-50 flex justify-end gap-2">
               <button
                 onClick={() => setModalAtenderOpen(false)}
-                className="px-4 py-2 text-gray-600 text-sm font-bold hover:bg-gray-200 rounded-md"
+                className="px-4 py-2 text-gray-600 text-sm font-black uppercase"
               >
-                Cancelar
+                CANCELAR
               </button>
               <button
                 onClick={handleFinalizarAtendimento}
                 disabled={!destino || isSalvando}
-                className="bg-orange-500 text-white px-4 py-2 text-sm font-bold rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="bg-orange-600 text-white px-6 py-2 text-sm font-black rounded-md flex items-center gap-2 uppercase shadow-md hover:bg-orange-700"
               >
-                <CheckCircle size={16} />{" "}
-                {isSalvando ? "Processando..." : "Finalizar Atendimento"}
+                <CheckCircle size={16} /> Finalizar
               </button>
             </div>
           </div>

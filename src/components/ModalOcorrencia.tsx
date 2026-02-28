@@ -3,6 +3,7 @@ import { useState } from "react";
 // Importando o cliente centralizado que usa o createBrowserClient do @supabase/ssr
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useColigada } from "@/context/ColigadaContext"; // <-- Importamos o contexto das coligadas
 import { X, Save, Loader2, ClipboardList, ShieldCheck } from "lucide-react";
 
 interface ModalOcorrenciaProps {
@@ -18,10 +19,12 @@ export default function ModalOcorrencia({
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const { user } = useAuth(); // Pega usuário logado via Supabase Auth
+  const { coligadaAtual } = useColigada(); // <-- Puxamos a coligada selecionada no cabeçalho
 
   const salvarOcorrencia = async () => {
     if (!texto.trim()) return alert("Por favor, preencha o relato.");
     if (!user) return alert("Erro: Usuário não autenticado.");
+    if (!coligadaAtual) return alert("Erro: Nenhuma unidade selecionada."); // Trava de segurança
 
     setSalvando(true);
     setErro("");
@@ -34,6 +37,7 @@ export default function ModalOcorrencia({
           colaborador_nome: user.user_metadata?.full_name || user.email,
           colaborador_id: user.id, // UUID único do Supabase
           texto: texto,
+          sede_id: coligadaAtual.id, // <-- A MÁGICA ESTÁ AQUI: Carimba a ocorrência com a sede atual!
         },
       ]);
 
@@ -78,7 +82,7 @@ export default function ModalOcorrencia({
           </div>
 
           <label className="text-gray-600 font-bold text-[10px] uppercase tracking-tight flex items-center gap-1">
-            Relato do Ocorrido / Observação:
+            Relato do Ocorrido / Observação ({coligadaAtual?.sigla}):
           </label>
 
           <textarea
