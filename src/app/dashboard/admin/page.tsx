@@ -182,26 +182,44 @@ export default function AdminPage() {
     setModalAberto(true);
   };
 
-  const salvarAlteracoes = async () => {
-    setSalvando(true);
-    const { error } = await supabase
-      .from("permissoes_usuarios")
-      .update({
-        is_admin: editandoUser.is_admin,
-        sedes_permitidas: editandoUser.sedes_permitidas,
-        modulos_permitidos: editandoUser.modulos_permitidos,
-      })
-      .eq("user_id", editandoUser.user_id);
+const salvarAlteracoes = async () => {
+  if (!editandoUser) return;
+  setSalvando(true);
 
-    if (!error) {
-      setModalAberto(false);
-      carregarDadosIniciais();
-    } else {
-      alert("Erro ao salvar permissões: " + error.message);
-    }
-    setSalvando(false);
-  };
+  console.log("Tentando salvar para o UID:", editandoUser.user_id);
+  console.log("Dados enviados:", {
+    is_admin: editandoUser.is_admin,
+    sedes_permitidas: editandoUser.sedes_permitidas,
+    modulos_permitidos: editandoUser.modulos_permitidos,
+  });
 
+  const { data, error, status } = await supabase
+    .from("permissoes_usuarios")
+    .update({
+      is_admin: editandoUser.is_admin,
+      sedes_permitidas: editandoUser.sedes_permitidas,
+      modulos_permitidos: editandoUser.modulos_permitidos,
+    })
+    .eq("user_id", editandoUser.user_id)
+    .select(); // O .select() força o banco a retornar o que foi alterado
+
+  if (error) {
+    console.error("Erro detalhado do Supabase:", error);
+    alert(`Erro ao salvar: ${error.message} (Status: ${status})`);
+  } else if (data && data.length > 0) {
+    console.log("Salvo com sucesso! Dados retornados:", data);
+    setModalAberto(false);
+    // Recarrega os dados para garantir que a tabela mostre o novo valor do banco
+    await carregarDadosIniciais();
+  } else {
+    // Se caiu aqui, o SQL rodou mas não achou a linha ou o RLS bloqueou silenciosamente
+    alert(
+      "Atenção: O banco não foi alterado. Verifique se você tem permissões de Administrador.",
+    );
+  }
+
+  setSalvando(false);
+};
   if (loading)
     return (
       <div className="p-20 text-center text-blue-600 font-bold animate-pulse italic text-gray-900 bg-white">
