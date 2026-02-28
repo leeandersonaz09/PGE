@@ -1,6 +1,11 @@
 "use client";
 import Link from "next/link";
-import { GraduationCap, Stethoscope, ClipboardList } from "lucide-react";
+import {
+  GraduationCap,
+  Stethoscope,
+  ClipboardList,
+  BarChart,
+} from "lucide-react";
 
 // Lista simplificada com apenas os dois módulos solicitados
 const modulos = [
@@ -21,6 +26,12 @@ const modulos = [
     icon: <ClipboardList size={32} />,
     rota: "/dashboard/historico",
     cor: "bg-[#8b5cf6]", // Uma cor roxa legal para diferenciar dos outros
+  },
+  {
+    nome: "Conselho de Classe",
+    icon: <BarChart size={32} />,
+    rota: "/dashboard/conselho",
+    cor: "bg-[#0d9488]", // Um verde-azulado (Teal) bem elegante e profissional
   },
 ];
 

@@ -7,6 +7,7 @@ import {
   GraduationCap,
   Stethoscope,
   ClipboardList,
+  BarChart,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -20,6 +21,7 @@ export default function TabsBar() {
   const isAlunos = pathname.includes("/alunos");
   const isRepouso = pathname.includes("/repouso");
   const isHistorico = pathname.includes("/historico");
+  const isConselho = pathname.includes("/conselho");
 
   return (
     // 2. O 'shrink-0' é o nosso escudo de proteção contra o Flexbox
@@ -79,6 +81,22 @@ export default function TabsBar() {
         <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
           <ClipboardList size={14} className="text-[#8b5cf6]" />
           HISTÓRICO MÉDICO
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+            title="Fechar aba"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      {/* =========================================
+          ABA 5: CONSELHO DE CLASSE
+      ========================================= */}
+      {isConselho && (
+        <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
+          <BarChart size={14} className="text-[#0d9488]" />
+          CONSELHO DE CLASSE
           <button
             onClick={() => router.push("/dashboard")}
             className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
