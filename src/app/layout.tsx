@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PGE - Colégio São Paulo - Itaigara",
-  description: "O sistema de gestão escolar do Colégio São Paulo - Itaigara",
+  title: "PGE - Portal de Gestão Escolar",
+  description: "O sistema de gestão escolar do Colégio São Paulo",
 };
 
 export default function RootLayout({
