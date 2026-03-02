@@ -6,6 +6,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css)
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase)
+![Netlify](https://img.shields.io/badge/Netlify-Deploy-00C7B7?logo=netlify)
 
 ## 📸 Capturas de Tela
 
@@ -41,6 +42,7 @@ O **Portal de Gestão Escolar (PGE)** foi desenvolvido para modernizar e unifica
 - **Backend & Autenticação:** Supabase (Google OAuth2).
 - **Banco de Dados:** PostgreSQL (Tabelas, Views Seguras, Triggers, Functions e RLS).
 - **Processamento de Dados:** Papaparse (CSV), XLSX (Excel Export).
+- **Hospedagem (CI/CD):** Netlify.
 
 ---
 
@@ -50,16 +52,11 @@ A arquitetura segue o padrão do Next.js App Router, com separação clara de re
 
 ```text
 PGE/
-├── public/
-│   ├── file.svg
-│   ├── globe.svg
-│   ├── next.svg
-│   ├── vercel.svg
-│   └── window.svg
+├── public/                 # Assets estáticos
 ├── src/
 │   ├── app/
-│   │   ├── auth/callback/
-│   │   ├── dashboard/
+│   │   ├── auth/callback/  # Autenticação Supabase
+│   │   ├── dashboard/      # Rotas protegidas (Módulos do Sistema)
 │   │   │   ├── admin/
 │   │   │   ├── alunos/
 │   │   │   ├── conselho/
@@ -68,28 +65,19 @@ PGE/
 │   │   │   ├── locacoes/
 │   │   │   ├── ocorrencias/
 │   │   │   ├── repouso/
-│   │   │   ├── layout.tsx
-│   │   │   └── page.tsx
+│   │   │   ├── layout.tsx  # Wrapper de proteção
+│   │   │   └── page.tsx    # Home do Dashboard
 │   │   ├── globals.css
 │   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── components/
-│   │   ├── layout/
-│   │   │   ├── Header.tsx
-│   │   │   └── TabsBar.tsx
-│   │   ├── ModalDetalhesAluno.tsx
-│   │   └── ModalOcorrencia.tsx
-│   ├── context/
-│   │   ├── AuthContext.tsx
-│   │   └── ColigadaContext.tsx
-│   └── lib/
-│       └── supabase.ts
+│   │   └── page.tsx        # Login
+│   ├── components/         # Componentes reutilizáveis (Modais, Header)
+│   ├── context/            # Contextos Globais (Auth, Coligadas)
+│   └── lib/                # Configurações de API (supabase.ts)
 ├── supabase/
-│   └── migrations/
-│       └── 20260302174411_remote_schema.sql
+│   └── migrations/         # Backup da estrutura do Banco de Dados
+├── netlify.toml            # Configurações de Deploy Netlify
 ├── package.json
-├── tailwind.config.js
-└── tsconfig.json
+└── tailwind.config.js
 ```
 
 ---
@@ -300,22 +288,24 @@ CREATE POLICY "Deletar locacoes" ON public.locacoes FOR DELETE USING (
 
 ---
 
-### 3. Deploy na Netlify 🌐
+### 3. Deploy na Netlify 🌐 (Passo a Passo Detalhado)
 
-O sistema está configurado para integração contínua (CI/CD) com a Netlify de forma nativa.
+O projeto possui um arquivo `netlify.toml` na raiz, o que automatiza grande parte das configurações de ambiente para o Next.js.
 
-1. Faça login na [Netlify](https://www.netlify.com/) utilizando sua conta do GitHub.
-2. Clique em **"Add new site"** > **"Import an existing project"**.
-3. Escolha o GitHub e selecione o repositório do PGE.
-4. As configurações de build (Next.js) serão preenchidas automaticamente:
-   - **Build command:** `npm run build`
-   - **Publish directory:** `.next`
-5. Clique em **"Add environment variables"** e insira as suas chaves do Supabase exatamente como estão no arquivo `.env.local`:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-6. Clique em **"Deploy site"**.
+**Passo 1:** Faça login na [Netlify](https://www.netlify.com/) utilizando sua conta do GitHub.
+**Passo 2:** No painel principal, clique no botão **"Add new site"** e depois em **"Import an existing project"**.
+**Passo 3:** Escolha o **GitHub** como provedor e selecione o repositório `PGE`.
+**Passo 4:** Na tela de configurações de Build, a Netlify detectará automaticamente o Next.js. Confirme se os campos estão assim:
 
-Em poucos minutos, sua aplicação estará compilada e disponível globalmente em uma URL segura (`.netlify.app`).
+- **Framework:** Next.js
+- **Build command:** `npm run build`
+- **Publish directory:** `.next`
+  **Passo 5:** Clique no botão **"Add environment variables"** (Adicionar variáveis de ambiente). É **obrigatório** inserir as chaves de conexão do seu Supabase para o sistema em produção funcionar:
+- Chave 1: `NEXT_PUBLIC_SUPABASE_URL` (Insira a URL do seu Supabase)
+- Chave 2: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Insira a chave pública Anon)
+  **Passo 6:** Clique em **"Deploy site"**.
+
+_(Dica: A Netlify fornecerá uma URL provisória como `nome-aleatorio.netlify.app`. Você pode ir em "Site configuration" > "Domain management" para alterar esse nome para algo como `pge-suaescola.netlify.app`)_.
 
 ---
 
