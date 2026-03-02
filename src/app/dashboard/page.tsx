@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   Lock,
   ShieldAlert,
+  Laptop,
+  Archive,
 } from "lucide-react";
 
 const modulosConfig = [
@@ -33,7 +35,7 @@ const modulosConfig = [
     id_modulo: "historico",
     nome: "Histórico de Atendimentos",
     icon: <ClipboardList size={32} />,
-    rota: "/dashboard/historico",
+    rota: "/dashboard/historico-atendimentos",
     cor: "bg-[#8b5cf6]",
   },
   {
@@ -49,6 +51,20 @@ const modulosConfig = [
     icon: <BarChart size={32} />,
     rota: "/dashboard/conselho",
     cor: "bg-[#0d9488]",
+  },
+  {
+    id_modulo: "locacoes",
+    nome: "Locação Multimídia",
+    icon: <Laptop size={32} />,
+    rota: "/dashboard/locacoes",
+    cor: "bg-indigo-600", // Nova cor para diferenciar
+  },
+  {
+    id_modulo: "historico_locacoes",
+    nome: "Histórico de Locações",
+    icon: <Archive size={32} />,
+    rota: "/dashboard/historico-locacoes",
+    cor: "bg-gray-600",
   },
   {
     id_modulo: "admin",

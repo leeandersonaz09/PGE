@@ -17,6 +17,9 @@ import {
   AlertCircle,
   CheckCircle2,
   UserCog,
+  Laptop,
+  PlusCircle,
+  Trash2,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -42,12 +45,20 @@ export default function AdminPage() {
   const [editandoUser, setEditandoUser] = useState<any>(null);
   const [salvando, setSalvando] = useState(false);
 
+  // Estados de Gestão de Equipamentos (Novo)
+  const [equipamentos, setEquipamentos] = useState<any[]>([]);
+  const [novoEquipNome, setNovoEquipNome] = useState("");
+  const [novoEquipQtd, setNovoEquipQtd] = useState(1);
+
+  // Adicionado o módulo "locacoes" na lista
   const modulosDisponiveis = [
     "alunos",
     "repouso",
     "historico",
     "ocorrencias",
     "conselho",
+    "locacoes",
+    "historico_locacoes",
     "admin",
   ];
 
@@ -66,11 +77,11 @@ export default function AdminPage() {
 
   async function carregarDadosIniciais() {
     setLoading(true);
-    // Busca funcionários através da View segura que criamos
+    // Busca funcionários através da View segura
     const { data: usersData } = await supabase
       .from("vw_gestao_usuarios")
       .select("*")
-      .order("nome"); // Adicionei um order by nome para a lista ficar alfabética
+      .order("nome");
 
     // Busca todas as sedes cadastradas
     const { data: sedesData } = await supabase
@@ -78,8 +89,15 @@ export default function AdminPage() {
       .select("*")
       .order("nome");
 
+    // Busca equipamentos
+    const { data: equipData } = await supabase
+      .from("equipamentos")
+      .select("*")
+      .order("nome");
+
     if (usersData) setUsuarios(usersData);
     if (sedesData) setSedes(sedesData);
+    if (equipData) setEquipamentos(equipData);
     setLoading(false);
   }
 
@@ -120,11 +138,11 @@ export default function AdminPage() {
         rows.forEach((row: any) => {
           const cod = row["Código"];
 
-          // 1. DEDUPLICAÇÃO: Remove repetidos dentro da própria planilha (Coluna A)
+          // 1. DEDUPLICAÇÃO
           if (cod && !codigosVistos.has(cod)) {
             codigosVistos.add(cod);
 
-            // 2. MAPEAMENTO RÍGIDO: Garante que apenas as colunas necessárias entrem no banco
+            // 2. MAPEAMENTO RÍGIDO
             listaFinal.push({
               id: Number(cod),
               nome: row["Nome"] || "NOME NÃO INFORMADO",
@@ -157,7 +175,7 @@ export default function AdminPage() {
           }
         });
 
-        // 3. UPSERT: Atualiza os alunos existentes e insere os novos (On Conflict no ID)
+        // 3. UPSERT
         const { error } = await supabase
           .from("alunos")
           .upsert(listaFinal, { onConflict: "id" });
@@ -172,7 +190,6 @@ export default function AdminPage() {
             tipo: "sucesso",
             msg: `${listaFinal.length} alunos sincronizados com sucesso!`,
           });
-          // Atualiza a data de sincronização mostrada na tela
           buscarUltimaSincronizacaoPorSede(sedeImportacao);
         }
       },
@@ -188,10 +205,6 @@ export default function AdminPage() {
     if (!editandoUser) return;
     setSalvando(true);
 
-    // LOGS DE DEBUG: Abra o console do navegador (F12) para ver se os dados estão certos
-    console.log("Tentando salvar para UID:", editandoUser.user_id);
-
-    // Garantimos que os IDs das sedes sejam Números inteiros, removendo duplicatas
     const sedesFormatadas = Array.from(
       new Set(
         editandoUser.sedes_permitidas?.map((id: any) => Number(id)) || [],
@@ -201,41 +214,57 @@ export default function AdminPage() {
       new Set(editandoUser.modulos_permitidos || []),
     );
 
-    // ======== CORREÇÃO CRUCIAL AQUI: Usando UPSERT em vez de UPDATE ========
     const { data, error, status } = await supabase
       .from("permissoes_usuarios")
       .upsert(
         {
-          user_id: editandoUser.user_id, // Chave única
+          user_id: editandoUser.user_id,
           is_admin: editandoUser.is_admin,
           sedes_permitidas: sedesFormatadas,
           modulos_permitidos: modulosFormatados,
         },
         { onConflict: "user_id" },
-      ) // Se existe atualiza, se não existe insere
+      )
       .select();
 
     if (error) {
-      console.error("Erro detalhado do Supabase:", error);
       alert(`Erro técnico: ${error.message} (Código: ${error.code})`);
     } else if (data && data.length > 0) {
-      console.log("✅ Salvo com sucesso! Resposta do banco:", data);
       setModalAberto(false);
-      // Recarrega a lista para mostrar os novos privilégios na tabela principal
       await carregarDadosIniciais();
       alert("Permissões atualizadas com sucesso!");
     } else {
-      // Se o banco não retornar erro mas a data vier vazia, o RLS bloqueou você
-      console.error(
-        "Aviso: O banco não retornou erro, mas não alterou nada. Status:",
-        status,
-      );
       alert(
         "Atenção: Você não tem permissão de Administrador no banco de dados para realizar esta alteração.",
       );
     }
-
     setSalvando(false);
+  };
+
+  // Funções de Gestão de Equipamentos
+  const adicionarEquipamento = async () => {
+    if (!novoEquipNome || novoEquipQtd < 1) return;
+    const { error } = await supabase
+      .from("equipamentos")
+      .insert([{ nome: novoEquipNome, quantidade_total: novoEquipQtd }]);
+    if (!error) {
+      setNovoEquipNome("");
+      setNovoEquipQtd(1);
+      carregarDadosIniciais();
+    } else {
+      alert("Erro ao adicionar equipamento: " + error.message);
+    }
+  };
+
+  const deletarEquipamento = async (id: string) => {
+    if (
+      window.confirm(
+        "Apagar este equipamento? Isso apagará o histórico de locações dele também.",
+      )
+    ) {
+      await supabase.from("equipamentos").delete().eq("id", id);
+      carregarDadosIniciais();
+    }
   };
 
   if (loading)
@@ -406,6 +435,89 @@ export default function AdminPage() {
                   : "Sincronizar Dados"}
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* GESTÃO DE EQUIPAMENTOS MULTIMÍDIA */}
+      <div className="bg-white border border-gray-300 rounded shadow-sm overflow-hidden mt-6">
+        <div className="bg-indigo-600 text-white px-4 py-2 border-b font-bold text-[10px] uppercase flex items-center gap-2">
+          <Laptop size={14} /> Gestão de Equipamentos Multimídia (Locação)
+        </div>
+        <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gray-50 p-4 border rounded">
+            <h3 className="text-xs font-black text-gray-700 uppercase mb-3">
+              Cadastrar Novo
+            </h3>
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Ex: Chromebook 01"
+                value={novoEquipNome}
+                onChange={(e) => setNovoEquipNome(e.target.value)}
+                className="w-full border p-2 text-sm rounded bg-white outline-none focus:border-indigo-600 font-medium"
+              />
+              <div className="flex gap-2 items-center">
+                <label className="text-xs font-bold text-gray-600">
+                  Quantidade Total:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={novoEquipQtd}
+                  onChange={(e) => setNovoEquipQtd(Number(e.target.value))}
+                  className="w-20 border p-2 text-sm rounded bg-white outline-none focus:border-indigo-600 font-bold"
+                />
+              </div>
+              <button
+                onClick={adicionarEquipamento}
+                className="bg-indigo-600 text-white font-bold text-xs uppercase px-4 py-2 rounded flex items-center gap-2 w-full justify-center hover:bg-indigo-700 transition-colors"
+              >
+                <PlusCircle size={14} /> Salvar Equipamento
+              </button>
+            </div>
+          </div>
+          <div className="md:col-span-2">
+            <table className="w-full text-left text-[11px] border">
+              <thead className="bg-gray-100 border-b text-gray-700 font-bold uppercase">
+                <tr>
+                  <th className="p-3 border-r">Equipamento</th>
+                  <th className="p-3 border-r text-center w-24">Qtd Total</th>
+                  <th className="p-3 text-center w-20">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y text-gray-900">
+                {equipamentos.map((eq) => (
+                  <tr key={eq.id} className="hover:bg-gray-50">
+                    <td className="p-3 border-r font-bold text-gray-800">
+                      {eq.nome}
+                    </td>
+                    <td className="p-3 border-r text-center font-black text-indigo-600">
+                      {eq.quantidade_total}
+                    </td>
+                    <td className="p-3 text-center">
+                      <button
+                        onClick={() => deletarEquipamento(eq.id)}
+                        className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
+                        title="Deletar Equipamento"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {equipamentos.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={3}
+                      className="p-6 text-center text-gray-400 font-medium"
+                    >
+                      Nenhum equipamento cadastrado ainda. Adicione ao lado!
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
