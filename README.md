@@ -1,36 +1,322 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PGE - Portal de Gestão Escolar 🎓
 
-## Getting Started
+> Um sistema web moderno, seguro e escalável (Multi-Tenant) para gestão de alunos, ocorrências disciplinares, atendimentos na enfermaria e locação inteligente de recursos multimídia.
 
-First, run the development server:
+![Status do Projeto](https://img.shields.io/badge/Status-Conclu%C3%ADdo-success)
+![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 📸 Capturas de Tela
+
+_(Substitua as marcações abaixo pelos prints reais do seu sistema para criar uma vitrine visual do projeto)_
+
+`[Insira aqui o Print do Dashboard Principal]`
+
+`[Insira aqui o Print do Módulo de Locação Multimídia]`
+
+`[Insira aqui o Print do Painel Administrativo com Gestão de Permissões]`
+
+---
+
+## 🚀 Sobre o Projeto
+
+O **Portal de Gestão Escolar (PGE)** foi desenvolvido para modernizar e unificar os processos internos de instituições de ensino com múltiplas sedes (Multi-Tenant). A plataforma centraliza dados acadêmicos, médicos, disciplinares e de infraestrutura, garantindo acesso restrito através de rigorosas regras de segurança em nível de linha (RLS) no banco de dados.
+
+### 🌟 Principais Módulos e Funcionalidades
+
+- 🛡️ **Painel Administrativo (Gestão de Acessos):** Controle granular de permissões. O Administrador define quais módulos e quais **Sedes/Coligadas** cada funcionário pode acessar. Inclui importação de alunos em massa via arquivo `.csv`.
+- 👥 **Alunos & Conselho de Classe:** Consulta rápida de status de matrícula, notas e dados de responsáveis.
+- 🩺 **Sala de Repouso & Histórico Médico:** Fluxo de encaminhamento de alunos para a enfermaria, com registro de sintomas, atendente e geração de histórico médico auditável.
+- ⚠️ **Registro de Ocorrências:** Documentação de ocorrências disciplinares. Protegido por RLS (apenas o autor ou um Admin podem excluir registros).
+- 💻 **Locação Multimídia (Smart Booking):** Sistema de reserva de equipamentos (Projetores, Laptops, Caixas de Som) com cálculo de disponibilidade dinâmica em tempo real, prevenção de conflito de horários, trava de antecedência mínima (1h) e limite de reservas para até 7 dias.
+- 📦 **Histórico de Locações:** Painel gerencial com auditoria completa de reservas passadas e exportação automatizada para Excel (`.xlsx`).
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+- **Frontend:** React, Next.js (App Router), TypeScript, Tailwind CSS.
+- **Ícones & UI:** Lucide React.
+- **Backend & Autenticação:** Supabase (Google OAuth2).
+- **Banco de Dados:** PostgreSQL (Tabelas, Views Seguras, Triggers, Functions e RLS).
+- **Processamento de Dados:** Papaparse (CSV), XLSX (Excel Export).
+
+---
+
+## 📂 Estrutura do Projeto
+
+A arquitetura segue o padrão do Next.js App Router, com separação clara de responsabilidades:
+
+```text
+PGE/
+├── public/
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+├── src/
+│   ├── app/
+│   │   ├── auth/callback/
+│   │   ├── dashboard/
+│   │   │   ├── admin/
+│   │   │   ├── alunos/
+│   │   │   ├── conselho/
+│   │   │   ├── historico-atendimentos/
+│   │   │   ├── historico-locacoes/
+│   │   │   ├── locacoes/
+│   │   │   ├── ocorrencias/
+│   │   │   ├── repouso/
+│   │   │   ├── layout.tsx
+│   │   │   └── page.tsx
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Header.tsx
+│   │   │   └── TabsBar.tsx
+│   │   ├── ModalDetalhesAluno.tsx
+│   │   └── ModalOcorrencia.tsx
+│   ├── context/
+│   │   ├── AuthContext.tsx
+│   │   └── ColigadaContext.tsx
+│   └── lib/
+│       └── supabase.ts
+├── supabase/
+│   └── migrations/
+│       └── 20260302174411_remote_schema.sql
+├── package.json
+├── tailwind.config.js
+└── tsconfig.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ⚙️ Passo a Passo para Implantação (Deployment)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Configuração do Backend (Supabase)
 
-## Learn More
+Crie um projeto no [Supabase](https://supabase.com/) e execute os scripts abaixo na aba **SQL Editor** na seguinte ordem:
 
-To learn more about Next.js, take a look at the following resources:
+#### A. Estrutura Base (Tabelas)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```sql
+CREATE TABLE public.sedes (
+  id integer NOT NULL PRIMARY KEY,
+  nome text NOT NULL,
+  sigla text NOT NULL,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+);
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+CREATE TABLE public.alunos (
+  id bigint NOT NULL PRIMARY KEY,
+  nome text NOT NULL,
+  serie text,
+  turma text,
+  status text,
+  nascimento text,
+  email text,
+  pai text,
+  celular_pai text,
+  fixo_pai text,
+  mae text,
+  celular_mae text,
+  fixo_mae text,
+  Anosemestre text,
+  Curso text,
+  "Nome curso" text,
+  c_turma text,
+  Turno text,
+  email_pai text,
+  email_mae text,
+  financeiro_nome text,
+  financeiro_email text,
+  financeiro_celular text,
+  financeiro_fixo text,
+  sede_id integer DEFAULT 1219 REFERENCES public.sedes(id),
+  importado_em timestamp with time zone DEFAULT now()
+);
 
-## Deploy on Vercel
+CREATE TABLE public.usuarios (
+  id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email text NOT NULL,
+  nome text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())
+);
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+CREATE TABLE public.permissoes_usuarios (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid UNIQUE REFERENCES auth.users(id),
+  is_admin boolean DEFAULT false,
+  sedes_permitidas ARRAY DEFAULT '{}'::integer[],
+  modulos_permitidos ARRAY DEFAULT '{}'::text[],
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+);
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+CREATE TABLE public.equipamentos (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  nome text NOT NULL,
+  quantidade_total integer NOT NULL DEFAULT 1,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE public.locacoes (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  equipamento_id uuid REFERENCES public.equipamentos(id) ON DELETE CASCADE,
+  sala text NOT NULL,
+  data_locacao date NOT NULL,
+  observacao text NOT NULL,
+  solicitante text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  user_id uuid REFERENCES auth.users(id),
+  dia_inteiro boolean DEFAULT true,
+  hora_inicio text,
+  hora_fim text
+);
+
+CREATE TABLE public.ocorrencias (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  aluno_id bigint REFERENCES public.alunos(id),
+  colaborador_nome text NOT NULL,
+  colaborador_id text,
+  texto text NOT NULL,
+  data timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  sede_id integer DEFAULT 1219 REFERENCES public.sedes(id)
+);
+
+CREATE TABLE public.encaminhamentos_repouso (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  aluno_id bigint REFERENCES public.alunos(id),
+  sintoma text NOT NULL,
+  encaminhado_por text NOT NULL,
+  hora_encaminhamento text NOT NULL,
+  status text DEFAULT 'aguardando'::text,
+  obs_atendimento text,
+  destino text,
+  atendido_por text,
+  hora_atendimento timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  sede_id integer DEFAULT 1219 REFERENCES public.sedes(id)
+);
+
+CREATE TABLE public.conselho_notas (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  cd_aluno text NOT NULL,
+  nm_pessoa text NOT NULL,
+  foto_url text,
+  full_foto_url text,
+  turma text,
+  grades jsonb NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  sede_id integer DEFAULT 1219 REFERENCES public.sedes(id)
+);
+```
+
+#### B. Triggers e Functions (Sincronização Segura)
+
+Execute o comando abaixo para criar o gatilho que copia os dados dos usuários do Google automaticamente, evitando a exposição da tabela sensível `auth.users` ao Frontend.
+
+```sql
+CREATE OR REPLACE FUNCTION public.copiar_dados_novo_usuario()
+RETURNS trigger
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.usuarios (id, email, nome)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', 'Usuário')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trigger_copiar_usuario
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION public.copiar_dados_novo_usuario();
+```
+
+#### C. View Segura e Políticas RLS (Row Level Security)
+
+Habilite as permissões dinâmicas do Painel Administrativo de forma blindada:
+
+```sql
+-- Cria a view que une o Usuário com suas Permissões
+CREATE OR REPLACE VIEW public.vw_gestao_usuarios WITH (security_invoker = on) AS
+SELECT
+  u.id,
+  u.id as user_id,
+  u.email,
+  u.nome,
+  COALESCE(p.is_admin, false) as is_admin,
+  COALESCE(p.sedes_permitidas, '{}'::integer[]) as sedes_permitidas,
+  COALESCE(p.modulos_permitidos, '{}'::text[]) as modulos_permitidos
+FROM public.usuarios u
+LEFT JOIN public.permissoes_usuarios p ON u.id = p.user_id;
+
+-- Habilita a Segurança em Nível de Linha (RLS)
+ALTER TABLE public.ocorrencias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.locacoes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.equipamentos ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de Locações e Equipamentos
+CREATE POLICY "Leitura geral equipamentos" ON public.equipamentos FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Gestao equipamentos" ON public.equipamentos FOR ALL USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Leitura geral locacoes" ON public.locacoes FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Inserir locacoes" ON public.locacoes FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Deletar locacoes" ON public.locacoes FOR DELETE USING (
+  auth.uid() = user_id OR
+  (SELECT is_admin FROM public.permissoes_usuarios WHERE user_id = auth.uid()) = true
+);
+```
+
+---
+
+### 2. Configuração Local (VS Code)
+
+1. Clone o repositório:
+   ```bash
+   git clone [https://github.com/SEU_USUARIO/PGE.git](https://github.com/SEU_USUARIO/PGE.git)
+   cd PGE
+   ```
+2. Instale as dependências:
+   ```bash
+   npm install
+   ```
+3. Crie um arquivo `.env.local` na raiz do projeto e insira as chaves fornecidas no painel do seu Supabase (_Project Settings > API_):
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=[https://seu-id.supabase.co](https://seu-id.supabase.co)
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima-aqui
+   ```
+4. Inicie o servidor de desenvolvimento:
+   ```bash
+   npm run dev
+   ```
+
+---
+
+### 3. Deploy na Netlify 🌐
+
+O sistema está configurado para integração contínua (CI/CD) com a Netlify de forma nativa.
+
+1. Faça login na [Netlify](https://www.netlify.com/) utilizando sua conta do GitHub.
+2. Clique em **"Add new site"** > **"Import an existing project"**.
+3. Escolha o GitHub e selecione o repositório do PGE.
+4. As configurações de build (Next.js) serão preenchidas automaticamente:
+   - **Build command:** `npm run build`
+   - **Publish directory:** `.next`
+5. Clique em **"Add environment variables"** e insira as suas chaves do Supabase exatamente como estão no arquivo `.env.local`:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+6. Clique em **"Deploy site"**.
+
+Em poucos minutos, sua aplicação estará compilada e disponível globalmente em uma URL segura (`.netlify.app`).
+
+---
+
+_Desenvolvido com foco em escalabilidade e arquitetura Multi-Tenant com segurança RLS (PostgreSQL) avançada._
