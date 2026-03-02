@@ -69,7 +69,9 @@ export default function AdminPage() {
     // Busca funcionários através da View segura que criamos
     const { data: usersData } = await supabase
       .from("vw_gestao_usuarios")
-      .select("*");
+      .select("*")
+      .order("nome"); // Adicionei um order by nome para a lista ficar alfabética
+
     // Busca todas as sedes cadastradas
     const { data: sedesData } = await supabase
       .from("sedes")
@@ -182,53 +184,60 @@ export default function AdminPage() {
     setModalAberto(true);
   };
 
-const salvarAlteracoes = async () => {
-  if (!editandoUser) return;
-  setSalvando(true);
+  const salvarAlteracoes = async () => {
+    if (!editandoUser) return;
+    setSalvando(true);
 
-  // LOGS DE DEBUG: Abra o console do navegador (F12) para ver se os dados estão certos
-  console.log("Tentando salvar para UID:", editandoUser.user_id);
+    // LOGS DE DEBUG: Abra o console do navegador (F12) para ver se os dados estão certos
+    console.log("Tentando salvar para UID:", editandoUser.user_id);
 
-  // Garantimos que os IDs das sedes sejam Números inteiros, removendo duplicatas
-  const sedesFormatadas = Array.from(
-    new Set(editandoUser.sedes_permitidas?.map((id: any) => Number(id)) || []),
-  );
-  const modulosFormatados = Array.from(
-    new Set(editandoUser.modulos_permitidos || []),
-  );
-
-  const { data, error, status } = await supabase
-    .from("permissoes_usuarios")
-    .update({
-      is_admin: editandoUser.is_admin,
-      sedes_permitidas: sedesFormatadas,
-      modulos_permitidos: modulosFormatados,
-    })
-    .eq("user_id", editandoUser.user_id)
-    .select(); // Força o Supabase a retornar o dado alterado
-
-  if (error) {
-    console.error("Erro detalhado do Supabase:", error);
-    alert(`Erro técnico: ${error.message} (Código: ${error.code})`);
-  } else if (data && data.length > 0) {
-    console.log("✅ Salvo com sucesso! Resposta do banco:", data);
-    setModalAberto(false);
-    // Recarrega a lista para mostrar os novos privilégios na tabela principal
-    await carregarDadosIniciais();
-    alert("Permissões atualizadas com sucesso!");
-  } else {
-    // Se o banco não retornar erro mas a data vier vazia, o RLS bloqueou você
-    console.error(
-      "Aviso: O banco não retornou erro, mas não alterou nada. Status:",
-      status,
+    // Garantimos que os IDs das sedes sejam Números inteiros, removendo duplicatas
+    const sedesFormatadas = Array.from(
+      new Set(
+        editandoUser.sedes_permitidas?.map((id: any) => Number(id)) || [],
+      ),
     );
-    alert(
-      "Atenção: Você não tem permissão de Administrador no banco de dados para realizar esta alteração.",
+    const modulosFormatados = Array.from(
+      new Set(editandoUser.modulos_permitidos || []),
     );
-  }
 
-  setSalvando(false);
-};
+    // ======== CORREÇÃO CRUCIAL AQUI: Usando UPSERT em vez de UPDATE ========
+    const { data, error, status } = await supabase
+      .from("permissoes_usuarios")
+      .upsert(
+        {
+          user_id: editandoUser.user_id, // Chave única
+          is_admin: editandoUser.is_admin,
+          sedes_permitidas: sedesFormatadas,
+          modulos_permitidos: modulosFormatados,
+        },
+        { onConflict: "user_id" },
+      ) // Se existe atualiza, se não existe insere
+      .select();
+
+    if (error) {
+      console.error("Erro detalhado do Supabase:", error);
+      alert(`Erro técnico: ${error.message} (Código: ${error.code})`);
+    } else if (data && data.length > 0) {
+      console.log("✅ Salvo com sucesso! Resposta do banco:", data);
+      setModalAberto(false);
+      // Recarrega a lista para mostrar os novos privilégios na tabela principal
+      await carregarDadosIniciais();
+      alert("Permissões atualizadas com sucesso!");
+    } else {
+      // Se o banco não retornar erro mas a data vier vazia, o RLS bloqueou você
+      console.error(
+        "Aviso: O banco não retornou erro, mas não alterou nada. Status:",
+        status,
+      );
+      alert(
+        "Atenção: Você não tem permissão de Administrador no banco de dados para realizar esta alteração.",
+      );
+    }
+
+    setSalvando(false);
+  };
+
   if (loading)
     return (
       <div className="p-20 text-center text-blue-600 font-bold animate-pulse italic text-gray-900 bg-white">
@@ -262,7 +271,10 @@ const salvarAlteracoes = async () => {
             </thead>
             <tbody className="divide-y text-gray-900">
               {usuarios.map((u) => (
-                <tr key={u.id} className="hover:bg-blue-50 transition-colors">
+                <tr
+                  key={u.user_id}
+                  className="hover:bg-blue-50 transition-colors"
+                >
                   <td className="p-3">
                     <div className="font-bold text-gray-900">{u.nome}</div>
                     <div className="text-gray-500 font-mono text-[10px]">
