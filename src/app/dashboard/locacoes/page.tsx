@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import * as XLSX from "xlsx"; // <-- Importação do Excel adicionada!
+import * as XLSX from "xlsx";
 import {
   Projector,
   Calendar,
@@ -14,8 +14,53 @@ import {
   AlertCircle,
   Trash2,
   Clock,
-  Download, // <-- Ícone de download adicionado!
+  Download,
+  Laptop, // Ícone para Notebooks/Chromebooks
+  Speaker, // Ícone para Caixas de Som
+  Tv, // Ícone para Telas/TVs
+  Package, // Ícone padrão caso não reconheça a palavra
 } from "lucide-react";
+
+// --- FUNÇÃO MÁGICA PARA ESCOLHER O ÍCONE ---
+const getIconForEquipamento = (nome: string) => {
+  const n = nome.toLowerCase();
+
+  if (
+    n.includes("projetor") ||
+    n.includes("data show") ||
+    n.includes("datashow")
+  ) {
+    return <Projector size={24} className="text-indigo-600" />;
+  }
+  if (
+    n.includes("notebook") ||
+    n.includes("chromebook") ||
+    n.includes("laptop") ||
+    n.includes("pc")
+  ) {
+    return <Laptop size={24} className="text-indigo-600" />;
+  }
+  if (
+    n.includes("caixa") ||
+    n.includes("som") ||
+    n.includes("áudio") ||
+    n.includes("audio") ||
+    n.includes("microfone")
+  ) {
+    return <Speaker size={24} className="text-indigo-600" />;
+  }
+  if (
+    n.includes("tv") ||
+    n.includes("televisão") ||
+    n.includes("monitor") ||
+    n.includes("tela")
+  ) {
+    return <Tv size={24} className="text-indigo-600" />;
+  }
+
+  // Se não for nenhum dos acima, mostra a caixinha padrão
+  return <Package size={24} className="text-indigo-600" />;
+};
 
 export default function LocacoesPage() {
   const { user } = useAuth();
@@ -213,13 +258,11 @@ export default function LocacoesPage() {
     }
   };
 
-  // --- NOVA FUNÇÃO: EXPORTAR PARA EXCEL ---
   const exportarParaExcel = () => {
     if (locacoes.length === 0) {
       return alert("Não há locações listadas para exportar.");
     }
 
-    // Prepara os dados limpos para a planilha
     const dadosExcel = locacoes.map((loc) => ({
       "Data da Locação": new Date(
         loc.data_locacao + "T12:00:00",
@@ -233,18 +276,15 @@ export default function LocacoesPage() {
       Observação: loc.observacao,
     }));
 
-    // Cria a planilha e o arquivo
     const worksheet = XLSX.utils.json_to_sheet(dadosExcel);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Locacoes");
 
-    // Define o nome do arquivo baseado no filtro
     let nomeArquivo = `Relatorio_Locacoes_${filtro}.xlsx`;
     if (filtro === "especifico") {
       nomeArquivo = `Relatorio_Locacoes_${dataBusca.split("-").reverse().join("-")}.xlsx`;
     }
 
-    // Faz o download do arquivo
     XLSX.writeFile(workbook, nomeArquivo);
   };
 
@@ -261,7 +301,6 @@ export default function LocacoesPage() {
           </p>
         </div>
 
-        {/* GRUPO DE BOTÕES NO TOPO */}
         <div className="flex items-center gap-3">
           <button
             onClick={exportarParaExcel}
@@ -345,14 +384,22 @@ export default function LocacoesPage() {
               return (
                 <div
                   key={loc.id}
-                  className="bg-white border-l-4 border-indigo-600 p-4 rounded shadow-sm relative"
+                  className="bg-white border-l-4 border-indigo-600 p-4 rounded shadow-sm relative pt-5"
                 >
-                  <div className="absolute top-4 right-4 bg-indigo-50 text-indigo-800 text-[10px] font-black px-2 py-1 rounded">
+                  <div className="absolute top-3 right-3 bg-indigo-50 text-indigo-800 text-[10px] font-black px-2 py-1 rounded">
                     {dataFormatada}
                   </div>
-                  <h3 className="font-black text-gray-800 text-lg uppercase">
-                    {loc.equipamento?.nome}
-                  </h3>
+
+                  {/* CABEÇALHO DO CARD COM ÍCONE DINÂMICO */}
+                  <div className="flex items-start gap-3 mb-3 pr-16">
+                    <div className="bg-indigo-50 p-2 rounded-md shrink-0 border border-indigo-100 shadow-sm">
+                      {getIconForEquipamento(loc.equipamento?.nome || "")}
+                    </div>
+                    <h3 className="font-black text-gray-800 text-lg uppercase leading-tight pt-1">
+                      {loc.equipamento?.nome}
+                    </h3>
+                  </div>
+
                   <p className="text-indigo-600 font-bold text-sm mb-1">
                     SALA: {loc.sala}
                   </p>
