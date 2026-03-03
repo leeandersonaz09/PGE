@@ -643,16 +643,6 @@ export default function HistoricoCSPPage() {
               </tr>
             </tbody>
           </table>
-
-          <div className="mt-12 flex justify-around text-[10px] font-bold uppercase text-center">
-            <div className="flex flex-col items-center">
-              <div className="border-t border-black w-48 mb-1"></div>
-              SECRETÁRIO(A) ESCOLAR
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="border-t border-black w-48 mb-1"></div>DIRETOR(A)
-            </div>
-          </div>
         </div>
       </div>
     </div>
