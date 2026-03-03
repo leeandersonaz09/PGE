@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { useColigada } from "@/context/ColigadaContext"; // <-- Importamos o contexto de coligada
 
 const disciplinasIniciais = [
   { nome: "Língua Portuguesa", tipo: "comum" },
@@ -49,6 +50,7 @@ const disciplinasIniciais = [
 
 export default function HistoricoCSPPage() {
   const { user } = useAuth();
+  const { coligadaSelecionada } = useColigada(); // <-- Pegamos a unidade ativa
   const relatorioRef = useRef<HTMLDivElement>(null);
 
   const [alunos, setAlunos] = useState<any[]>([]);
@@ -75,56 +77,61 @@ export default function HistoricoCSPPage() {
     documentTitle: `Historico_CSP_${dadosPessoais.nome || "Aluno"}`,
   });
 
+  // BUSCAR ALUNOS FILTRANDO PELA SEDE ATUAL
   const buscarAlunos = async (termo: string) => {
     if (termo.length < 3) return;
     setLoadingBusca(true);
-    const { data } = await supabase
+
+    let query = supabase
       .from("alunos")
-      .select("id, nome, pai, mae, nascimento")
-      .ilike("nome", `%${termo}%`)
-      .limit(8);
+      .select("id, nome, pai, mae, nascimento, id_coligada")
+      .ilike("nome", `%${termo}%`);
+
+    // TRAVA DE SEGURANÇA: Filtra pela coligada selecionada no sistema
+    if (coligadaSelecionada) {
+      query = query.eq("id_coligada", coligadaSelecionada.id);
+    }
+
+    const { data } = await query.limit(8);
     if (data) setAlunos(data);
     setLoadingBusca(false);
   };
 
-  // ✅ FUNÇÃO SELECIONAR CORRIGIDA (AGORA BUSCA DADOS SALVOS)
+  // RECUPERAÇÃO AUTOMÁTICA DE DADOS SALVOS
   const selecionarAluno = async (aluno: any) => {
     setAlunoSelecionado(aluno);
     setBusca(aluno.nome);
     setAlunos([]);
 
-    // 1. Define o estado inicial padrão (caso não tenha nada no banco)
-    const dadosPadrao = {
-      nome: aluno.nome,
-      nascimento: aluno.nascimento || "",
-      naturalidade: "SALVADOR-BA",
-      nacionalidade: "BRASILEIRA",
-      cpf: "",
-      pai: aluno.pai || "",
-      mae: aluno.mae || "",
-    };
-
-    const notasPadrao = disciplinasIniciais.map((d) => {
-      const row: any = { disciplina: d.nome, tipo: d.tipo };
-      for (let i = 1; i <= 24; i++) row[`c${i}`] = "";
-      return row;
-    });
-
-    // 2. Busca no banco se já existe histórico para este aluno
+    // Busca no banco se já existe histórico salvo
     const { data: salvo, error } = await supabase
       .from("relatorio_historico_frente")
       .select("*")
       .eq("aluno_id", aluno.id)
-      .maybeSingle(); // maybeSingle não dá erro se não achar nada
+      .maybeSingle();
 
     if (salvo && !error) {
-      // Se achou, carrega o que estava salvo
+      // Se achou, restaura o progresso anterior
       setDadosPessoais(salvo.dados_pessoais);
       setNotas(salvo.dados_academicos);
     } else {
-      // Se não achou, carrega o padrão limpo
-      setDadosPessoais(dadosPadrao);
-      setNotas(notasPadrao);
+      // Senão, carrega o layout padrão limpo
+      setDadosPessoais({
+        nome: aluno.nome,
+        nascimento: aluno.nascimento || "",
+        naturalidade: "SALVADOR-BA",
+        nacionalidade: "BRASILEIRA",
+        cpf: "",
+        pai: aluno.pai || "",
+        mae: aluno.mae || "",
+      });
+
+      const baseNotas = disciplinasIniciais.map((d) => {
+        const row: any = { disciplina: d.nome, tipo: d.tipo };
+        for (let i = 1; i <= 24; i++) row[`c${i}`] = "";
+        return row;
+      });
+      setNotas(baseNotas);
     }
   };
 
@@ -144,29 +151,25 @@ export default function HistoricoCSPPage() {
     setNotas(notas.filter((_, i) => i !== index));
   };
 
-  // ✅ FUNÇÃO SALVAR MELHORADA (USA UPSERT PARA NÃO DUPLICAR)
+  // SALVAMENTO INTELIGENTE (UPSERT)
   const salvarNoBanco = async () => {
     if (!alunoSelecionado) return alert("Selecione um aluno primeiro!");
     setSalvando(true);
 
-    // O upsert precisa que a tabela tenha uma constraint (geralmente aluno_id)
     const { error } = await supabase.from("relatorio_historico_frente").upsert(
       {
         aluno_id: alunoSelecionado.id,
         dados_pessoais: dadosPessoais,
         dados_academicos: notas,
         salvo_por: user?.id,
-        updated_at: new Date(), // Opcional: registrar quando foi a última edição
+        id_coligada: coligadaSelecionada?.id, // Vincula o relatório à sede atual
+        updated_at: new Date(),
       },
-      { onConflict: "aluno_id" }, // Atualiza se o aluno_id já existir
+      { onConflict: "aluno_id" },
     );
 
-    if (error) {
-      console.error(error);
-      alert("Erro ao salvar: " + error.message);
-    } else {
-      alert("Histórico salvo/atualizado com sucesso!");
-    }
+    if (error) alert("Erro ao salvar: " + error.message);
+    else alert("Dados salvos e sincronizados!");
     setSalvando(false);
   };
 
@@ -198,7 +201,7 @@ export default function HistoricoCSPPage() {
               <Search size={18} className="text-slate-500" />
               <input
                 type="text"
-                placeholder="BUSCAR ALUNO..."
+                placeholder={`BUSCAR EM ${coligadaSelecionada?.nome || "UNIDADE"}...`}
                 value={busca}
                 onChange={(e) => {
                   setBusca(e.target.value);
@@ -216,7 +219,7 @@ export default function HistoricoCSPPage() {
                   <button
                     key={a.id}
                     onClick={() => selecionarAluno(a)}
-                    className="w-full text-left p-3 hover:bg-blue-50 border-b text-[11px] font-bold uppercase text-slate-800 transition-colors font-sans"
+                    className="w-full text-left p-3 hover:bg-blue-50 border-b text-[11px] font-bold uppercase text-slate-800"
                   >
                     {a.nome}
                   </button>
