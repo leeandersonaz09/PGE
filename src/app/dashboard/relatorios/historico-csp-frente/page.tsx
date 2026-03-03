@@ -15,9 +15,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { useColigada } from "@/context/ColigadaContext"; // <-- Importação do seu contexto real
+import { useColigada } from "@/context/ColigadaContext";
 
-// LISTA DE DISCIPLINAS (Respeitando maiúsculas/minúsculas conforme solicitado)
 const disciplinasIniciais = [
   { nome: "Língua Portuguesa", tipo: "comum" },
   { nome: "Ciências Naturais", tipo: "comum" },
@@ -51,7 +50,7 @@ const disciplinasIniciais = [
 
 export default function HistoricoCSPPage() {
   const { user } = useAuth();
-  const { coligadaAtual } = useColigada(); // ✅ Ajustado para usar 'coligadaAtual'
+  const { coligadaAtual } = useColigada();
   const relatorioRef = useRef<HTMLDivElement>(null);
 
   const [alunos, setAlunos] = useState<any[]>([]);
@@ -78,33 +77,42 @@ export default function HistoricoCSPPage() {
     documentTitle: `Historico_CSP_${dadosPessoais.nome || "Aluno"}`,
   });
 
-  // BUSCAR ALUNOS - Agora filtrando pela unidade logada
+  // ✅ BUSCA CORRIGIDA: Agora usa 'sede_id' como na sua página de alunos
   const buscarAlunos = async (termo: string) => {
     if (termo.length < 3) return;
     setLoadingBusca(true);
 
-    let query = supabase
-      .from("alunos")
-      .select("id, nome, pai, mae, nascimento, id_coligada")
-      .ilike("nome", `%${termo}%`);
+    try {
+      let query = supabase
+        .from("alunos")
+        .select("id, nome, pai, mae, nascimento, sede_id") // Mudado de id_coligada para sede_id
+        .ilike("nome", `%${termo}%`);
 
-    // ✅ TRAVA DE UNIDADE: Só traz alunos da sede atual
-    if (coligadaAtual) {
-      query = query.eq("id_coligada", coligadaAtual.id);
+      if (coligadaAtual) {
+        query = query.eq("sede_id", coligadaAtual.id); // Mudado de id_coligada para sede_id
+      }
+
+      const { data, error } = await query.limit(8);
+
+      if (error) throw error;
+      setAlunos(data || []);
+    } catch (err) {
+      console.error("Erro na busca:", err);
+    } finally {
+      setLoadingBusca(false);
     }
-
-    const { data } = await query.limit(8);
-    if (data) setAlunos(data);
-    setLoadingBusca(false);
   };
 
-  // RECUPERAÇÃO DE DADOS SALVOS
+  // ✅ RECUPERAÇÃO DE DADOS CORRIGIDA
   const selecionarAluno = async (aluno: any) => {
     setAlunoSelecionado(aluno);
     setBusca(aluno.nome);
     setAlunos([]);
 
-    // Busca histórico existente
+    // 1. Limpa o estado atual antes de carregar o novo (evita flicker de dados antigos)
+    setNotas([]);
+
+    // 2. Busca histórico existente na tabela de relatórios
     const { data: salvo, error } = await supabase
       .from("relatorio_historico_frente")
       .select("*")
@@ -112,9 +120,11 @@ export default function HistoricoCSPPage() {
       .maybeSingle();
 
     if (salvo && !error) {
+      // Se achou no banco, restaura exatamente como foi salvo
       setDadosPessoais(salvo.dados_pessoais);
       setNotas(salvo.dados_academicos);
     } else {
+      // Senão, monta o padrão limpo com os dados básicos do aluno
       setDadosPessoais({
         nome: aluno.nome,
         nascimento: aluno.nascimento || "",
@@ -152,26 +162,33 @@ export default function HistoricoCSPPage() {
     setNotas(notas.filter((_, i) => i !== index));
   };
 
-  // SALVAR COM UPSERT (Atualiza ou Insere)
+  // ✅ SALVAMENTO COM UPSERT (Atualiza o que já existe ou cria novo)
   const salvarNoBanco = async () => {
-    if (!alunoSelecionado) return alert("Selecione um aluno!");
+    if (!alunoSelecionado) return alert("Selecione um aluno primeiro!");
     setSalvando(true);
 
-    const { error } = await supabase.from("relatorio_historico_frente").upsert(
-      {
-        aluno_id: alunoSelecionado.id,
-        dados_pessoais: dadosPessoais,
-        dados_academicos: notas,
-        salvo_por: user?.id,
-        id_coligada: coligadaAtual?.id, // ✅ Vincula à unidade logada
-        updated_at: new Date(),
-      },
-      { onConflict: "aluno_id" },
-    );
+    try {
+      const { error } = await supabase
+        .from("relatorio_historico_frente")
+        .upsert(
+          {
+            aluno_id: alunoSelecionado.id,
+            dados_pessoais: dadosPessoais,
+            dados_academicos: notas,
+            salvo_por: user?.id,
+            sede_id: coligadaAtual?.id, // Vincula o relatório à unidade
+            updated_at: new Date(),
+          },
+          { onConflict: "aluno_id" }, // Importante: requer a constraint UNIQUE no banco
+        );
 
-    if (error) alert("Erro: " + error.message);
-    else alert("Histórico salvo/atualizado!");
-    setSalvando(false);
+      if (error) throw error;
+      alert("Progresso salvo com sucesso!");
+    } catch (error: any) {
+      alert("Erro ao salvar: " + error.message);
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
@@ -271,6 +288,7 @@ export default function HistoricoCSPPage() {
         </div>
       </div>
 
+      {/* ÁREA DA FOLHA A4 */}
       <div className="flex justify-center p-8 print:p-0">
         <div
           ref={relatorioRef}
@@ -434,7 +452,7 @@ export default function HistoricoCSPPage() {
             </colgroup>
             <thead>
               <tr className="bg-[#ededed] font-bold text-[6.5pt] text-center border border-black uppercase">
-                <th rowSpan={4} className="border border-black uppercase">
+                <th rowSpan={4} className="border border-black">
                   COMPONENTES
                   <br />
                   CURRICULARES
@@ -461,11 +479,7 @@ export default function HistoricoCSPPage() {
                   "2ª SÉRIE",
                   "3ª SÉRIE",
                 ].map((ano) => (
-                  <th
-                    key={ano}
-                    colSpan={2}
-                    className="border border-black uppercase"
-                  >
+                  <th key={ano} colSpan={2} className="border border-black">
                     {ano}
                   </th>
                 ))}
@@ -630,7 +644,7 @@ export default function HistoricoCSPPage() {
                   <React.Fragment key={i}>
                     <td
                       colSpan={2}
-                      className="border border-black text-center font-bold"
+                      className="border border-black text-center font-bold font-sans"
                     >
                       <input
                         type="text"
