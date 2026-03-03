@@ -67,6 +67,13 @@ const modulosConfig = [
     cor: "bg-gray-600",
   },
   {
+    id_modulo: "relatorios",
+    nome: "Central de Relatórios",
+    icon: <FileText size={32} />,
+    rota: "/dashboard/relatorios",
+    cor: "bg-blue-600",
+  },
+  {
     id_modulo: "admin",
     nome: "Administração",
     icon: <ShieldCheck size={32} />,

@@ -29,6 +29,7 @@ export default function TabsBar() {
   const isAdminRoute = pathname.includes("/admin");
   const isLocacoes = pathname.includes("/locacoes");
   const isHistLocacoes = pathname.includes("/historico-locacoes");
+  const isRelatorios = pathname.includes("/dashboard/relatorios");
 
   return (
     <div className="shrink-0 bg-[#cbd5e0] flex items-end px-2 h-9 border-b border-gray-400 gap-1 w-full overflow-x-auto">
@@ -152,6 +153,20 @@ export default function TabsBar() {
         <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
           <ShieldCheck size={14} className="text-red-600" />
           ADMINISTRAÇÃO
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+            title="Fechar aba"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      {/* ABA 10: CENTRAL DE RELATÓRIOS */}
+      {isRelatorios && (
+        <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
+          <FileText size={14} className="text-blue-600" />
+          RELATÓRIOS
           <button
             onClick={() => router.push("/dashboard")}
             className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"

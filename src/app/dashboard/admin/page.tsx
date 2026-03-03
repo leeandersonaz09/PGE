@@ -60,6 +60,7 @@ export default function AdminPage() {
     "locacoes",
     "historico_locacoes",
     "admin",
+    "relatorios",
   ];
 
   useEffect(() => {

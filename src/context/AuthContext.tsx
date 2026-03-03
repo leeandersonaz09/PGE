@@ -14,7 +14,7 @@ const supabase = createBrowserClient(
       autoRefreshToken: true,
       flowType: "pkce",
     },
-  }
+  },
 );
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -56,7 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (dominioUsuario && dominios.includes(dominioUsuario)) {
       setUser(user);
-      router.push("/dashboard"); // 👈 ADICIONE ISSO
+
+      // ✅ A TRAVA MÁGICA:
+      // Só manda para o dashboard se o usuário estiver na tela de login ("/")
+      // Se ele já estiver em qualquer página do /dashboard, o código não faz nada.
+      if (window.location.pathname === "/") {
+        router.push("/dashboard");
+      }
     } else {
       supabase.auth.signOut();
       setUser(null);
