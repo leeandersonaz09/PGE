@@ -77,7 +77,7 @@ export default function HistoricoCSPPage() {
     documentTitle: `Historico_CSP_${dadosPessoais.nome || "Aluno"}`,
   });
 
-  // ✅ BUSCA CORRIGIDA: Agora usa 'sede_id' como na sua página de alunos
+  // BUSCA FILTRADA POR SEDE (Conforme tabela public.alunos)
   const buscarAlunos = async (termo: string) => {
     if (termo.length < 3) return;
     setLoadingBusca(true);
@@ -85,15 +85,14 @@ export default function HistoricoCSPPage() {
     try {
       let query = supabase
         .from("alunos")
-        .select("id, nome, pai, mae, nascimento, sede_id") // Mudado de id_coligada para sede_id
+        .select("id, nome, pai, mae, nascimento, sede_id")
         .ilike("nome", `%${termo}%`);
 
       if (coligadaAtual) {
-        query = query.eq("sede_id", coligadaAtual.id); // Mudado de id_coligada para sede_id
+        query = query.eq("sede_id", coligadaAtual.id);
       }
 
       const { data, error } = await query.limit(8);
-
       if (error) throw error;
       setAlunos(data || []);
     } catch (err) {
@@ -103,16 +102,13 @@ export default function HistoricoCSPPage() {
     }
   };
 
-  // ✅ RECUPERAÇÃO DE DADOS CORRIGIDA
+  // RECUPERAÇÃO DE DADOS
   const selecionarAluno = async (aluno: any) => {
     setAlunoSelecionado(aluno);
     setBusca(aluno.nome);
     setAlunos([]);
+    setNotas([]); // Limpa para carregar novo
 
-    // 1. Limpa o estado atual antes de carregar o novo (evita flicker de dados antigos)
-    setNotas([]);
-
-    // 2. Busca histórico existente na tabela de relatórios
     const { data: salvo, error } = await supabase
       .from("relatorio_historico_frente")
       .select("*")
@@ -120,11 +116,9 @@ export default function HistoricoCSPPage() {
       .maybeSingle();
 
     if (salvo && !error) {
-      // Se achou no banco, restaura exatamente como foi salvo
       setDadosPessoais(salvo.dados_pessoais);
       setNotas(salvo.dados_academicos);
     } else {
-      // Senão, monta o padrão limpo com os dados básicos do aluno
       setDadosPessoais({
         nome: aluno.nome,
         nascimento: aluno.nascimento || "",
@@ -162,9 +156,9 @@ export default function HistoricoCSPPage() {
     setNotas(notas.filter((_, i) => i !== index));
   };
 
-  // ✅ SALVAMENTO COM UPSERT (Atualiza o que já existe ou cria novo)
+  // SALVAMENTO (Agora com sede_id incluído)
   const salvarNoBanco = async () => {
-    if (!alunoSelecionado) return alert("Selecione um aluno primeiro!");
+    if (!alunoSelecionado) return alert("Selecione um aluno!");
     setSalvando(true);
 
     try {
@@ -176,14 +170,14 @@ export default function HistoricoCSPPage() {
             dados_pessoais: dadosPessoais,
             dados_academicos: notas,
             salvo_por: user?.id,
-            sede_id: coligadaAtual?.id, // Vincula o relatório à unidade
+            sede_id: coligadaAtual?.id, // Agora a coluna existe no banco!
             updated_at: new Date(),
           },
-          { onConflict: "aluno_id" }, // Importante: requer a constraint UNIQUE no banco
+          { onConflict: "aluno_id" },
         );
 
       if (error) throw error;
-      alert("Progresso salvo com sucesso!");
+      alert("Histórico salvo com sucesso!");
     } catch (error: any) {
       alert("Erro ao salvar: " + error.message);
     } finally {
@@ -240,7 +234,7 @@ export default function HistoricoCSPPage() {
                     onClick={() => selecionarAluno(a)}
                     className="w-full text-left p-3 hover:bg-blue-50 border-b text-[11px] font-bold uppercase text-slate-800"
                   >
-                    {a.nome}
+                    RA: {a.id} - {a.nome}
                   </button>
                 ))}
               </div>
@@ -251,19 +245,19 @@ export default function HistoricoCSPPage() {
         <div className="flex gap-2">
           <button
             onClick={() => adicionarLinha("comum")}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
           >
             <PlusCircle size={14} className="text-blue-600" /> + COMUM
           </button>
           <button
             onClick={() => adicionarLinha("diversificada")}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
           >
             <PlusCircle size={14} className="text-orange-600" /> + DIVERSIF.
           </button>
           <button
             onClick={() => setMostrarDiversificada(!mostrarDiversificada)}
-            className={`px-3 py-2 rounded text-[10px] font-bold border shadow-sm ${mostrarDiversificada ? "bg-orange-50 border-orange-300 text-orange-700" : "bg-white border-slate-400 text-slate-500"}`}
+            className={`px-3 py-2 rounded text-[10px] font-bold border shadow-sm transition-all ${mostrarDiversificada ? "bg-orange-50 border-orange-300 text-orange-700" : "bg-white border-slate-400 text-slate-500"}`}
           >
             {mostrarDiversificada ? "OCULTAR DIVERSIF." : "MOSTRAR DIVERSIF."}
           </button>
@@ -288,7 +282,6 @@ export default function HistoricoCSPPage() {
         </div>
       </div>
 
-      {/* ÁREA DA FOLHA A4 */}
       <div className="flex justify-center p-8 print:p-0">
         <div
           ref={relatorioRef}
