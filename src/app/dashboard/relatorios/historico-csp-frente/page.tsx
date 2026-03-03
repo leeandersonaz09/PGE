@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { useColigada } from "@/context/ColigadaContext"; // <-- Importamos o contexto de coligada
+import { useColigada } from "@/context/ColigadaContext"; // <-- Importação do seu contexto real
 
+// LISTA DE DISCIPLINAS (Respeitando maiúsculas/minúsculas conforme solicitado)
 const disciplinasIniciais = [
   { nome: "Língua Portuguesa", tipo: "comum" },
   { nome: "Ciências Naturais", tipo: "comum" },
@@ -50,7 +51,7 @@ const disciplinasIniciais = [
 
 export default function HistoricoCSPPage() {
   const { user } = useAuth();
-  const { coligadaSelecionada } = useColigada(); // <-- Pegamos a unidade ativa
+  const { coligadaAtual } = useColigada(); // ✅ Ajustado para usar 'coligadaAtual'
   const relatorioRef = useRef<HTMLDivElement>(null);
 
   const [alunos, setAlunos] = useState<any[]>([]);
@@ -77,7 +78,7 @@ export default function HistoricoCSPPage() {
     documentTitle: `Historico_CSP_${dadosPessoais.nome || "Aluno"}`,
   });
 
-  // BUSCAR ALUNOS FILTRANDO PELA SEDE ATUAL
+  // BUSCAR ALUNOS - Agora filtrando pela unidade logada
   const buscarAlunos = async (termo: string) => {
     if (termo.length < 3) return;
     setLoadingBusca(true);
@@ -87,9 +88,9 @@ export default function HistoricoCSPPage() {
       .select("id, nome, pai, mae, nascimento, id_coligada")
       .ilike("nome", `%${termo}%`);
 
-    // TRAVA DE SEGURANÇA: Filtra pela coligada selecionada no sistema
-    if (coligadaSelecionada) {
-      query = query.eq("id_coligada", coligadaSelecionada.id);
+    // ✅ TRAVA DE UNIDADE: Só traz alunos da sede atual
+    if (coligadaAtual) {
+      query = query.eq("id_coligada", coligadaAtual.id);
     }
 
     const { data } = await query.limit(8);
@@ -97,13 +98,13 @@ export default function HistoricoCSPPage() {
     setLoadingBusca(false);
   };
 
-  // RECUPERAÇÃO AUTOMÁTICA DE DADOS SALVOS
+  // RECUPERAÇÃO DE DADOS SALVOS
   const selecionarAluno = async (aluno: any) => {
     setAlunoSelecionado(aluno);
     setBusca(aluno.nome);
     setAlunos([]);
 
-    // Busca no banco se já existe histórico salvo
+    // Busca histórico existente
     const { data: salvo, error } = await supabase
       .from("relatorio_historico_frente")
       .select("*")
@@ -111,11 +112,9 @@ export default function HistoricoCSPPage() {
       .maybeSingle();
 
     if (salvo && !error) {
-      // Se achou, restaura o progresso anterior
       setDadosPessoais(salvo.dados_pessoais);
       setNotas(salvo.dados_academicos);
     } else {
-      // Senão, carrega o layout padrão limpo
       setDadosPessoais({
         nome: aluno.nome,
         nascimento: aluno.nascimento || "",
@@ -126,11 +125,13 @@ export default function HistoricoCSPPage() {
         mae: aluno.mae || "",
       });
 
-      const baseNotas = disciplinasIniciais.map((d) => {
-        const row: any = { disciplina: d.nome, tipo: d.tipo };
-        for (let i = 1; i <= 24; i++) row[`c${i}`] = "";
-        return row;
-      });
+      const baseNotas = disciplinasIniciais.map((d) => ({
+        disciplina: d.nome,
+        tipo: d.tipo,
+        ...Object.fromEntries(
+          Array.from({ length: 24 }, (_, i) => [`c${i + 1}`, ""]),
+        ),
+      }));
       setNotas(baseNotas);
     }
   };
@@ -142,18 +143,18 @@ export default function HistoricoCSPPage() {
   };
 
   const adicionarLinha = (tipo: "comum" | "diversificada") => {
-    const novaLinha: any = { disciplina: "", tipo: tipo };
-    for (let i = 1; i <= 24; i++) novaLinha[`c${i}`] = "";
-    setNotas([...notas, novaLinha]);
+    const nova: any = { disciplina: "", tipo };
+    for (let i = 1; i <= 24; i++) nova[`c${i}`] = "";
+    setNotas([...notas, nova]);
   };
 
   const removerLinha = (index: number) => {
     setNotas(notas.filter((_, i) => i !== index));
   };
 
-  // SALVAMENTO INTELIGENTE (UPSERT)
+  // SALVAR COM UPSERT (Atualiza ou Insere)
   const salvarNoBanco = async () => {
-    if (!alunoSelecionado) return alert("Selecione um aluno primeiro!");
+    if (!alunoSelecionado) return alert("Selecione um aluno!");
     setSalvando(true);
 
     const { error } = await supabase.from("relatorio_historico_frente").upsert(
@@ -162,14 +163,14 @@ export default function HistoricoCSPPage() {
         dados_pessoais: dadosPessoais,
         dados_academicos: notas,
         salvo_por: user?.id,
-        id_coligada: coligadaSelecionada?.id, // Vincula o relatório à sede atual
+        id_coligada: coligadaAtual?.id, // ✅ Vincula à unidade logada
         updated_at: new Date(),
       },
       { onConflict: "aluno_id" },
     );
 
-    if (error) alert("Erro ao salvar: " + error.message);
-    else alert("Dados salvos e sincronizados!");
+    if (error) alert("Erro: " + error.message);
+    else alert("Histórico salvo/atualizado!");
     setSalvando(false);
   };
 
@@ -188,11 +189,12 @@ export default function HistoricoCSPPage() {
         }}
       />
 
+      {/* TOOLBAR */}
       <div className="no-print bg-white p-4 sticky top-0 z-50 border-b border-slate-300 shadow-sm flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-4 flex-1">
           <Link
             href="/dashboard/relatorios"
-            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors text-slate-700"
+            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-700"
           >
             <ArrowLeft size={20} />
           </Link>
@@ -201,7 +203,7 @@ export default function HistoricoCSPPage() {
               <Search size={18} className="text-slate-500" />
               <input
                 type="text"
-                placeholder={`BUSCAR EM ${coligadaSelecionada?.nome || "UNIDADE"}...`}
+                placeholder={`BUSCAR EM ${coligadaAtual?.sigla || "UNIDADE"}...`}
                 value={busca}
                 onChange={(e) => {
                   setBusca(e.target.value);
@@ -232,26 +234,26 @@ export default function HistoricoCSPPage() {
         <div className="flex gap-2">
           <button
             onClick={() => adicionarLinha("comum")}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 shadow-sm"
           >
             <PlusCircle size={14} className="text-blue-600" /> + COMUM
           </button>
           <button
             onClick={() => adicionarLinha("diversificada")}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 shadow-sm"
           >
             <PlusCircle size={14} className="text-orange-600" /> + DIVERSIF.
           </button>
           <button
             onClick={() => setMostrarDiversificada(!mostrarDiversificada)}
-            className={`px-3 py-2 rounded text-[10px] font-bold border shadow-sm transition-all ${mostrarDiversificada ? "bg-orange-50 border-orange-300 text-orange-700" : "bg-white border-slate-400 text-slate-500"}`}
+            className={`px-3 py-2 rounded text-[10px] font-bold border shadow-sm ${mostrarDiversificada ? "bg-orange-50 border-orange-300 text-orange-700" : "bg-white border-slate-400 text-slate-500"}`}
           >
             {mostrarDiversificada ? "OCULTAR DIVERSIF." : "MOSTRAR DIVERSIF."}
           </button>
           <button
             onClick={salvarNoBanco}
             disabled={salvando}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 border border-green-700 text-white rounded text-xs font-bold hover:bg-green-700 shadow-md transition-all ml-2"
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 border border-green-700 text-white rounded text-xs font-bold hover:bg-green-700 shadow-md"
           >
             {salvando ? (
               <Loader2 size={16} className="animate-spin" />
@@ -262,9 +264,9 @@ export default function HistoricoCSPPage() {
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 border border-blue-700 text-white rounded text-xs font-bold hover:bg-blue-700 shadow-md transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 border border-blue-700 text-white rounded text-xs font-bold hover:bg-blue-700 shadow-md"
           >
-            <Printer size={16} /> IMPRIMIR PDF
+            <Printer size={16} /> IMPRIMIR
           </button>
         </div>
       </div>
@@ -561,8 +563,8 @@ export default function HistoricoCSPPage() {
                 })}
               {mostrarDiversificada && (
                 <>
-                  <tr className="bg-[#ededed] font-bold h-4">
-                    <td className="border border-black pl-1 uppercase font-bold">
+                  <tr className="bg-[#ededed] font-bold h-4 uppercase font-bold">
+                    <td className="border border-black pl-1">
                       BASE DIVERSIFICADA
                     </td>
                     {Array.from({ length: 24 }).map((_, i) => (
@@ -628,7 +630,7 @@ export default function HistoricoCSPPage() {
                   <React.Fragment key={i}>
                     <td
                       colSpan={2}
-                      className="border border-black text-center font-bold font-sans"
+                      className="border border-black text-center font-bold"
                     >
                       <input
                         type="text"
