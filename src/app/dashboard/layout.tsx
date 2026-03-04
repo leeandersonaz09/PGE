@@ -5,10 +5,8 @@ import { ColigadaProvider, useColigada } from "@/context/ColigadaContext";
 import Header from "@/components/layout/Header";
 import TabsBar from "@/components/layout/TabsBar";
 import { useState, useEffect } from "react";
-import { AlertTriangle, Lock } from "lucide-react";
+import { AlertTriangle, Lock, Loader2 } from "lucide-react";
 
-// ✅ COMPONENTE DE SEGURANÇA INTERNO
-// Ele lida com a falta de sedes sem quebrar o layout principal
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { coligadaAtual, loadingColigadas } = useColigada();
   const [mounted, setMounted] = useState(false);
@@ -17,10 +15,20 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  // Evita erros de hidratação (SSR vs Client)
+  // 1. Evita erro de hidratação (removeChild)
   if (!mounted) return null;
 
-  // 2. ✅ TRAVA: Se o usuário logou mas não tem NENHUMA sede vinculada
+  // 2. Aguarda carregamento das sedes
+  if (loadingColigadas) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#f1f5f9] text-blue-600 font-bold text-sm italic">
+        <Loader2 className="animate-spin mr-2" size={20} /> Sincronizando
+        unidades...
+      </div>
+    );
+  }
+
+  // 3. TRAVA MESTRA: Se o usuário não tem NENHUMA sede vinculada
   if (!coligadaAtual) {
     return (
       <div className="flex flex-col h-screen w-full items-center justify-center bg-slate-100 p-6 text-center">
@@ -32,19 +40,15 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
             Acesso Restrito
           </h1>
           <p className="text-slate-500 font-medium text-sm leading-relaxed">
-            Seu perfil foi identificado no sistema, mas você ainda não possui{" "}
+            Seu perfil foi identificado, mas você não possui{" "}
             <strong className="text-red-600">unidades (sedes)</strong>{" "}
             vinculadas.
           </p>
           <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-              O que fazer agora?
-            </p>
             <div className="bg-amber-50 p-4 rounded-xl text-left flex gap-3">
               <AlertTriangle className="text-amber-600 shrink-0" size={18} />
               <p className="text-amber-800 text-[11px] leading-tight font-semibold">
-                Solicite ao administrador do CPD a liberação das suas coligadas
-                no módulo de permissões.
+                Solicite ao administrador do CPD a liberação das suas coligadas.
               </p>
             </div>
           </div>
@@ -59,7 +63,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 3. Usuário OK (com sede): Renderiza o Dashboard normal
+  // 4. Usuário com sede: Renderiza o sistema completo
   return (
     <div className="flex flex-col h-screen w-full bg-[#f1f5f9] font-sans overflow-hidden">
       <Header />
@@ -69,19 +73,16 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ✅ EXPORTAÇÃO DO LAYOUT PRINCIPAL
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { loading, user } = useAuth();
+  const { loading } = useAuth();
   const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
-      setInitialCheckDone(true);
-    }
+    if (!loading) setInitialCheckDone(true);
   }, [loading]);
 
   if (!initialCheckDone && loading) {
