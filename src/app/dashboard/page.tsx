@@ -13,7 +13,6 @@ import {
   Archive,
 } from "lucide-react";
 
-// Configuração centralizada
 const modulosConfig = [
   {
     id_modulo: "alunos",
@@ -24,21 +23,21 @@ const modulosConfig = [
   },
   {
     id_modulo: "repouso",
-    nome: "Sala de Repouso",
+    nome: "Encaminhar Sala de Repouso",
     icon: <Stethoscope size={32} />,
     rota: "/dashboard/repouso",
     cor: "bg-[#4db6ac]",
   },
   {
     id_modulo: "historico",
-    nome: "Histórico Atendimentos",
+    nome: "Histórico de Atendimentos",
     icon: <ClipboardList size={32} />,
     rota: "/dashboard/historico-atendimentos",
     cor: "bg-[#8b5cf6]",
   },
   {
     id_modulo: "ocorrencias",
-    nome: "Ocorrências",
+    nome: "Registro de Ocorrências",
     icon: <FileText size={32} />,
     rota: "/dashboard/ocorrencias",
     cor: "bg-[#f43f5e]",
@@ -83,7 +82,6 @@ const modulosConfig = [
 export default function DashboardPage() {
   const { modulosPermitidos } = useColigada();
 
-  // Filtra apenas os módulos liberados para o usuário logado
   const modulosVisiveis = modulosConfig.filter((m) =>
     modulosPermitidos.includes(m.id_modulo),
   );

@@ -5,20 +5,21 @@ import { ColigadaProvider, useColigada } from "@/context/ColigadaContext";
 import Header from "@/components/layout/Header";
 import TabsBar from "@/components/layout/TabsBar";
 import { useState, useEffect } from "react";
-import { AlertTriangle, Lock, Loader2 } from "lucide-react";
+import { Lock, ShieldAlert, Loader2 } from "lucide-react";
 
+// Componente Interno para gerenciar o conteúdo e a trava de segurança
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { coligadaAtual, loadingColigadas } = useColigada();
   const [mounted, setMounted] = useState(false);
 
+  // ✅ CORREÇÃO PARA O ERRO DA JOSICLEIDE:
+  // Garante que o React não tente mexer no DOM antes da hora
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 1. Evita erro de hidratação (removeChild)
   if (!mounted) return null;
 
-  // 2. Aguarda carregamento das sedes
   if (loadingColigadas) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-[#f1f5f9] text-blue-600 font-bold text-sm italic">
@@ -28,42 +29,38 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 3. TRAVA MESTRA: Se o usuário não tem NENHUMA sede vinculada
+  // ✅ TRAVA DE SEGURANÇA COM O SEU VISUAL ORIGINAL
   if (!coligadaAtual) {
     return (
-      <div className="flex flex-col h-screen w-full items-center justify-center bg-slate-100 p-6 text-center">
-        <div className="bg-white p-10 rounded-3xl shadow-2xl border border-red-100 max-w-md">
-          <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Lock className="text-red-600" size={32} />
+      <div className="flex flex-col h-screen w-full items-center justify-center bg-[#f1f5f9] p-4 text-center">
+        <div className="flex flex-col items-center justify-center bg-white p-12 rounded-[2rem] shadow-xl max-w-md border border-gray-100">
+          <div className="bg-red-50 p-6 rounded-full mb-6">
+            <Lock size={48} className="text-red-500" />
           </div>
-          <h1 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tighter">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
             Acesso Restrito
-          </h1>
-          <p className="text-slate-500 font-medium text-sm leading-relaxed">
-            Seu perfil foi identificado, mas você não possui{" "}
-            <strong className="text-red-600">unidades (sedes)</strong>{" "}
-            vinculadas.
+          </h2>
+          <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+            Você não possui permissão para acessar nenhuma unidade no momento.
           </p>
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <div className="bg-amber-50 p-4 rounded-xl text-left flex gap-3">
-              <AlertTriangle className="text-amber-600 shrink-0" size={18} />
-              <p className="text-amber-800 text-[11px] leading-tight font-semibold">
-                Solicite ao administrador do CPD a liberação das suas coligadas.
-              </p>
-            </div>
+          <div className="flex items-center gap-3 bg-amber-50 p-4 rounded-xl text-left border border-amber-100">
+            <ShieldAlert className="text-amber-600 shrink-0" size={20} />
+            <span className="text-amber-900 text-[11px] font-semibold leading-tight">
+              Contate o <b>CPD</b> para liberar seu acesso às sedes e módulos.
+            </span>
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="mt-8 text-xs font-bold text-blue-600 hover:underline"
+            className="mt-8 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors"
           >
-            Tentar novamente
+            Tentar carregar novamente
           </button>
         </div>
       </div>
     );
   }
 
-  // 4. Usuário com sede: Renderiza o sistema completo
+  // Se tiver sede, mostra o sistema normal
   return (
     <div className="flex flex-col h-screen w-full bg-[#f1f5f9] font-sans overflow-hidden">
       <Header />
