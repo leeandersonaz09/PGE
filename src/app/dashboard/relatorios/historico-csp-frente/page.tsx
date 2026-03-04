@@ -17,7 +17,9 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useColigada } from "@/context/ColigadaContext";
 
+// LISTA DE DISCIPLINAS ATUALIZADA (Respeitando a grafia enviada)
 const disciplinasIniciais = [
+  // BASE COMUM
   { nome: "Língua Portuguesa", tipo: "comum" },
   { nome: "Ciências Naturais", tipo: "comum" },
   { nome: "Matemática", tipo: "comum" },
@@ -36,6 +38,7 @@ const disciplinasIniciais = [
   { nome: "Ciências Aplicada", tipo: "comum" },
   { nome: "Sala de Leitura", tipo: "comum" },
   { nome: "Artes", tipo: "comum" },
+  // BASE DIVERSIFICADA
   { nome: "Língua Estrangeira Moderna Inglês", tipo: "diversificada" },
   { nome: "Redação ", tipo: "diversificada" },
   { nome: "Ling. Estrang. Mod. Inglês", tipo: "diversificada" },
@@ -72,42 +75,39 @@ export default function HistoricoCSPPage() {
 
   const [notas, setNotas] = useState<any[]>([]);
 
+  // ✅ ESTADO: Carga Horária Total (12 colunas: N e CH para cada ano)
+  const [cargaHoraria, setCargaHoraria] = useState<string[]>(
+    Array(12).fill(""),
+  );
+
   const handlePrint = useReactToPrint({
     contentRef: relatorioRef,
     documentTitle: `Historico_CSP_${dadosPessoais.nome || "Aluno"}`,
   });
 
-  // BUSCA FILTRADA POR SEDE (Conforme tabela public.alunos)
   const buscarAlunos = async (termo: string) => {
     if (termo.length < 3) return;
     setLoadingBusca(true);
-
     try {
       let query = supabase
         .from("alunos")
         .select("id, nome, pai, mae, nascimento, sede_id")
         .ilike("nome", `%${termo}%`);
-
-      if (coligadaAtual) {
-        query = query.eq("sede_id", coligadaAtual.id);
-      }
-
+      if (coligadaAtual) query = query.eq("sede_id", coligadaAtual.id);
       const { data, error } = await query.limit(8);
       if (error) throw error;
       setAlunos(data || []);
     } catch (err) {
-      console.error("Erro na busca:", err);
+      console.error(err);
     } finally {
       setLoadingBusca(false);
     }
   };
 
-  // RECUPERAÇÃO DE DADOS
   const selecionarAluno = async (aluno: any) => {
     setAlunoSelecionado(aluno);
     setBusca(aluno.nome);
     setAlunos([]);
-    setNotas([]); // Limpa para carregar novo
 
     const { data: salvo, error } = await supabase
       .from("relatorio_historico_frente")
@@ -118,6 +118,8 @@ export default function HistoricoCSPPage() {
     if (salvo && !error) {
       setDadosPessoais(salvo.dados_pessoais);
       setNotas(salvo.dados_academicos);
+      // ✅ RECUPERAÇÃO: Carrega os totais do banco
+      setCargaHoraria(salvo.carga_horaria || Array(12).fill(""));
     } else {
       setDadosPessoais({
         nome: aluno.nome,
@@ -128,7 +130,6 @@ export default function HistoricoCSPPage() {
         pai: aluno.pai || "",
         mae: aluno.mae || "",
       });
-
       const baseNotas = disciplinasIniciais.map((d) => ({
         disciplina: d.nome,
         tipo: d.tipo,
@@ -137,6 +138,7 @@ export default function HistoricoCSPPage() {
         ),
       }));
       setNotas(baseNotas);
+      setCargaHoraria(Array(12).fill(""));
     }
   };
 
@@ -144,6 +146,13 @@ export default function HistoricoCSPPage() {
     const novas = [...notas];
     novas[index][campo] = valor;
     setNotas(novas);
+  };
+
+  // ✅ FUNÇÃO PARA ATUALIZAR O TOTAL DA CARGA HORÁRIA
+  const atualizarCargaTotal = (index: number, valor: string) => {
+    const novas = [...cargaHoraria];
+    novas[index] = valor;
+    setCargaHoraria(novas);
   };
 
   const adicionarLinha = (tipo: "comum" | "diversificada") => {
@@ -156,11 +165,9 @@ export default function HistoricoCSPPage() {
     setNotas(notas.filter((_, i) => i !== index));
   };
 
-  // SALVAMENTO (Agora com sede_id incluído)
   const salvarNoBanco = async () => {
-    if (!alunoSelecionado) return alert("Selecione um aluno!");
+    if (!alunoSelecionado) return alert("Selecione um aluno primeiro!");
     setSalvando(true);
-
     try {
       const { error } = await supabase
         .from("relatorio_historico_frente")
@@ -169,16 +176,18 @@ export default function HistoricoCSPPage() {
             aluno_id: alunoSelecionado.id,
             dados_pessoais: dadosPessoais,
             dados_academicos: notas,
+            carga_horaria: cargaHoraria, // ✅ Enviando os totais vinculados ao state
             salvo_por: user?.id,
-            sede_id: coligadaAtual?.id, // Agora a coluna existe no banco!
+            sede_id: coligadaAtual?.id,
             updated_at: new Date(),
           },
           { onConflict: "aluno_id" },
         );
 
       if (error) throw error;
-      alert("Histórico salvo com sucesso!");
+      alert("Progresso salvo com sucesso!");
     } catch (error: any) {
+      console.error(error);
       alert("Erro ao salvar: " + error.message);
     } finally {
       setSalvando(false);
@@ -205,7 +214,7 @@ export default function HistoricoCSPPage() {
         <div className="flex items-center gap-4 flex-1">
           <Link
             href="/dashboard/relatorios"
-            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-700"
+            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors text-slate-700"
           >
             <ArrowLeft size={20} />
           </Link>
@@ -232,7 +241,7 @@ export default function HistoricoCSPPage() {
                   <button
                     key={a.id}
                     onClick={() => selecionarAluno(a)}
-                    className="w-full text-left p-3 hover:bg-blue-50 border-b text-[11px] font-bold uppercase text-slate-800"
+                    className="w-full text-left p-3 hover:bg-blue-50 border-b text-[11px] font-bold uppercase text-slate-800 transition-colors"
                   >
                     RA: {a.id} - {a.nome}
                   </button>
@@ -295,7 +304,7 @@ export default function HistoricoCSPPage() {
             <div className="flex flex-col items-center -mb-[30px]">
               <img
                 src="/assets/csp_logo.bmp"
-                alt="Logo CSP"
+                alt="Logo"
                 className="w-[400px]"
               />
             </div>
@@ -310,14 +319,13 @@ export default function HistoricoCSPPage() {
               <div className="text-[6pt] text-left leading-[1.1] pl-[80px] uppercase">
                 <span className="font-bold text-[7.5pt]">
                   ENSINO FUNDAMENTAL E MÉDIO
-                </span>{" "}
+                </span>
                 <br />
                 INSPIRA MUDANÇA PARTICIPAÇÕES S.A. FILIAL COLÉGIO SÃO PAULO
                 <br />
-                RECONHECIDO PELAS RES. C.E.E. 064/90, PARECER 195/90, D.O.
-                18/11/1990
+                RECONHECIDO RES. C.E.E. 064/90, PARECER 195/90, D.O. 18/11/1990
                 <br />
-                CREDENCIADO NOS TERMOS DO ARTIGO 2º DA RESOLUÇÃO CEE 037/2001
+                CREDENCIADO RESOLUÇÃO CEE 037/2001
                 <br />
                 DO CEE Nº 42/2009 D.O.E 18/04/2009
               </div>
@@ -629,11 +637,12 @@ export default function HistoricoCSPPage() {
                     })}
                 </>
               )}
+              {/* ✅ LINHA DE CARGA HORÁRIA TOTAL CORRIGIDA */}
               <tr className="bg-[#ededed] font-bold text-[7.5pt] uppercase h-5">
                 <td className="border border-black pl-1 font-bold">
                   CARGA HORÁRIA TOTAL
                 </td>
-                {Array.from({ length: 12 }).map((_, i) => (
+                {cargaHoraria.map((valor, i) => (
                   <React.Fragment key={i}>
                     <td
                       colSpan={2}
@@ -642,6 +651,8 @@ export default function HistoricoCSPPage() {
                       <input
                         type="text"
                         placeholder="0"
+                        value={valor}
+                        onChange={(e) => atualizarCargaTotal(i, e.target.value)}
                         className="w-full text-center bg-transparent outline-none font-bold uppercase"
                       />
                     </td>
@@ -650,6 +661,16 @@ export default function HistoricoCSPPage() {
               </tr>
             </tbody>
           </table>
+
+          <div className="mt-12 flex justify-around text-[10px] font-bold uppercase text-center">
+            <div className="flex flex-col items-center">
+              <div className="border-t border-black w-48 mb-1"></div>
+              SECRETÁRIO(A) ESCOLAR
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="border-t border-black w-48 mb-1"></div>DIRETOR(A)
+            </div>
+          </div>
         </div>
       </div>
     </div>
