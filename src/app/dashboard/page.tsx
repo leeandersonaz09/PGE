@@ -2,6 +2,7 @@
 
 import { useColigada } from "@/context/ColigadaContext";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import {
   GraduationCap,
   Stethoscope,
@@ -86,6 +87,14 @@ export default function DashboardPage() {
   const { modulosPermitidos, coligadasPermitidas, loadingColigadas } =
     useColigada();
 
+  // ✅ ESTA É A CHAVE: Garante que a renderização condicional não quebre o DOM
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null; // Não renderiza nada até o navegador estar pronto
+
   if (loadingColigadas) {
     return (
       <div className="flex items-center justify-center h-full text-blue-600 font-bold italic">
@@ -95,7 +104,7 @@ export default function DashboardPage() {
     );
   }
 
-  // TRAVA DE SEGURANÇA: Se não houver NENHUMA sede liberada no banco de dados
+  // TRAVA DE SEGURANÇA ORIGINAL (Visual que você quer)
   if (!coligadasPermitidas || coligadasPermitidas.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-white p-10 text-center">
@@ -118,7 +127,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Se houver sedes, filtra os módulos normalmente
   const modulosVisiveis = modulosConfig.filter((m) =>
     modulosPermitidos.includes(m.id_modulo),
   );
@@ -142,14 +150,6 @@ export default function DashboardPage() {
             </span>
           </Link>
         ))}
-
-        {modulosVisiveis.length === 0 && (
-          <div className="col-span-full text-center py-20">
-            <p className="text-gray-400 italic">
-              Sede identificada, mas nenhum módulo liberado.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
