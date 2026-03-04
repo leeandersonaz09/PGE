@@ -180,7 +180,7 @@ export default function HistoricoCSPPage() {
       if (error) throw error;
       alert("Sucesso!");
     } catch (error: any) {
-      alert("Erro: " + error.message);
+      alert("Erro ao salvar: " + error.message);
     } finally {
       setSalvando(false);
     }
@@ -290,7 +290,8 @@ export default function HistoricoCSPPage() {
             boxSizing: "border-box",
           }}
         >
-          <div className="border-[2px] border-black p-[8px_12px_6px_12px] mb-[10px]">
+          {/* CABEÇALHO COM BORDA PADRONIZADA */}
+          <div className="border border-black p-[8px_12px_6px_12px] mb-[10px]">
             <div className="flex flex-col items-center -mb-[30px]">
               <img
                 src="/assets/csp_logo.bmp"
@@ -327,46 +328,16 @@ export default function HistoricoCSPPage() {
             </div>
           </div>
 
-          {/* DADOS PESSOAIS AJUSTADOS: LABEL NEGRITO / DADO NORMAL */}
-          <table className="w-full border-collapse mb-[10px] text-black text-[8.5pt]">
+          {/* DADOS PESSOAIS: NACIONALIDADE ACIMA DE NASCIMENTO E LINHAS VERTICAIS INVISÍVEIS */}
+          <table className="w-full border-collapse mb-[10px] text-black text-[8.5pt] border border-black">
             <tbody>
-              <tr>
-                <td colSpan={3} className="border border-black p-[4px_6px]">
-                  <span className="font-bold uppercase">ALUNO:</span>{" "}
+              <tr className="border-b border-black">
+                <td className="p-[4px_6px] w-[65%] border-r-0">
+                  <span className="font-bold uppercase">ALUNO :</span>{" "}
                   {dadosPessoais.nome}
                 </td>
-                <td className="border border-black p-[4px_6px] w-[25%]">
-                  <span className="font-bold uppercase">NASC.:</span>
-                  <input
-                    type="text"
-                    value={dadosPessoais.nascimento}
-                    onChange={(e) =>
-                      setDadosPessoais({
-                        ...dadosPessoais,
-                        nascimento: e.target.value,
-                      })
-                    }
-                    className="bg-transparent outline-none w-20"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="border border-black p-[4px_6px]">
-                  <span className="font-bold uppercase">NATURALIDADE:</span>
-                  <input
-                    type="text"
-                    value={dadosPessoais.naturalidade}
-                    onChange={(e) =>
-                      setDadosPessoais({
-                        ...dadosPessoais,
-                        naturalidade: e.target.value,
-                      })
-                    }
-                    className="bg-transparent outline-none w-32"
-                  />
-                </td>
-                <td colSpan={3} className="border border-black p-[4px_6px]">
-                  <span className="font-bold uppercase">NACIONALIDADE:</span>
+                <td className="p-[4px_6px] w-[35%] border-l-0 text-left">
+                  <span className="font-bold uppercase">NACIONALIDADE :</span>
                   <input
                     type="text"
                     value={dadosPessoais.nacionalidade}
@@ -376,13 +347,43 @@ export default function HistoricoCSPPage() {
                         nacionalidade: e.target.value,
                       })
                     }
-                    className="bg-transparent outline-none w-48"
+                    className="bg-transparent outline-none ml-1 w-28"
                   />
                 </td>
               </tr>
-              <tr>
-                <td colSpan={4} className="border border-black p-[4px_6px]">
-                  <span className="font-bold uppercase">PAI:</span>
+              <tr className="border-b border-black">
+                <td className="p-[4px_6px] border-r-0">
+                  <span className="font-bold uppercase">NATURALIDADE :</span>
+                  <input
+                    type="text"
+                    value={dadosPessoais.naturalidade}
+                    onChange={(e) =>
+                      setDadosPessoais({
+                        ...dadosPessoais,
+                        naturalidade: e.target.value,
+                      })
+                    }
+                    className="bg-transparent outline-none ml-1 w-48"
+                  />
+                </td>
+                <td className="p-[4px_6px] border-l-0 text-left">
+                  <span className="font-bold uppercase">NASCIMENTO :</span>
+                  <input
+                    type="text"
+                    value={dadosPessoais.nascimento}
+                    onChange={(e) =>
+                      setDadosPessoais({
+                        ...dadosPessoais,
+                        nascimento: e.target.value,
+                      })
+                    }
+                    className="bg-transparent outline-none ml-1 w-28"
+                  />
+                </td>
+              </tr>
+              <tr className="border-b border-black">
+                <td colSpan={2} className="p-[4px_6px]">
+                  <span className="font-bold uppercase">PAI :</span>
                   <input
                     type="text"
                     value={dadosPessoais.pai}
@@ -392,13 +393,13 @@ export default function HistoricoCSPPage() {
                         pai: e.target.value,
                       })
                     }
-                    className="bg-transparent outline-none w-[90%]"
+                    className="bg-transparent outline-none ml-1 w-[90%]"
                   />
                 </td>
               </tr>
               <tr>
-                <td colSpan={4} className="border border-black p-[4px_6px]">
-                  <span className="font-bold uppercase">MÃE:</span>
+                <td colSpan={2} className="p-[4px_6px]">
+                  <span className="font-bold uppercase">MÃE :</span>
                   <input
                     type="text"
                     value={dadosPessoais.mae}
@@ -408,14 +409,14 @@ export default function HistoricoCSPPage() {
                         mae: e.target.value,
                       })
                     }
-                    className="bg-transparent outline-none w-[90%]"
+                    className="bg-transparent outline-none ml-1 w-[90%]"
                   />
                 </td>
               </tr>
             </tbody>
           </table>
 
-          {/* TABELA DE COMPONENTES: REMOVIDO BG E UPPERCASE */}
+          {/* TABELA DE COMPONENTES */}
           <table
             className="w-full border-collapse"
             style={{ tableLayout: "fixed" }}
@@ -518,7 +519,7 @@ export default function HistoricoCSPPage() {
                           />
                           <button
                             onClick={() => removerLinha(globalIdx)}
-                            className="no-print text-red-500 opacity-0 group-hover:opacity-100 mr-1"
+                            className="no-print text-red-500 opacity-0 group-hover:opacity-100 transition-opacity mr-1"
                           >
                             <Trash2 size={10} />
                           </button>
@@ -574,7 +575,7 @@ export default function HistoricoCSPPage() {
                               />
                               <button
                                 onClick={() => removerLinha(globalIdx)}
-                                className="no-print text-red-500 opacity-0 group-hover:opacity-100 mr-1"
+                                className="no-print text-red-500 opacity-0 group-hover:opacity-100 transition-opacity mr-1"
                               >
                                 <Trash2 size={10} />
                               </button>
