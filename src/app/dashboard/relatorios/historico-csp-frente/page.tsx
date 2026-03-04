@@ -8,7 +8,6 @@ import {
   Printer,
   ArrowLeft,
   Loader2,
-  LayoutPanelTop,
   PlusCircle,
   Trash2,
   Save,
@@ -17,9 +16,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useColigada } from "@/context/ColigadaContext";
 
-// LISTA DE DISCIPLINAS EXATA (Conforme seu último ajuste)
 const disciplinasIniciais = [
-  // BASE COMUM
   { nome: "Língua Portuguesa", tipo: "comum" },
   { nome: "Ciências Naturais", tipo: "comum" },
   { nome: "Matemática", tipo: "comum" },
@@ -38,7 +35,6 @@ const disciplinasIniciais = [
   { nome: "Ciências Aplicada", tipo: "comum" },
   { nome: "Sala de Leitura", tipo: "comum" },
   { nome: "Artes", tipo: "comum" },
-  // BASE DIVERSIFICADA
   { nome: "Língua Estrangeira Moderna Inglês", tipo: "diversificada" },
   { nome: "Redação ", tipo: "diversificada" },
   { nome: "Ling. Estrang. Mod. Inglês", tipo: "diversificada" },
@@ -68,14 +64,11 @@ export default function HistoricoCSPPage() {
     nascimento: "",
     naturalidade: "",
     nacionalidade: "",
-    cpf: "",
     pai: "",
     mae: "",
   });
 
   const [notas, setNotas] = useState<any[]>([]);
-
-  // ✅ ESTADO GARANTIDO: Inicializa sempre com 12 posições
   const [cargaHoraria, setCargaHoraria] = useState<string[]>(
     Array(12).fill("0"),
   );
@@ -118,19 +111,17 @@ export default function HistoricoCSPPage() {
     if (salvo && !error) {
       setDadosPessoais(salvo.dados_pessoais);
       setNotas(salvo.dados_academicos);
-      // ✅ GARANTIA: Se o que vier do banco não tiver 12 itens, forçamos a estrutura
-      const chDoBanco =
+      setCargaHoraria(
         salvo.carga_horaria && salvo.carga_horaria.length === 12
           ? salvo.carga_horaria
-          : Array(12).fill("0");
-      setCargaHoraria(chDoBanco);
+          : Array(12).fill("0"),
+      );
     } else {
       setDadosPessoais({
         nome: aluno.nome,
         nascimento: aluno.nascimento || "",
         naturalidade: "SALVADOR-BA",
         nacionalidade: "BRASILEIRA",
-        cpf: "",
         pai: aluno.pai || "",
         mae: aluno.mae || "",
       });
@@ -186,11 +177,10 @@ export default function HistoricoCSPPage() {
           },
           { onConflict: "aluno_id" },
         );
-
       if (error) throw error;
-      alert("Progresso salvo com sucesso!");
+      alert("Sucesso!");
     } catch (error: any) {
-      alert("Erro ao salvar: " + error.message);
+      alert("Erro: " + error.message);
     } finally {
       setSalvando(false);
     }
@@ -211,7 +201,6 @@ export default function HistoricoCSPPage() {
         }}
       />
 
-      {/* TOOLBAR */}
       <div className="no-print bg-white p-4 sticky top-0 z-50 border-b border-slate-300 shadow-sm flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-4 flex-1">
           <Link
@@ -338,17 +327,16 @@ export default function HistoricoCSPPage() {
             </div>
           </div>
 
-          <table className="w-full border-collapse mb-[10px] text-black uppercase text-[8.5pt]">
+          {/* DADOS PESSOAIS AJUSTADOS: LABEL NEGRITO / DADO NORMAL */}
+          <table className="w-full border-collapse mb-[10px] text-black text-[8.5pt]">
             <tbody>
               <tr>
-                <td
-                  colSpan={3}
-                  className="border border-black p-[4px_6px] font-bold"
-                >
-                  ALUNO: {dadosPessoais.nome}
+                <td colSpan={3} className="border border-black p-[4px_6px]">
+                  <span className="font-bold uppercase">ALUNO:</span>{" "}
+                  {dadosPessoais.nome}
                 </td>
-                <td className="border border-black p-[4px_6px] w-[25%] font-bold">
-                  NASC.:{" "}
+                <td className="border border-black p-[4px_6px] w-[25%]">
+                  <span className="font-bold uppercase">NASC.:</span>
                   <input
                     type="text"
                     value={dadosPessoais.nascimento}
@@ -358,13 +346,13 @@ export default function HistoricoCSPPage() {
                         nascimento: e.target.value,
                       })
                     }
-                    className="bg-transparent outline-none w-20 font-bold"
+                    className="bg-transparent outline-none w-20"
                   />
                 </td>
               </tr>
-              <tr className="font-bold">
+              <tr>
                 <td className="border border-black p-[4px_6px]">
-                  NATURALIDADE:{" "}
+                  <span className="font-bold uppercase">NATURALIDADE:</span>
                   <input
                     type="text"
                     value={dadosPessoais.naturalidade}
@@ -374,11 +362,11 @@ export default function HistoricoCSPPage() {
                         naturalidade: e.target.value,
                       })
                     }
-                    className="bg-transparent outline-none w-32 font-bold"
+                    className="bg-transparent outline-none w-32"
                   />
                 </td>
-                <td colSpan={2} className="border border-black p-[4px_6px]">
-                  NACIONALIDADE:{" "}
+                <td colSpan={3} className="border border-black p-[4px_6px]">
+                  <span className="font-bold uppercase">NACIONALIDADE:</span>
                   <input
                     type="text"
                     value={dadosPessoais.nacionalidade}
@@ -388,28 +376,13 @@ export default function HistoricoCSPPage() {
                         nacionalidade: e.target.value,
                       })
                     }
-                    className="bg-transparent outline-none w-32 font-bold"
-                  />
-                </td>
-                <td className="border border-black p-[4px_6px]">
-                  CPF:{" "}
-                  <input
-                    type="text"
-                    value={dadosPessoais.cpf}
-                    onChange={(e) =>
-                      setDadosPessoais({
-                        ...dadosPessoais,
-                        cpf: e.target.value,
-                      })
-                    }
-                    placeholder="***.***.***-**"
-                    className="bg-transparent outline-none w-28 font-bold"
+                    className="bg-transparent outline-none w-48"
                   />
                 </td>
               </tr>
-              <tr className="font-bold">
+              <tr>
                 <td colSpan={4} className="border border-black p-[4px_6px]">
-                  PAI:{" "}
+                  <span className="font-bold uppercase">PAI:</span>
                   <input
                     type="text"
                     value={dadosPessoais.pai}
@@ -419,13 +392,13 @@ export default function HistoricoCSPPage() {
                         pai: e.target.value,
                       })
                     }
-                    className="bg-transparent outline-none w-[90%] font-bold"
+                    className="bg-transparent outline-none w-[90%]"
                   />
                 </td>
               </tr>
-              <tr className="font-bold">
+              <tr>
                 <td colSpan={4} className="border border-black p-[4px_6px]">
-                  MÃE:{" "}
+                  <span className="font-bold uppercase">MÃE:</span>
                   <input
                     type="text"
                     value={dadosPessoais.mae}
@@ -435,13 +408,14 @@ export default function HistoricoCSPPage() {
                         mae: e.target.value,
                       })
                     }
-                    className="bg-transparent outline-none w-[90%] font-bold"
+                    className="bg-transparent outline-none w-[90%]"
                   />
                 </td>
               </tr>
             </tbody>
           </table>
 
+          {/* TABELA DE COMPONENTES: REMOVIDO BG E UPPERCASE */}
           <table
             className="w-full border-collapse"
             style={{ tableLayout: "fixed" }}
@@ -453,40 +427,40 @@ export default function HistoricoCSPPage() {
               ))}
             </colgroup>
             <thead>
-              <tr className="bg-[#ededed] font-bold text-[6.5pt] text-center border border-black uppercase">
+              <tr className="font-bold text-[6.5pt] text-center border border-black">
                 <th rowSpan={4} className="border border-black">
-                  COMPONENTES
+                  Componentes
                   <br />
-                  CURRICULARES
+                  Curriculares
                 </th>
                 <th colSpan={18} className="border border-black py-0.5">
-                  ENSINO FUNDAMENTAL
+                  Ensino Fundamental
                 </th>
                 <th colSpan={6} className="border border-black py-0.5">
-                  ENSINO MÉDIO
+                  Ensino Médio
                 </th>
               </tr>
-              <tr className="text-[6.5pt] text-center font-bold uppercase border border-black">
+              <tr className="text-[6.5pt] text-center font-bold border border-black">
                 {[
-                  "1º ANO",
-                  "2º ANO",
-                  "3º ANO",
-                  "4º ANO",
-                  "5º ANO",
-                  "6º ANO",
-                  "7º ANO",
-                  "8º ANO",
-                  "9º ANO",
-                  "1ª SÉRIE",
-                  "2ª SÉRIE",
-                  "3ª SÉRIE",
+                  "1º Ano",
+                  "2º Ano",
+                  "3º Ano",
+                  "4º Ano",
+                  "5º Ano",
+                  "6º Ano",
+                  "7º Ano",
+                  "8º Ano",
+                  "9º Ano",
+                  "1ª Série",
+                  "2ª Série",
+                  "3ª Série",
                 ].map((ano) => (
                   <th key={ano} colSpan={2} className="border border-black">
                     {ano}
                   </th>
                 ))}
               </tr>
-              <tr className="text-[5.5pt] text-center uppercase border border-black font-normal">
+              <tr className="text-[5.5pt] text-center border border-black font-bold">
                 {[
                   "Alfabet.",
                   "1ª Série",
@@ -501,11 +475,7 @@ export default function HistoricoCSPPage() {
                   "-",
                   "-",
                 ].map((sub, i) => (
-                  <th
-                    key={i}
-                    colSpan={2}
-                    className="border border-black font-normal"
-                  >
+                  <th key={i} colSpan={2} className="border border-black">
                     {sub}
                   </th>
                 ))}
@@ -513,17 +483,15 @@ export default function HistoricoCSPPage() {
               <tr className="text-[6pt] text-center font-bold border border-black">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <React.Fragment key={i}>
-                    <th className="border border-black font-bold">N</th>
-                    <th className="border border-black font-bold">CH</th>
+                    <th className="border border-black">N</th>
+                    <th className="border border-black">CH</th>
                   </React.Fragment>
                 ))}
               </tr>
             </thead>
             <tbody className="text-[6.5pt] border border-black">
-              <tr className="bg-[#ededed] font-bold h-4">
-                <td className="border border-black pl-1 uppercase">
-                  BASE COMUM
-                </td>
+              <tr className="font-bold h-4">
+                <td className="border border-black pl-1">Base Comum</td>
                 {Array.from({ length: 24 }).map((_, i) => (
                   <td key={i} className="border border-black"></td>
                 ))}
@@ -533,11 +501,8 @@ export default function HistoricoCSPPage() {
                 .map((n) => {
                   const globalIdx = notas.indexOf(n);
                   return (
-                    <tr
-                      key={globalIdx}
-                      className="group relative hover:bg-blue-50/20 h-4"
-                    >
-                      <td className="border border-black pl-1 font-bold text-[7pt] text-left">
+                    <tr key={globalIdx} className="group h-4">
+                      <td className="border border-black pl-1 text-[7pt] text-left">
                         <div className="flex items-center justify-between">
                           <input
                             type="text"
@@ -549,11 +514,11 @@ export default function HistoricoCSPPage() {
                                 e.target.value,
                               )
                             }
-                            className="w-full bg-transparent outline-none font-bold font-sans"
+                            className="w-full bg-transparent outline-none font-sans"
                           />
                           <button
                             onClick={() => removerLinha(globalIdx)}
-                            className="no-print text-red-500 opacity-0 group-hover:opacity-100 transition-opacity mr-1"
+                            className="no-print text-red-500 opacity-0 group-hover:opacity-100 mr-1"
                           >
                             <Trash2 size={10} />
                           </button>
@@ -579,9 +544,9 @@ export default function HistoricoCSPPage() {
                 })}
               {mostrarDiversificada && (
                 <>
-                  <tr className="bg-[#ededed] font-bold h-4 uppercase font-bold">
+                  <tr className="font-bold h-4 border-t border-black">
                     <td className="border border-black pl-1">
-                      BASE DIVERSIFICADA
+                      Base Diversificada
                     </td>
                     {Array.from({ length: 24 }).map((_, i) => (
                       <td key={i} className="border border-black"></td>
@@ -592,10 +557,7 @@ export default function HistoricoCSPPage() {
                     .map((n) => {
                       const globalIdx = notas.indexOf(n);
                       return (
-                        <tr
-                          key={globalIdx}
-                          className="group relative hover:bg-blue-50/20 h-4"
-                        >
+                        <tr key={globalIdx} className="group h-4">
                           <td className="border border-black pl-1 text-left">
                             <div className="flex items-center justify-between">
                               <input
@@ -608,11 +570,11 @@ export default function HistoricoCSPPage() {
                                     e.target.value,
                                   )
                                 }
-                                className="w-full bg-transparent outline-none font-bold font-sans"
+                                className="w-full bg-transparent outline-none font-sans"
                               />
                               <button
                                 onClick={() => removerLinha(globalIdx)}
-                                className="no-print text-red-500 opacity-0 group-hover:opacity-100 transition-opacity mr-1"
+                                className="no-print text-red-500 opacity-0 group-hover:opacity-100 mr-1"
                               >
                                 <Trash2 size={10} />
                               </button>
@@ -638,23 +600,21 @@ export default function HistoricoCSPPage() {
                     })}
                 </>
               )}
-              {/* ✅ LINHA DE CARGA HORÁRIA TOTAL RESTAURADA E FORÇADA (12 COLUNAS) */}
-              <tr className="bg-[#ededed] font-bold text-[7.5pt] uppercase h-5">
-                <td className="border border-black pl-1 font-bold">
-                  CARGA HORÁRIA TOTAL
+              <tr className="font-bold text-[7.5pt] h-5 border-t border-black">
+                <td className="border border-black pl-1">
+                  Carga Horária Total
                 </td>
                 {cargaHoraria.map((valor, i) => (
                   <React.Fragment key={i}>
                     <td
                       colSpan={2}
-                      className="border border-black text-center font-bold font-sans"
+                      className="border border-black text-center font-bold"
                     >
                       <input
                         type="text"
-                        placeholder="0"
                         value={valor}
                         onChange={(e) => atualizarCargaTotal(i, e.target.value)}
-                        className="w-full text-center bg-transparent outline-none font-bold uppercase"
+                        className="w-full text-center bg-transparent outline-none font-bold"
                       />
                     </td>
                   </React.Fragment>
