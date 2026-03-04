@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useColigada } from "@/context/ColigadaContext";
 
-// LISTA DE DISCIPLINAS ATUALIZADA (Respeitando a grafia enviada)
+// LISTA DE DISCIPLINAS EXATA (Conforme seu último ajuste)
 const disciplinasIniciais = [
   // BASE COMUM
   { nome: "Língua Portuguesa", tipo: "comum" },
@@ -75,9 +75,9 @@ export default function HistoricoCSPPage() {
 
   const [notas, setNotas] = useState<any[]>([]);
 
-  // ✅ ESTADO: Carga Horária Total (12 colunas: N e CH para cada ano)
+  // ✅ ESTADO GARANTIDO: Inicializa sempre com 12 posições
   const [cargaHoraria, setCargaHoraria] = useState<string[]>(
-    Array(12).fill(""),
+    Array(12).fill("0"),
   );
 
   const handlePrint = useReactToPrint({
@@ -118,8 +118,12 @@ export default function HistoricoCSPPage() {
     if (salvo && !error) {
       setDadosPessoais(salvo.dados_pessoais);
       setNotas(salvo.dados_academicos);
-      // ✅ RECUPERAÇÃO: Carrega os totais do banco
-      setCargaHoraria(salvo.carga_horaria || Array(12).fill(""));
+      // ✅ GARANTIA: Se o que vier do banco não tiver 12 itens, forçamos a estrutura
+      const chDoBanco =
+        salvo.carga_horaria && salvo.carga_horaria.length === 12
+          ? salvo.carga_horaria
+          : Array(12).fill("0");
+      setCargaHoraria(chDoBanco);
     } else {
       setDadosPessoais({
         nome: aluno.nome,
@@ -138,7 +142,7 @@ export default function HistoricoCSPPage() {
         ),
       }));
       setNotas(baseNotas);
-      setCargaHoraria(Array(12).fill(""));
+      setCargaHoraria(Array(12).fill("0"));
     }
   };
 
@@ -148,7 +152,6 @@ export default function HistoricoCSPPage() {
     setNotas(novas);
   };
 
-  // ✅ FUNÇÃO PARA ATUALIZAR O TOTAL DA CARGA HORÁRIA
   const atualizarCargaTotal = (index: number, valor: string) => {
     const novas = [...cargaHoraria];
     novas[index] = valor;
@@ -166,7 +169,7 @@ export default function HistoricoCSPPage() {
   };
 
   const salvarNoBanco = async () => {
-    if (!alunoSelecionado) return alert("Selecione um aluno primeiro!");
+    if (!alunoSelecionado) return alert("Selecione um aluno!");
     setSalvando(true);
     try {
       const { error } = await supabase
@@ -176,7 +179,7 @@ export default function HistoricoCSPPage() {
             aluno_id: alunoSelecionado.id,
             dados_pessoais: dadosPessoais,
             dados_academicos: notas,
-            carga_horaria: cargaHoraria, // ✅ Enviando os totais vinculados ao state
+            carga_horaria: cargaHoraria,
             salvo_por: user?.id,
             sede_id: coligadaAtual?.id,
             updated_at: new Date(),
@@ -187,7 +190,6 @@ export default function HistoricoCSPPage() {
       if (error) throw error;
       alert("Progresso salvo com sucesso!");
     } catch (error: any) {
-      console.error(error);
       alert("Erro ao salvar: " + error.message);
     } finally {
       setSalvando(false);
@@ -195,7 +197,7 @@ export default function HistoricoCSPPage() {
   };
 
   return (
-    <div className="bg-slate-200 min-h-screen flex flex-col font-sans overflow-auto">
+    <div className="bg-slate-200 min-h-screen flex flex-col font-sans overflow-auto no-scrollbar">
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -214,7 +216,7 @@ export default function HistoricoCSPPage() {
         <div className="flex items-center gap-4 flex-1">
           <Link
             href="/dashboard/relatorios"
-            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors text-slate-700"
+            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-700"
           >
             <ArrowLeft size={20} />
           </Link>
@@ -241,7 +243,7 @@ export default function HistoricoCSPPage() {
                   <button
                     key={a.id}
                     onClick={() => selecionarAluno(a)}
-                    className="w-full text-left p-3 hover:bg-blue-50 border-b text-[11px] font-bold uppercase text-slate-800 transition-colors"
+                    className="w-full text-left p-3 hover:bg-blue-50 border-b text-[11px] font-bold uppercase text-slate-800 transition-colors font-sans"
                   >
                     RA: {a.id} - {a.nome}
                   </button>
@@ -250,7 +252,6 @@ export default function HistoricoCSPPage() {
             )}
           </div>
         </div>
-
         <div className="flex gap-2">
           <button
             onClick={() => adicionarLinha("comum")}
@@ -534,7 +535,7 @@ export default function HistoricoCSPPage() {
                   return (
                     <tr
                       key={globalIdx}
-                      className="group relative hover:bg-blue-50/20"
+                      className="group relative hover:bg-blue-50/20 h-4"
                     >
                       <td className="border border-black pl-1 font-bold text-[7pt] text-left">
                         <div className="flex items-center justify-between">
@@ -548,7 +549,7 @@ export default function HistoricoCSPPage() {
                                 e.target.value,
                               )
                             }
-                            className="w-full bg-transparent outline-none font-bold"
+                            className="w-full bg-transparent outline-none font-bold font-sans"
                           />
                           <button
                             onClick={() => removerLinha(globalIdx)}
@@ -593,7 +594,7 @@ export default function HistoricoCSPPage() {
                       return (
                         <tr
                           key={globalIdx}
-                          className="group relative hover:bg-blue-50/20"
+                          className="group relative hover:bg-blue-50/20 h-4"
                         >
                           <td className="border border-black pl-1 text-left">
                             <div className="flex items-center justify-between">
@@ -607,7 +608,7 @@ export default function HistoricoCSPPage() {
                                     e.target.value,
                                   )
                                 }
-                                className="w-full bg-transparent outline-none font-bold"
+                                className="w-full bg-transparent outline-none font-bold font-sans"
                               />
                               <button
                                 onClick={() => removerLinha(globalIdx)}
@@ -637,7 +638,7 @@ export default function HistoricoCSPPage() {
                     })}
                 </>
               )}
-              {/* ✅ LINHA DE CARGA HORÁRIA TOTAL CORRIGIDA */}
+              {/* ✅ LINHA DE CARGA HORÁRIA TOTAL RESTAURADA E FORÇADA (12 COLUNAS) */}
               <tr className="bg-[#ededed] font-bold text-[7.5pt] uppercase h-5">
                 <td className="border border-black pl-1 font-bold">
                   CARGA HORÁRIA TOTAL
@@ -661,16 +662,6 @@ export default function HistoricoCSPPage() {
               </tr>
             </tbody>
           </table>
-
-          <div className="mt-12 flex justify-around text-[10px] font-bold uppercase text-center">
-            <div className="flex flex-col items-center">
-              <div className="border-t border-black w-48 mb-1"></div>
-              SECRETÁRIO(A) ESCOLAR
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="border-t border-black w-48 mb-1"></div>DIRETOR(A)
-            </div>
-          </div>
         </div>
       </div>
     </div>
