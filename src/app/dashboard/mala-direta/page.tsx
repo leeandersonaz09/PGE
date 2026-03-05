@@ -24,7 +24,6 @@ import {
 import { useColigada } from "@/context/ColigadaContext";
 import SelecaoSistema from "./SelecaoSistema";
 
-// CSS GLOBAL DE BLINDAGEM (Corrige as caixas brancas/transparentes)
 const quillStyle = `
   .ql-container {
     background-color: white !important;
@@ -66,6 +65,7 @@ export default function MalaDiretaPage() {
     null,
   );
   const anexoRef = useRef<HTMLInputElement>(null);
+  const quillRef = useRef<any>(null); // AJUSTADO: Ref para o editor
   const [contatos, setContatos] = useState<any[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const arquivoRef = useRef<HTMLInputElement>(null);
@@ -79,6 +79,22 @@ export default function MalaDiretaPage() {
       [{ align: [] }],
       ["clean"],
     ],
+  };
+
+  // AJUSTADO: Função para inserir a tag onde o cursor estiver
+  const inserirTagNoCursor = (tag: string) => {
+    const quill = quillRef.current?.getEditor();
+    if (quill) {
+      const range = quill.getSelection();
+      const textoTag = `{{${tag}}}`;
+      if (range) {
+        quill.insertText(range.index, textoTag);
+        quill.setSelection(range.index + textoTag.length);
+      } else {
+        const length = quill.getLength();
+        quill.insertText(length - 1, textoTag);
+      }
+    }
   };
 
   const processarArquivo = (file: File) => {
@@ -231,7 +247,6 @@ export default function MalaDiretaPage() {
                   >
                     <X size={14} /> Voltar para Origem
                   </button>
-
                   {origem === "banco" ? (
                     <SelecaoSistema
                       onConfirm={(lista, tagsG) => {
@@ -309,7 +324,7 @@ export default function MalaDiretaPage() {
                   {tags.map((tag) => (
                     <button
                       key={tag}
-                      onClick={() => setMensagem((p) => p + `{{${tag}}}`)}
+                      onClick={() => inserirTagNoCursor(tag)} // AJUSTADO: Agora usa a função inteligente
                       className="px-3 py-1 bg-white border border-slate-300 text-blue-600 text-[10px] font-black uppercase rounded-lg hover:bg-blue-600 hover:text-white transition-all"
                     >
                       {tag}
@@ -328,6 +343,7 @@ export default function MalaDiretaPage() {
                 />
                 <div className="flex-1 flex flex-col mb-12 bg-white rounded-xl overflow-hidden">
                   <ReactQuill
+                    ref={quillRef} // AJUSTADO: Passando a ref
                     theme="snow"
                     value={mensagem}
                     onChange={setMensagem}
