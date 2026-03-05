@@ -178,7 +178,7 @@ export default function TabsBar() {
         </div>
       )}
       {/* ABA 11: MALA DIRETA*/}
-      {isRelatorios && (
+      {isMalaDireta && (
         <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
           <MailCheckIcon size={14} className="text-blue-600" />
           MALA DIRETA
