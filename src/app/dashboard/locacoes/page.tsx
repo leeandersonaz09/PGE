@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useColigada } from "@/context/ColigadaContext"; // <-- Importado o contexto
 import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import {
@@ -15,16 +16,16 @@ import {
   Trash2,
   Clock,
   Download,
-  Laptop, // Ícone para Notebooks/Chromebooks
-  Speaker, // Ícone para Caixas de Som
-  Tv, // Ícone para Telas/TVs
-  Package, // Ícone padrão caso não reconheça a palavra
+  Loader2,
+  Laptop,
+  Speaker,
+  Tv,
+  Package,
 } from "lucide-react";
 
-// --- FUNÇÃO MÁGICA PARA ESCOLHER O ÍCONE ---
+// --- FUNÇÃO PARA ESCOLHER O ÍCONE ---
 const getIconForEquipamento = (nome: string) => {
   const n = nome.toLowerCase();
-
   if (
     n.includes("projetor") ||
     n.includes("data show") ||
@@ -57,13 +58,12 @@ const getIconForEquipamento = (nome: string) => {
   ) {
     return <Tv size={24} className="text-indigo-600" />;
   }
-
-  // Se não for nenhum dos acima, mostra a caixinha padrão
   return <Package size={24} className="text-indigo-600" />;
 };
 
 export default function LocacoesPage() {
   const { user } = useAuth();
+  const { coligadaAtual, loadingColigadas } = useColigada(); // <-- Puxamos a unidade ativa
   const userName =
     user?.user_metadata?.full_name || user?.user_metadata?.name || "Usuário";
 
@@ -93,7 +93,6 @@ export default function LocacoesPage() {
   });
   const [salvando, setSalvando] = useState(false);
 
-  // Datas limite para o calendário (Hoje até Hoje + 7 dias)
   const hoje = new Date();
   const maxDate = new Date();
   maxDate.setDate(hoje.getDate() + 7);
@@ -114,22 +113,29 @@ export default function LocacoesPage() {
     checkAdmin();
   }, [user]);
 
+  // Sincroniza busca com Filtros, Data e agora a Sede selecionada
   useEffect(() => {
-    carregarDados();
-  }, [filtro, dataBusca]);
+    if (coligadaAtual) {
+      carregarDados();
+    }
+  }, [filtro, dataBusca, coligadaAtual]);
 
   const carregarDados = async () => {
+    if (!coligadaAtual) return;
     setLoading(true);
 
+    // 1. Busca equipamentos (Pode ser global ou por sede, depende da sua tabela)
     const { data: eqData } = await supabase
       .from("equipamentos")
       .select("*")
       .order("nome");
     if (eqData) setEquipamentos(eqData);
 
+    // 2. Busca locações FILTRADAS POR SEDE
     let query = supabase
       .from("locacoes")
       .select("*, equipamento:equipamentos(nome)")
+      .eq("sede_id", coligadaAtual.id) // <-- FILTRO DE SEDE ATIVO
       .order("data_locacao", { ascending: true });
 
     const hojeStr = new Date().toISOString().split("T")[0];
@@ -159,11 +165,9 @@ export default function LocacoesPage() {
     );
 
     let quantidadeEmUso = 0;
-
     locacoesDoDia.forEach((l) => {
       const lInicio = l.dia_inteiro ? "00:00" : l.hora_inicio || "00:00";
       const lFim = l.dia_inteiro ? "23:59" : l.hora_fim || "23:59";
-
       const nInicio = diaInteiro ? "00:00" : horaInicio || "00:00";
       const nFim = diaInteiro ? "23:59" : horaFim || "23:59";
 
@@ -183,37 +187,16 @@ export default function LocacoesPage() {
       !formData.equipamento_id ||
       !formData.sala ||
       !formData.data_locacao ||
-      !formData.observacao
+      !formData.observacao ||
+      !coligadaAtual
     ) {
       return alert("Preencha todos os campos obrigatórios.");
     }
     if (!diaInteiro && (!horaInicio || !horaFim)) {
-      return alert(
-        "Preencha a hora de início e a hora do término, ou marque 'Dia Inteiro'.",
-      );
+      return alert("Preencha o horário da reserva.");
     }
     if (!diaInteiro && horaInicio >= horaFim) {
-      return alert(
-        "A hora de início não pode ser maior ou igual à hora de término.",
-      );
-    }
-
-    const agora = new Date();
-    const isHoje = formData.data_locacao === minDateStr;
-
-    if (isHoje && !diaInteiro) {
-      const horaAtual = agora.getHours();
-      const minAtual = agora.getMinutes();
-      const [hInicio, mInicio] = horaInicio.split(":").map(Number);
-
-      const minutosAgora = horaAtual * 60 + minAtual;
-      const minutosInicio = hInicio * 60 + mInicio;
-
-      if (minutosInicio - minutosAgora < 60) {
-        return alert(
-          "ATENÇÃO: A locação deve ser feita com pelo menos 1 hora de antecedência do horário de uso!",
-        );
-      }
+      return alert("A hora de início não pode ser maior que a de término.");
     }
 
     setSalvando(true);
@@ -222,6 +205,7 @@ export default function LocacoesPage() {
         ...formData,
         solicitante: userName,
         user_id: user?.id,
+        sede_id: coligadaAtual.id, // <-- AGORA SALVA O ID DA SEDE ATUAL
         dia_inteiro: diaInteiro,
         hora_inicio: diaInteiro ? null : horaInicio,
         hora_fim: diaInteiro ? null : horaFim,
@@ -238,8 +222,6 @@ export default function LocacoesPage() {
         data_locacao: minDateStr,
         observacao: "",
       });
-      setHoraInicio("");
-      setHoraFim("");
       setDiaInteiro(true);
       carregarDados();
     }
@@ -247,11 +229,7 @@ export default function LocacoesPage() {
   };
 
   const deletarLocacao = async (id: string) => {
-    if (
-      window.confirm(
-        "Tem certeza que deseja cancelar esta locação? O equipamento será liberado para outros.",
-      )
-    ) {
+    if (window.confirm("Tem certeza que deseja cancelar esta locação?")) {
       const { error } = await supabase.from("locacoes").delete().eq("id", id);
       if (error) alert("Você não tem permissão para apagar esta locação.");
       else carregarDados();
@@ -259,11 +237,9 @@ export default function LocacoesPage() {
   };
 
   const exportarParaExcel = () => {
-    if (locacoes.length === 0) {
-      return alert("Não há locações listadas para exportar.");
-    }
-
+    if (locacoes.length === 0) return alert("Não há locações para exportar.");
     const dadosExcel = locacoes.map((loc) => ({
+      Unidade: coligadaAtual?.sigla || "",
       "Data da Locação": new Date(
         loc.data_locacao + "T12:00:00",
       ).toLocaleDateString("pt-BR"),
@@ -275,18 +251,20 @@ export default function LocacoesPage() {
       Solicitante: loc.solicitante,
       Observação: loc.observacao,
     }));
-
     const worksheet = XLSX.utils.json_to_sheet(dadosExcel);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Locacoes");
-
-    let nomeArquivo = `Relatorio_Locacoes_${filtro}.xlsx`;
-    if (filtro === "especifico") {
-      nomeArquivo = `Relatorio_Locacoes_${dataBusca.split("-").reverse().join("-")}.xlsx`;
-    }
-
-    XLSX.writeFile(workbook, nomeArquivo);
+    XLSX.writeFile(workbook, `Locacoes_${coligadaAtual?.sigla}_${filtro}.xlsx`);
   };
+
+  if (loadingColigadas) {
+    return (
+      <div className="flex items-center justify-center h-full text-blue-600 font-bold italic">
+        <Loader2 className="animate-spin mr-2" size={24} /> Sincronizando
+        Unidade...
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-full flex flex-col font-sans">
@@ -297,7 +275,10 @@ export default function LocacoesPage() {
             Multimídia
           </h1>
           <p className="text-sm text-gray-500">
-            Agendamento de equipamentos para sala de aula.
+            Unidade Atual:{" "}
+            <span className="font-bold text-blue-600 uppercase">
+              {coligadaAtual?.nome}
+            </span>
           </p>
         </div>
 
@@ -305,11 +286,9 @@ export default function LocacoesPage() {
           <button
             onClick={exportarParaExcel}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-bold shadow-md flex items-center gap-2 transition-colors"
-            title="Exportar dados atuais para Excel"
           >
             <Download size={18} /> Exportar
           </button>
-
           <button
             onClick={() => setModalOpen(true)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-bold shadow-md flex items-center gap-2 transition-colors"
@@ -324,7 +303,6 @@ export default function LocacoesPage() {
         <label className="flex items-center gap-2 cursor-pointer shrink-0">
           <input
             type="radio"
-            name="filtro"
             checked={filtro === "hoje"}
             onChange={() => setFiltro("hoje")}
             className="accent-indigo-600"
@@ -334,7 +312,6 @@ export default function LocacoesPage() {
         <label className="flex items-center gap-2 cursor-pointer shrink-0">
           <input
             type="radio"
-            name="filtro"
             checked={filtro === "semana"}
             onChange={() => setFiltro("semana")}
             className="accent-indigo-600"
@@ -344,7 +321,6 @@ export default function LocacoesPage() {
         <label className="flex items-center gap-2 cursor-pointer border-l pl-4 shrink-0">
           <input
             type="radio"
-            name="filtro"
             checked={filtro === "especifico"}
             onChange={() => setFiltro("especifico")}
             className="accent-indigo-600"
@@ -356,85 +332,72 @@ export default function LocacoesPage() {
           disabled={filtro !== "especifico"}
           value={dataBusca}
           onChange={(e) => setDataBusca(e.target.value)}
-          className="border p-1 rounded outline-none disabled:opacity-50 text-gray-800 bg-white"
+          className="border p-1 rounded bg-white"
         />
       </div>
 
-      {/* LISTA DE LOCAÇÕES */}
       <div className="flex-1">
         {loading ? (
           <div className="text-center text-indigo-600 font-bold mt-10 animate-pulse">
-            Carregando agenda...
+            Carregando agenda de {coligadaAtual?.sigla}...
           </div>
         ) : locacoes.length === 0 ? (
           <div className="flex flex-col items-center justify-center mt-20 text-gray-400 gap-3">
             <Calendar size={48} className="opacity-50" />
             <p className="font-bold">
-              Nenhuma locação agendada para este período.
+              Nenhuma locação agendada nesta unidade para este período.
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {locacoes.map((loc) => {
-              const dataFormatada = new Date(
-                loc.data_locacao + "T12:00:00",
-              ).toLocaleDateString("pt-BR");
-              const isOwner = loc.user_id === user?.id;
-
-              return (
-                <div
-                  key={loc.id}
-                  className="bg-white border-l-4 border-indigo-600 p-4 rounded shadow-sm relative pt-5"
-                >
-                  <div className="absolute top-3 right-3 bg-indigo-50 text-indigo-800 text-[10px] font-black px-2 py-1 rounded">
-                    {dataFormatada}
-                  </div>
-
-                  {/* CABEÇALHO DO CARD COM ÍCONE DINÂMICO */}
-                  <div className="flex items-start gap-3 mb-3 pr-16">
-                    <div className="bg-indigo-50 p-2 rounded-md shrink-0 border border-indigo-100 shadow-sm">
-                      {getIconForEquipamento(loc.equipamento?.nome || "")}
-                    </div>
-                    <h3 className="font-black text-gray-800 text-lg uppercase leading-tight pt-1">
-                      {loc.equipamento?.nome}
-                    </h3>
-                  </div>
-
-                  <p className="text-indigo-600 font-bold text-sm mb-1">
-                    SALA: {loc.sala}
-                  </p>
-
-                  <div className="flex items-center gap-1 text-xs font-bold text-gray-500 mb-3 bg-gray-100 w-fit px-2 py-1 rounded">
-                    <Clock size={12} />
-                    {loc.dia_inteiro
-                      ? "DIA INTEIRO"
-                      : `De ${loc.hora_inicio} às ${loc.hora_fim}`}
-                  </div>
-
-                  <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded border mb-3">
-                    <span className="font-bold block">Observação:</span>{" "}
-                    {loc.observacao}
-                  </p>
-
-                  <div className="flex justify-between items-center mt-2 pt-2 border-t text-xs text-gray-500 font-medium">
-                    <span>
-                      Solicitado por:{" "}
-                      <b className="text-gray-700">{loc.solicitante}</b>
-                    </span>
-
-                    {(isAdmin || isOwner) && (
-                      <button
-                        onClick={() => deletarLocacao(loc.id)}
-                        className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
-                        title="Cancelar Locação"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
+            {locacoes.map((loc) => (
+              <div
+                key={loc.id}
+                className="bg-white border-l-4 border-indigo-600 p-4 rounded shadow-sm relative pt-5"
+              >
+                <div className="absolute top-3 right-3 bg-indigo-50 text-indigo-800 text-[10px] font-black px-2 py-1 rounded">
+                  {new Date(loc.data_locacao + "T12:00:00").toLocaleDateString(
+                    "pt-BR",
+                  )}
                 </div>
-              );
-            })}
+                <div className="flex items-start gap-3 mb-3 pr-16">
+                  <div className="bg-indigo-50 p-2 rounded-md shrink-0 border border-indigo-100 shadow-sm">
+                    {getIconForEquipamento(loc.equipamento?.nome || "")}
+                  </div>
+                  <h3 className="font-black text-gray-800 text-lg uppercase leading-tight pt-1">
+                    {loc.equipamento?.nome}
+                  </h3>
+                </div>
+                <p className="text-indigo-600 font-bold text-sm mb-1">
+                  SALA: {loc.sala}
+                </p>
+                <div className="flex items-center gap-1 text-xs font-bold text-gray-500 mb-3 bg-gray-100 w-fit px-2 py-1 rounded">
+                  <Clock size={12} />{" "}
+                  {loc.dia_inteiro
+                    ? "DIA INTEIRO"
+                    : `De ${loc.hora_inicio} às ${loc.hora_fim}`}
+                </div>
+                <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded border mb-3">
+                  <span className="font-bold block">Observação:</span>{" "}
+                  {loc.observacao}
+                </p>
+                <div className="flex justify-between items-center mt-2 pt-2 border-t text-xs text-gray-500">
+                  <span>
+                    Solicitado por:{" "}
+                    <b className="text-gray-700">{loc.solicitante}</b>
+                  </span>
+                  {(isAdmin || loc.user_id === user?.id) && (
+                    <button
+                      onClick={() => deletarLocacao(loc.id)}
+                      className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
+                      title="Cancelar"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -454,7 +417,6 @@ export default function LocacoesPage() {
                 <X size={20} />
               </button>
             </div>
-
             <div className="p-6 space-y-4 text-gray-800 text-sm">
               <div>
                 <label className="font-bold text-xs uppercase text-gray-500 mb-1 block">
@@ -468,13 +430,9 @@ export default function LocacoesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, data_locacao: e.target.value })
                   }
-                  className="w-full border p-2 rounded bg-white outline-none focus:border-indigo-600 font-bold"
+                  className="w-full border p-2 rounded bg-white font-bold"
                 />
-                <p className="text-[10px] text-gray-400 mt-1">
-                  * Permite reservas para no máximo 7 dias à frente.
-                </p>
               </div>
-
               <div className="bg-gray-50 p-3 rounded border">
                 <label className="font-bold text-xs uppercase text-gray-500 mb-2 block">
                   2. Horário da Reserva
@@ -485,10 +443,9 @@ export default function LocacoesPage() {
                     checked={diaInteiro}
                     onChange={(e) => setDiaInteiro(e.target.checked)}
                     className="w-4 h-4 accent-indigo-600"
-                  />
+                  />{" "}
                   Reservar para o Dia Inteiro
                 </label>
-
                 {!diaInteiro && (
                   <div className="flex gap-4">
                     <div className="flex-1">
@@ -499,7 +456,7 @@ export default function LocacoesPage() {
                         type="time"
                         value={horaInicio}
                         onChange={(e) => setHoraInicio(e.target.value)}
-                        className="w-full border p-2 rounded outline-none focus:border-indigo-600"
+                        className="w-full border p-2 rounded"
                       />
                     </div>
                     <div className="flex-1">
@@ -510,16 +467,12 @@ export default function LocacoesPage() {
                         type="time"
                         value={horaFim}
                         onChange={(e) => setHoraFim(e.target.value)}
-                        className="w-full border p-2 rounded outline-none focus:border-indigo-600"
+                        className="w-full border p-2 rounded"
                       />
                     </div>
                   </div>
                 )}
-                <p className="text-[10px] text-orange-500 mt-2 font-bold">
-                  * Locações devem ser feitas com no mínimo 1h de antecedência.
-                </p>
               </div>
-
               <div>
                 <label className="font-bold text-xs uppercase text-gray-500 mb-1 block">
                   3. Equipamento
@@ -529,7 +482,7 @@ export default function LocacoesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, equipamento_id: e.target.value })
                   }
-                  className="w-full border p-2 rounded bg-white outline-none focus:border-indigo-600 font-bold"
+                  className="w-full border p-2 rounded bg-white font-bold"
                 >
                   <option value="">Selecione...</option>
                   {equipamentosDisponiveis.map((eq) => (
@@ -540,13 +493,12 @@ export default function LocacoesPage() {
                     >
                       {eq.nome}{" "}
                       {eq.disponivel > 0
-                        ? `(${eq.disponivel} disponíveis neste horário)`
-                        : "(ESGOTADO PARA ESTE HORÁRIO)"}
+                        ? `(${eq.disponivel} disp.)`
+                        : "(ESGOTADO)"}
                     </option>
                   ))}
                 </select>
               </div>
-
               <div>
                 <label className="font-bold text-xs uppercase text-gray-500 mb-1 block">
                   4. Sala de Aula
@@ -558,10 +510,9 @@ export default function LocacoesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, sala: e.target.value })
                   }
-                  className="w-full border p-2 rounded bg-white outline-none focus:border-indigo-600 uppercase"
+                  className="w-full border p-2 rounded bg-white uppercase"
                 />
               </div>
-
               <div>
                 <label className="font-bold text-xs uppercase text-gray-500 mb-1 block">
                   5. Observações
@@ -573,11 +524,10 @@ export default function LocacoesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, observacao: e.target.value })
                   }
-                  className="w-full border p-2 rounded bg-white outline-none focus:border-indigo-600 resize-none"
+                  className="w-full border p-2 rounded bg-white resize-none"
                 ></textarea>
               </div>
             </div>
-
             <div className="p-4 bg-gray-50 border-t flex justify-end gap-3">
               <button
                 onClick={() => setModalOpen(false)}
