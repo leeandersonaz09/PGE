@@ -52,7 +52,12 @@ const quillStyle = `
   }
 `;
 
-const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
+const ReactQuill = dynamic(() => import("react-quill-new"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[250px] bg-slate-50 animate-pulse rounded-xl" />
+  ),
+}) as any;
 
 export default function MalaDiretaPage() {
   const { coligadaAtual } = useColigada();
