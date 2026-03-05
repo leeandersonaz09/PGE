@@ -61,6 +61,7 @@ export default function AdminPage() {
     "historico_locacoes",
     "admin",
     "relatorios",
+    "mala_direta",
   ];
 
   useEffect(() => {
@@ -125,12 +126,13 @@ export default function AdminPage() {
     if (!arquivo || !sedeImportacao) return;
     setStatusImport({
       tipo: "processando",
-      msg: "Validando dados e removendo duplicados...",
+      msg: "Sincronizando dados com o banco...",
     });
 
     Papa.parse(arquivo, {
       header: true,
       skipEmptyLines: true,
+      delimiter: ";", // Forçamos o delimitador ponto-e-vírgula do seu CSV
       complete: async (results) => {
         const rows = results.data;
         const codigosVistos = new Set();
@@ -139,11 +141,11 @@ export default function AdminPage() {
         rows.forEach((row: any) => {
           const cod = row["Código"];
 
-          // 1. DEDUPLICAÇÃO
+          // 1. DEDUPLICAÇÃO (Garante que não processe o mesmo código duas vezes na mesma planilha)
           if (cod && !codigosVistos.has(cod)) {
             codigosVistos.add(cod);
 
-            // 2. MAPEAMENTO RÍGIDO
+            // 2. MAPEAMENTO CORRIGIDO (Baseado no Relatorio HBV.csv)
             listaFinal.push({
               id: Number(cod),
               nome: row["Nome"] || "NOME NÃO INFORMADO",
@@ -157,26 +159,33 @@ export default function AdminPage() {
               status: row["Situação matrícula"],
               nascimento: row["Data nascimento"],
               email: row["Email"],
-              financeiro_nome:
-                row["financeiro_nome"] || row["Nome Responsável Financeiro"],
-              financeiro_fixo: row["financeiro_fixo"],
-              financeiro_celular: row["financeiro_celular"],
-              financeiro_email: row["financeiro_email"],
+
+              // FINANCEIRO (AJUSTADO PARA O SEU CSV)
+              financeiro_nome: row["Nome r. financeiro"],
+              financeiro_fixo: row["Telefone residencial r. financeiro"],
+              financeiro_celular: row["Telefone celular r. financeiro"],
+              financeiro_email: row["Email r. financeiro"],
+
+              // PAI
               pai: row["Nome Pai"],
               fixo_pai: row["Telefone residencial Pai"],
               celular_pai: row["Telefone celular Pai"],
               email_pai: row["Email Pai"],
+
+              // MÃE
               mae: row["Nome Mãe"],
               fixo_mae: row["Telefone residencial Mãe"],
               celular_mae: row["Telefone celular Mãe"],
               email_mae: row["Email Mãe"],
+
               sede_id: Number(sedeImportacao),
               importado_em: new Date().toISOString(),
             });
           }
         });
 
-        // 3. UPSERT
+        // 3. UPSERT (Garante a unicidade no banco de dados)
+        // Se o ID já existir, ele ATUALIZA os dados. Se não existir, ele INSERE.
         const { error } = await supabase
           .from("alunos")
           .upsert(listaFinal, { onConflict: "id" });
@@ -189,7 +198,7 @@ export default function AdminPage() {
         } else {
           setStatusImport({
             tipo: "sucesso",
-            msg: `${listaFinal.length} alunos sincronizados com sucesso!`,
+            msg: `${listaFinal.length} alunos sincronizados/atualizados com sucesso!`,
           });
           buscarUltimaSincronizacaoPorSede(sedeImportacao);
         }

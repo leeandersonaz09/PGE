@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Laptop,
   Archive,
+  MailCheckIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -134,7 +135,6 @@ export default function TabsBar() {
         </div>
       )}
       {/* ABA 8: HISTORICO DE LOCAÇÃO*/}
-      {/* ABA: HISTÓRICO DE LOCAÇÕES */}
       {isHistLocacoes && (
         <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
           <Archive size={14} className="text-gray-600" />
@@ -169,6 +169,20 @@ export default function TabsBar() {
           RELATÓRIOS
           <button
             onClick={() => router.push("/dashboard")}
+            className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+            title="Fechar aba"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      {/* ABA 11: CENTRAL DE RELATÓRIOS */}
+      {isRelatorios && (
+        <div className="flex items-center gap-2 px-4 h-8 rounded-t-lg text-[11px] font-bold shadow-sm relative bg-white text-gray-800 border-x border-t border-gray-400 z-10">
+          <MailCheckIcon size={14} className="text-blue-600" />
+          MALA DIRETA
+          <button
+            onClick={() => router.push("/mala-direta")}
             className="ml-2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
             title="Fechar aba"
           >

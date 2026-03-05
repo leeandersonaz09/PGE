@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   Laptop,
   Archive,
+  MailCheckIcon,
 } from "lucide-react";
 
 const modulosConfig = [
@@ -66,6 +67,13 @@ const modulosConfig = [
     icon: <Archive size={32} />,
     rota: "/dashboard/historico-locacoes",
     cor: "bg-gray-600",
+  },
+  {
+    id_modulo: "mala_direta",
+    nome: "Mala Direta",
+    icon: <MailCheckIcon size={32} />,
+    rota: "/dashboard/mala-direta",
+    cor: "bg-blue-600",
   },
   {
     id_modulo: "relatorios",
