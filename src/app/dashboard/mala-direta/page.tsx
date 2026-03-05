@@ -16,7 +16,6 @@ import {
   Users,
   Tag,
   Paperclip,
-  Loader2,
   Download,
   X,
 } from "lucide-react";
@@ -24,6 +23,7 @@ import {
 import { useColigada } from "@/context/ColigadaContext";
 import SelecaoSistema from "./SelecaoSistema";
 
+// CSS GLOBAL DE BLINDAGEM E CORREÇÃO DE TRANSBORDAMENTO
 const quillStyle = `
   .ql-container {
     background-color: white !important;
@@ -35,6 +35,7 @@ const quillStyle = `
   .ql-editor {
     min-height: 250px !important;
     color: #1e293b !important;
+    word-break: break-word !important;
   }
   .ql-toolbar {
     background-color: #f8fafc !important;
@@ -50,8 +51,13 @@ const quillStyle = `
   input::placeholder {
     color: #94a3b8 !important;
   }
+  .preview-content {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
 `;
 
+// Carregamento dinâmico com cast 'as any' para evitar erro de build na Ref
 const ReactQuill = dynamic(() => import("react-quill-new"), {
   ssr: false,
   loading: () => (
@@ -70,10 +76,11 @@ export default function MalaDiretaPage() {
     null,
   );
   const anexoRef = useRef<HTMLInputElement>(null);
-  const quillRef = useRef<any>(null); // AJUSTADO: Ref para o editor
+  const arquivoRef = useRef<HTMLInputElement>(null);
+  const quillRef = useRef<any>(null); // Ref para o editor Quill
+
   const [contatos, setContatos] = useState<any[]>([]);
   const [tags, setTags] = useState<string[]>([]);
-  const arquivoRef = useRef<HTMLInputElement>(null);
   const [assunto, setAssunto] = useState("");
   const [mensagem, setMensagem] = useState("");
 
@@ -86,7 +93,7 @@ export default function MalaDiretaPage() {
     ],
   };
 
-  // AJUSTADO: Função para inserir a tag onde o cursor estiver
+  // FUNÇÃO: Inserir tag na posição exata do cursor
   const inserirTagNoCursor = (tag: string) => {
     const quill = quillRef.current?.getEditor();
     if (quill) {
@@ -110,7 +117,8 @@ export default function MalaDiretaPage() {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: "binary" });
         const firstSheetName = workbook.SheetNames[0];
-        const json = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName]);
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
         if (json.length === 0)
           return Swal.fire("Erro", "A planilha está vazia.", "error");
         setContatos(json);
@@ -329,8 +337,8 @@ export default function MalaDiretaPage() {
                   {tags.map((tag) => (
                     <button
                       key={tag}
-                      onClick={() => inserirTagNoCursor(tag)} // AJUSTADO: Agora usa a função inteligente
-                      className="px-3 py-1 bg-white border border-slate-300 text-blue-600 text-[10px] font-black uppercase rounded-lg hover:bg-blue-600 hover:text-white transition-all"
+                      onClick={() => inserirTagNoCursor(tag)}
+                      className="px-3 py-1 bg-white border border-slate-300 text-blue-600 text-[10px] font-black uppercase rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                     >
                       {tag}
                     </button>
@@ -344,11 +352,11 @@ export default function MalaDiretaPage() {
                   value={assunto}
                   onChange={(e) => setAssunto(e.target.value)}
                   placeholder="Assunto do E-mail"
-                  className="w-full p-4 border border-slate-400 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full p-4 border border-slate-400 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
                 />
-                <div className="flex-1 flex flex-col mb-12 bg-white rounded-xl overflow-hidden">
+                <div className="flex-1 flex flex-col mb-12 bg-white rounded-xl overflow-hidden shadow-sm">
                   <ReactQuill
-                    ref={quillRef} // AJUSTADO: Passando a ref
+                    ref={quillRef}
                     theme="snow"
                     value={mensagem}
                     onChange={setMensagem}
@@ -393,7 +401,7 @@ export default function MalaDiretaPage() {
                     )}
                     <button
                       onClick={() => {
-                        if (!assunto || !mensagem)
+                        if (!assunto || !mensagem || mensagem === "<p><br></p>")
                           return Swal.fire(
                             "Campos Vazios",
                             "Preencha tudo.",
@@ -411,18 +419,20 @@ export default function MalaDiretaPage() {
             </div>
           )}
 
-          {/* ETAPA 3 */}
+          {/* ETAPA 3: REVISÃO FINAL (AJUSTADA CONTRA TRANSBORDAMENTO) */}
           {etapa === 3 && (
-            <div className="animate-in fade-in slide-in-from-right-8 duration-500 flex flex-col h-full">
+            <div className="animate-in fade-in slide-in-from-right-8 duration-500 flex flex-col h-full max-w-full">
               <h2 className="text-xl font-bold text-slate-800 uppercase mb-6">
                 Revisão Final
               </h2>
-              <div className="bg-slate-50 border border-slate-200 rounded-3xl p-8 mb-6 shadow-inner">
-                <div className="mb-4 font-bold text-slate-500 border-b border-slate-200 pb-3 uppercase text-[10px] tracking-widest">
+              <div className="bg-slate-50 border border-slate-200 rounded-3xl p-8 mb-6 shadow-inner max-w-full overflow-hidden">
+                <div className="mb-4 font-bold text-slate-500 border-b border-slate-200 pb-3 uppercase text-[10px] tracking-widest break-all">
                   Para:{" "}
-                  <span className="text-slate-900">{contatos[0]?.email}</span>
+                  <span className="text-slate-900">
+                    {contatos[0]?.email || contatos[0]?.Email}
+                  </span>
                 </div>
-                <div className="mb-6 font-bold text-slate-500 border-b border-slate-200 pb-3 uppercase text-[10px] tracking-widest">
+                <div className="mb-6 font-bold text-slate-500 border-b border-slate-200 pb-3 uppercase text-[10px] tracking-widest break-words">
                   Assunto:{" "}
                   <span className="text-slate-900">
                     {tags.reduce(
@@ -436,7 +446,7 @@ export default function MalaDiretaPage() {
                   </span>
                 </div>
                 <div
-                  className="bg-white border border-slate-200 p-8 rounded-2xl text-slate-800 min-h-[200px] shadow-sm leading-relaxed"
+                  className="bg-white border border-slate-200 p-8 rounded-2xl text-slate-800 min-h-[200px] shadow-sm leading-relaxed max-w-full overflow-x-auto break-words ql-editor preview-content"
                   dangerouslySetInnerHTML={{
                     __html: tags.reduce(
                       (txt, tag) =>
@@ -462,7 +472,7 @@ export default function MalaDiretaPage() {
                   className="px-12 py-5 bg-green-600 text-white rounded-2xl font-black text-[12px] uppercase tracking-widest hover:bg-green-700 active:scale-95 shadow-xl shadow-green-100 disabled:opacity-50"
                 >
                   {disparando
-                    ? "Disparando..."
+                    ? "DISPARANDO..."
                     : `Disparar para ${contatos.length} destinatários`}
                 </button>
               </div>
