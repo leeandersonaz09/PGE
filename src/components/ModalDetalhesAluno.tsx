@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { useColigada } from "@/context/ColigadaContext"; // <-- Importamos o cérebro das coligadas
+import { useColigada } from "@/context/ColigadaContext";
+import Swal from "sweetalert2";
 import {
   X,
   FileText,
@@ -11,7 +12,25 @@ import {
   Loader2,
   Mail,
   Trash2,
+  Search,
+  User,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+
+// ✅ FUNÇÃO DE FORMATAÇÃO DE TELEFONE
+const formatarTelefone = (valor: string) => {
+  if (!valor || valor === "---" || valor.trim() === "-" || valor.trim() === "")
+    return "---";
+  const nums = valor.replace(/\D/g, "");
+  if (nums.length === 11) {
+    return nums.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  } else if (nums.length === 10) {
+    return nums.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+  }
+  return valor;
+};
 
 interface ModalDetalhesProps {
   aluno: any;
@@ -30,9 +49,10 @@ export default function ModalDetalhesAluno({
   const [historico, setHistorico] = useState<any[]>([]);
   const [loadingHist, setLoadingHist] = useState(false);
   const { user } = useAuth();
-
-  // Puxamos a coligada atual para usar nos filtros e no título
   const { coligadaAtual } = useColigada();
+
+  const [modalFotoOpen, setModalFotoOpen] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   useEffect(() => {
     if (abaAtiva === "historico" && aluno && coligadaAtual) {
@@ -40,15 +60,24 @@ export default function ModalDetalhesAluno({
     }
   }, [abaAtiva, aluno, coligadaAtual]);
 
+  const getHighResUrl = (url: string) => {
+    if (!url) return "";
+    if (url.includes("width=")) {
+      return url
+        .replace(/&width=\d+/i, "&width=600")
+        .replace(/&height=\d+/i, "&height=875");
+    }
+    return url;
+  };
+
   async function buscarOcorrencias() {
     if (!coligadaAtual) return;
-
     setLoadingHist(true);
     const { data, error } = await supabase
       .from("ocorrencias")
       .select("*")
       .eq("aluno_id", aluno.id)
-      .eq("sede_id", coligadaAtual.id) // <-- FILTRO DE SEGURANÇA DA COLIGADA
+      .eq("sede_id", coligadaAtual.id)
       .order("data", { ascending: false });
 
     if (!error) setHistorico(data || []);
@@ -57,68 +86,107 @@ export default function ModalDetalhesAluno({
 
   async function excluirOcorrencia(id: string, donoId: string) {
     if (!user || user.id !== donoId) {
-      alert(
-        "Operação negada: Apenas o autor original pode excluir este registro.",
+      Swal.fire(
+        "Acesso Negado",
+        "Apenas o autor original pode excluir este registro.",
+        "error",
       );
       return;
     }
 
-    if (!confirm("Deseja realmente apagar esta ocorrência permanentemente?"))
-      return;
+    const result = await Swal.fire({
+      title: "Tem certeza?",
+      text: "Esta ação não poderá ser revertida!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Sim, apagar!",
+      cancelButtonText: "Cancelar",
+    });
 
-    const { error } = await supabase.from("ocorrencias").delete().eq("id", id);
-
-    if (error) {
-      alert("Erro ao excluir do banco de dados: " + error.message);
-    } else {
-      setHistorico((prev) => prev.filter((item) => item.id !== id));
+    if (result.isConfirmed) {
+      const { error } = await supabase
+        .from("ocorrencias")
+        .delete()
+        .eq("id", id);
+      if (error) {
+        Swal.fire("Erro", "Falha ao excluir: " + error.message, "error");
+      } else {
+        setHistorico((prev) => prev.filter((item) => item.id !== id));
+        Swal.fire(
+          "Excluído!",
+          "O registro foi removido com sucesso.",
+          "success",
+        );
+      }
     }
   }
 
   if (!aluno) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-2 text-[11px]">
-      <div className="bg-white w-full max-w-[1100px] border border-gray-400 shadow-2xl flex flex-col overflow-hidden rounded-sm">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-2 sm:p-4 text-[11px] animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-[1100px] border border-gray-300 shadow-2xl flex flex-col overflow-hidden rounded-xl h-[95vh] sm:h-auto">
         {/* HEADER */}
-        <div className="bg-[#3182ce] p-1 px-3 text-white flex justify-between items-center font-bold">
-          {/* TÍTULO DINÂMICO BASEADO NA COLIGADA */}
-          <span>Prontuário do Aluno - {coligadaAtual?.nome || "PGE"}</span>
+        <div className="bg-gradient-to-r from-blue-700 to-blue-600 p-2 px-4 text-white flex justify-between items-center font-bold shrink-0">
+          <div className="flex items-center gap-2">
+            <User size={16} />
+            <span className="tracking-wide uppercase truncate max-w-[200px] sm:max-w-none">
+              Prontuário - {coligadaAtual?.nome || "SISTEMA"}
+            </span>
+          </div>
           <button
             onClick={onClose}
-            className="hover:text-red-200 transition-colors"
+            className="bg-white/10 hover:bg-red-500 p-1 rounded-full transition-all"
           >
-            <X size={14} />
+            <X size={18} />
           </button>
         </div>
 
         {/* IDENTIFICAÇÃO */}
-        <div className="bg-[#ebf8ff] p-3 flex gap-4 border-b border-blue-200 items-center">
-          <div className="w-16 h-16 rounded-full border-2 border-white bg-blue-600 flex items-center justify-center text-white text-xl font-bold uppercase overflow-hidden shadow-sm">
-            {aluno.nome ? aluno.nome[0] : "?"}
+        <div className="bg-slate-50 p-4 flex flex-col sm:flex-row gap-4 sm:gap-6 border-b border-slate-200 items-center sm:items-end shrink-0">
+          <div
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-4 border-white shadow-md overflow-hidden cursor-zoom-in bg-slate-200 flex items-center justify-center group relative shrink-0 transition-transform active:scale-95"
+            onClick={() => aluno.foto_url && setModalFotoOpen(true)}
+          >
+            {aluno.foto_url ? (
+              <>
+                <img
+                  src={aluno.foto_url}
+                  alt="Foto Aluno"
+                  className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <Search size={24} className="text-white drop-shadow-md" />
+                </div>
+              </>
+            ) : (
+              <span className="text-4xl font-black text-slate-400 uppercase">
+                {aluno.nome ? aluno.nome[0] : "?"}
+              </span>
+            )}
           </div>
-          <div className="flex-1">
-            <h2 className="text-blue-800 font-bold uppercase text-[13px]">
-              {aluno.nome}
-            </h2>
-            <div className="flex gap-1 mt-2">
+
+          <div className="flex-1 space-y-3 text-center sm:text-left w-full">
+            <div>
+              <h2 className="text-blue-900 font-black uppercase text-[14px] sm:text-[16px] leading-tight mb-1">
+                {aluno.nome}
+              </h2>
+              <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-bold uppercase">
+                Registro Ativo
+              </span>
+            </div>
+            <div className="flex justify-center sm:justify-start gap-1 sm:gap-2">
               <button
                 onClick={() => setAbaAtiva("dados")}
-                className={`px-4 py-1 border border-b-0 rounded-t-sm font-bold shadow-sm transition-colors ${
-                  abaAtiva === "dados"
-                    ? "bg-white text-blue-700 border-blue-400"
-                    : "bg-blue-500 text-white hover:bg-blue-600"
-                }`}
+                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 rounded-t-lg font-black uppercase tracking-tighter text-[10px] transition-all ${abaAtiva === "dados" ? "bg-white text-blue-700 border-x border-t border-slate-200" : "bg-slate-200 text-slate-500"}`}
               >
-                Dados Cadastrais
+                Dados
               </button>
               <button
                 onClick={() => setAbaAtiva("historico")}
-                className={`px-4 py-1 border border-b-0 rounded-t-sm font-bold shadow-sm transition-colors ${
-                  abaAtiva === "historico"
-                    ? "bg-white text-blue-700 border-blue-400"
-                    : "bg-blue-500 text-white hover:bg-blue-600"
-                }`}
+                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 rounded-t-lg font-black uppercase tracking-tighter text-[10px] transition-all ${abaAtiva === "historico" ? "bg-white text-blue-700 border-x border-t border-slate-200" : "bg-slate-200 text-slate-500"}`}
               >
                 Ocorrências
               </button>
@@ -127,264 +195,118 @@ export default function ModalDetalhesAluno({
         </div>
 
         {/* CONTEÚDO */}
-        <div className="p-4 space-y-6 overflow-y-auto bg-white max-h-[70vh] min-h-[450px]">
+        <div className="p-4 sm:p-6 space-y-6 overflow-y-auto bg-white flex-1 custom-scrollbar text-slate-900">
           {abaAtiva === "dados" ? (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              {/* INFO ACADÊMICA E E-MAIL - RECUPERADO */}
-              <fieldset className="border border-gray-200 p-4 rounded-md relative bg-gray-50/30">
-                <legend className="absolute -top-3 left-4 bg-white px-2 text-blue-600 font-bold text-[10px] uppercase italic">
-                  Informações Acadêmicas & Contato
+            <div className="space-y-8 animate-in fade-in duration-300">
+              <fieldset className="border border-slate-200 p-4 sm:p-5 rounded-xl bg-slate-50/30 relative">
+                <legend className="absolute -top-3 left-4 bg-white border border-slate-200 px-3 py-0.5 text-blue-600 font-black text-[9px] uppercase rounded-full shadow-sm">
+                  Acadêmico
                 </legend>
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-5 gap-4">
-                    <div>
-                      <span className="text-gray-400 text-[9px] uppercase font-bold">
-                        RA
-                      </span>
-                      <div className="bg-gray-50 border border-gray-200 p-1.5 rounded font-mono text-gray-700">
-                        {aluno.id}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-[9px] uppercase font-bold">
-                        Série
-                      </span>
-                      <div className="bg-gray-50 border border-gray-200 p-1.5 rounded font-medium text-gray-700">
-                        {aluno.serie}º Ano
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-[9px] uppercase font-bold">
-                        Turma
-                      </span>
-                      <div className="bg-gray-50 border border-gray-200 p-1.5 rounded text-center font-medium text-gray-700">
-                        {aluno.turma}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-[9px] uppercase font-bold">
-                        Status
-                      </span>
-                      <div
-                        className={`p-1.5 rounded text-center font-bold border ${
-                          aluno.status === "CURSANDO"
-                            ? "bg-green-50 text-green-700 border-green-200"
-                            : "bg-red-50 text-red-700 border-red-200"
-                        }`}
-                      >
-                        {aluno.status}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-[9px] uppercase font-bold">
-                        Nascimento
-                      </span>
-                      <div className="bg-gray-50 border border-gray-200 p-1.5 rounded font-medium text-gray-700">
-                        {aluno.nascimento}
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 text-[9px] uppercase font-bold flex items-center gap-1">
-                      <Mail size={10} /> E-mail Institucional / Pessoal
-                    </span>
-                    <div className="mt-1 bg-blue-50/50 border border-blue-200 p-2.5 rounded text-blue-900 text-[13px] font-bold break-all shadow-inner italic flex items-center">
-                      {aluno.email || "Não informado"}
-                    </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6">
+                  <DataField label="RA" value={aluno.id} isMono />
+                  <DataField label="Série" value={`${aluno.serie}º Ano`} />
+                  <DataField label="Turma" value={aluno.turma} center />
+                  <StatusField status={aluno.status} />
+                  <DataField label="Nascimento" value={aluno.nascimento} />
+                </div>
+                <div className="mt-6 pt-4 border-t border-slate-100">
+                  <span className="text-slate-400 text-[9px] font-black uppercase block mb-1">
+                    E-mail de Contato
+                  </span>
+                  <div className="bg-blue-50/50 border border-blue-100 p-3 rounded-lg text-blue-800 text-[12px] sm:text-[13px] font-bold flex items-center gap-2 truncate">
+                    <Mail size={14} className="text-blue-400 shrink-0" />{" "}
+                    {aluno.email || "NÃO INFORMADO"}
                   </div>
                 </div>
               </fieldset>
 
-              {/* RESPONSÁVEIS - RECUPERADO TOTAL */}
-              <div className="grid grid-cols-3 gap-4">
-                {/* PAI */}
-                <fieldset className="border border-gray-200 p-3 rounded-md bg-blue-50/5 relative">
-                  <legend className="absolute -top-3 left-3 bg-white px-2 text-blue-700 font-bold text-[9px] uppercase">
-                    Responsável Pai
-                  </legend>
-                  <div className="space-y-3 mt-1">
-                    <div>
-                      <span className="text-gray-400 text-[8px] uppercase font-bold">
-                        Nome
-                      </span>
-                      <div className="bg-gray-50 border border-gray-200 p-1.5 rounded font-bold text-gray-800 break-words min-h-[28px] uppercase">
-                        {aluno.pai || "---"}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-[8px] uppercase font-bold">
-                        E-mail
-                      </span>
-                      <div className="bg-white border border-blue-200 p-2 rounded text-blue-800 text-[12px] font-bold break-all min-h-[32px] shadow-sm flex items-center italic">
-                        {aluno.email_pai || "---"}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-gray-400 text-[8px] uppercase font-bold">
-                          Celular
-                        </span>
-                        <div className="bg-gray-50 border border-gray-200 p-1 rounded text-center font-bold text-gray-700">
-                          {aluno.celular_pai || "---"}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-gray-400 text-[8px] uppercase font-bold">
-                          Fixo
-                        </span>
-                        <div className="bg-gray-50 border border-gray-200 p-1 rounded text-center font-bold text-gray-700">
-                          {aluno.fixo_pai || "---"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </fieldset>
-
-                {/* MÃE */}
-                <fieldset className="border border-gray-200 p-3 rounded-md bg-pink-50/5 relative">
-                  <legend className="absolute -top-3 left-3 bg-white px-2 text-pink-700 font-bold text-[9px] uppercase">
-                    Responsável Mãe
-                  </legend>
-                  <div className="space-y-3 mt-1">
-                    <div>
-                      <span className="text-gray-400 text-[8px] uppercase font-bold">
-                        Nome
-                      </span>
-                      <div className="bg-gray-50 border border-gray-200 p-1.5 rounded font-bold text-gray-800 break-words min-h-[28px] uppercase">
-                        {aluno.mae || "---"}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-[8px] uppercase font-bold">
-                        E-mail
-                      </span>
-                      <div className="bg-white border border-pink-200 p-2 rounded text-blue-800 text-[12px] font-bold break-all min-h-[32px] shadow-sm flex items-center italic">
-                        {aluno.email_mae || "---"}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-gray-400 text-[8px] uppercase font-bold">
-                          Celular
-                        </span>
-                        <div className="bg-gray-50 border border-gray-200 p-1 rounded text-center font-bold text-gray-700">
-                          {aluno.celular_mae || "---"}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-gray-400 text-[8px] uppercase font-bold">
-                          Fixo
-                        </span>
-                        <div className="bg-gray-50 border border-gray-200 p-1 rounded text-center font-bold text-gray-700">
-                          {aluno.fixo_mae || "---"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </fieldset>
-
-                {/* FINANCEIRO */}
-                <fieldset className="border border-gray-200 p-3 rounded-md bg-green-50/10 relative shadow-inner">
-                  <legend className="absolute -top-3 left-3 bg-white px-2 text-green-700 font-bold text-[9px] uppercase flex items-center gap-1">
-                    <CreditCard size={10} /> Financeiro
-                  </legend>
-                  <div className="space-y-3 mt-1">
-                    <div>
-                      <span className="text-gray-400 text-[8px] uppercase font-bold">
-                        Nome Financeiro
-                      </span>
-                      <div className="bg-green-50/50 border border-green-200 p-1.5 rounded font-bold text-green-900 break-words min-h-[28px] uppercase">
-                        {aluno.financeiro_nome || "---"}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 text-[8px] uppercase font-bold text-green-600">
-                        E-mail Financeiro
-                      </span>
-                      <div className="bg-white border border-green-200 p-2 rounded text-blue-800 text-[12px] font-bold break-all min-h-[32px] shadow-sm flex items-center italic">
-                        {aluno.financeiro_email || "---"}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-gray-400 text-[8px] uppercase font-bold">
-                          Celular
-                        </span>
-                        <div className="bg-gray-50 border border-gray-200 p-1 rounded text-center font-bold text-gray-700">
-                          {aluno.financeiro_celular || "---"}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-gray-400 text-[8px] uppercase font-bold">
-                          Fixo
-                        </span>
-                        <div className="bg-gray-50 border border-gray-200 p-1 rounded text-center font-bold text-gray-700">
-                          {aluno.financeiro_fixo || "---"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </fieldset>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <ParentSection
+                  title="Responsável Pai"
+                  name={aluno.pai}
+                  email={aluno.email_pai}
+                  cel={aluno.celular_pai}
+                  fixo={aluno.fixo_pai}
+                  color="blue"
+                />
+                <ParentSection
+                  title="Responsável Mãe"
+                  name={aluno.mae}
+                  email={aluno.email_mae}
+                  cel={aluno.celular_mae}
+                  fixo={aluno.fixo_mae}
+                  color="pink"
+                />
+                <ParentSection
+                  title="Financeiro"
+                  name={aluno.financeiro_nome}
+                  email={aluno.financeiro_email}
+                  cel={aluno.financeiro_celular}
+                  fixo={aluno.financeiro_fixo}
+                  color="green"
+                  isFin
+                />
               </div>
             </div>
           ) : (
-            /* ABA HISTÓRICO - Lógica Supabase mantida */
-            <div className="flex flex-col h-full animate-in slide-in-from-bottom-2">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-blue-800 flex items-center gap-2">
-                  <FileText size={14} /> Histórico de Registros
+            <div className="flex flex-col h-full animate-in slide-in-from-bottom-2 duration-300">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-black text-slate-800 text-[13px] uppercase flex items-center gap-2">
+                  <FileText size={18} className="text-blue-600" /> Linha do
+                  Tempo
                 </h3>
                 <button
                   onClick={onAbrirOcorrencias}
-                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-sm font-bold flex items-center gap-1 shadow-sm transition-transform active:scale-95"
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-black uppercase text-[9px] flex items-center gap-2 shadow-lg transition-all active:scale-95"
                 >
-                  <PlusCircle size={14} /> Nova Ocorrência
+                  <PlusCircle size={14} /> Novo
                 </button>
               </div>
-
               {loadingHist ? (
-                <div className="flex flex-col items-center justify-center py-20 text-blue-400 italic">
-                  <Loader2 size={30} className="animate-spin mb-3" />{" "}
-                  Sincronizando registros do aluno...
+                <div className="flex flex-col items-center justify-center py-20 text-blue-500 italic font-bold text-center">
+                  <Loader2 size={40} className="animate-spin mb-4" />{" "}
+                  Sincronizando registros...
                 </div>
               ) : (
-                <div className="space-y-3 pb-4">
+                <div className="space-y-4 pb-6">
                   {historico.length > 0 ? (
                     historico.map((oc) => (
                       <div
                         key={oc.id}
-                        className="border border-gray-200 p-3 rounded-sm bg-gray-50 hover:bg-blue-50 transition-colors shadow-sm relative group"
+                        className="border border-slate-200 p-4 rounded-xl bg-slate-50/50 hover:bg-white hover:shadow-md transition-all"
                       >
-                        <div className="flex justify-between text-[10px] text-gray-500 mb-2 border-b border-gray-100 pb-1 italic">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-blue-600 uppercase">
-                              COLABORADOR: {oc.colaborador_nome || "SISTEMA"}
+                        <div className="flex justify-between items-start mb-3 border-b border-slate-100 pb-2">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-black text-blue-700 uppercase text-[9px]">
+                              Autor: {oc.colaborador_nome || "SISTEMA"}
                             </span>
-                            <span className="font-bold">
+                            <div className="flex items-center gap-1 text-slate-400 font-bold text-[9px]">
+                              <Calendar size={10} />{" "}
                               {new Date(oc.data).toLocaleString("pt-BR")}
-                            </span>
+                            </div>
                           </div>
                           {user?.id === oc.colaborador_id && (
                             <button
                               onClick={() =>
                                 excluirOcorrencia(oc.id, oc.colaborador_id)
                               }
-                              className="flex items-center gap-1 text-red-400 hover:text-red-600 transition-colors p-1"
-                              title="Excluir meu registro"
+                              className="text-red-500 hover:bg-red-500 hover:text-white p-2 rounded-lg transition-all"
                             >
-                              <Trash2 size={13} />{" "}
-                              <span className="font-bold">EXCLUIR</span>
+                              <Trash2 size={14} />
                             </button>
                           )}
                         </div>
-                        <p className="text-gray-700 leading-relaxed text-justify text-[11px]">
+                        <p className="text-slate-700 leading-relaxed text-justify font-medium text-[11px] px-1">
                           {oc.texto}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-20 text-gray-400 italic border-2 border-dashed border-gray-100 rounded-lg">
-                      Não existem ocorrências registradas para este aluno.
+                    <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-2xl opacity-50">
+                      <FileText size={48} className="mx-auto text-slate-300" />
+                      <p className="font-black text-slate-400 uppercase mt-2">
+                        Nenhum registro
+                      </p>
                     </div>
                   )}
                 </div>
@@ -393,22 +315,149 @@ export default function ModalDetalhesAluno({
           )}
         </div>
 
-        {/* RODAPÉ */}
-        <div className="bg-[#f1f5f9] p-2 flex justify-end gap-2 border-t border-gray-300">
+        {/* ✅ RODAPÉ CORRIGIDO E RESPONSIVO */}
+        <div className="bg-slate-100 p-3 flex flex-col sm:flex-row justify-between items-center border-t border-slate-200 gap-3 shrink-0">
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => onNavegar("anterior")}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white border border-slate-300 hover:border-blue-500 text-slate-600 hover:text-blue-600 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all shadow-sm active:scale-95"
+            >
+              <ChevronLeft size={16} /> Anterior
+            </button>
+            <button
+              onClick={() => onNavegar("proximo")}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white border border-slate-300 hover:border-blue-500 text-slate-600 hover:text-blue-600 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all shadow-sm active:scale-95"
+            >
+              Próximo <ChevronRight size={16} />
+            </button>
+          </div>
           <button
-            onClick={() => onNavegar("anterior")}
-            className="bg-[#3182ce] hover:bg-blue-700 text-white px-6 py-1.5 rounded font-bold text-[11px] shadow-sm"
+            onClick={onClose}
+            className="w-full sm:w-auto bg-slate-800 hover:bg-black text-white px-10 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg"
           >
-            ALUNO ANTERIOR
-          </button>
-          <button
-            onClick={() => onNavegar("proximo")}
-            className="bg-[#3182ce] hover:bg-blue-700 text-white px-6 py-1.5 rounded font-bold text-[11px] shadow-sm"
-          >
-            PRÓXIMO ALUNO
+            Fechar
           </button>
         </div>
       </div>
+
+      {/* MODAL ZOOM FOTO */}
+      {modalFotoOpen && aluno.foto_url && (
+        <div
+          className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4 cursor-zoom-out animate-in zoom-in-95 duration-300"
+          onClick={() => setModalFotoOpen(false)}
+        >
+          <img
+            src={getHighResUrl(aluno.foto_url)}
+            className={`max-w-full max-h-full rounded-xl shadow-2xl transition-transform duration-500 ${isZoomed ? "scale-125" : "scale-100"}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsZoomed(!isZoomed);
+            }}
+            style={{ cursor: isZoomed ? "zoom-out" : "zoom-in" }}
+            alt="Zoom"
+          />
+          <button
+            onClick={() => setModalFotoOpen(false)}
+            className="absolute top-4 right-4 sm:top-8 sm:right-8 text-white bg-white/10 p-2 sm:p-3 rounded-full backdrop-blur-md hover:bg-white/20 transition-all"
+          >
+            <X size={32} />
+          </button>
+        </div>
+      )}
     </div>
+  );
+}
+
+function DataField({ label, value, isMono = false, center = false }: any) {
+  return (
+    <div className="min-w-0">
+      <span className="text-slate-400 text-[8px] uppercase font-black mb-1 block tracking-tighter truncate">
+        {label}
+      </span>
+      <div
+        className={`bg-slate-50 border border-slate-200 p-2 rounded-lg text-slate-700 font-bold truncate ${isMono ? "font-mono" : ""} ${center ? "text-center" : ""}`}
+      >
+        {value || "---"}
+      </div>
+    </div>
+  );
+}
+
+function StatusField({ status }: any) {
+  const isCursando = status === "CURSANDO";
+  return (
+    <div className="min-w-0">
+      <span className="text-slate-400 text-[8px] uppercase font-black mb-1 block tracking-tighter">
+        Situação
+      </span>
+      <div
+        className={`p-2 rounded-lg text-center font-black border truncate ${isCursando ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}
+      >
+        {status || "---"}
+      </div>
+    </div>
+  );
+}
+
+function ParentSection({
+  title,
+  name,
+  email,
+  cel,
+  fixo,
+  color,
+  isFin = false,
+}: any) {
+  const colors: any = {
+    blue: "text-blue-700 bg-blue-50 border-blue-100",
+    pink: "text-pink-700 bg-pink-50 border-pink-100",
+    green: "text-green-700 bg-green-50 border-green-100",
+  };
+  return (
+    <fieldset
+      className={`border border-slate-200 p-4 rounded-xl relative shadow-sm bg-white`}
+    >
+      <legend
+        className={`absolute -top-3 left-3 bg-white px-2 font-black text-[9px] uppercase flex items-center gap-1 ${colors[color].split(" ")[0]}`}
+      >
+        {isFin && <CreditCard size={10} />} {title}
+      </legend>
+      <div className="space-y-4 mt-2">
+        <div className="space-y-1">
+          <span className="text-slate-400 text-[8px] uppercase font-black">
+            Nome Completo
+          </span>
+          <div className="bg-slate-50/50 p-2 rounded text-[10px] sm:text-[11px] font-black text-slate-800 uppercase min-h-[30px] flex items-center leading-tight">
+            {name || "---"}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <span className="text-slate-400 text-[8px] uppercase font-black block">
+            E-mail Contato
+          </span>
+          <div className="bg-white border border-slate-100 p-2 rounded text-[10px] sm:text-[11px] font-bold text-blue-600 italic break-all shadow-inner">
+            {email || "---"}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="space-y-1">
+            <span className="text-slate-400 text-[8px] uppercase font-black">
+              Celular
+            </span>
+            <div className="bg-slate-50 p-1.5 rounded text-center font-black text-slate-700 text-[10px]">
+              {formatarTelefone(cel)}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-slate-400 text-[8px] uppercase font-black">
+              Fixo
+            </span>
+            <div className="bg-slate-50 p-1.5 rounded text-center font-black text-slate-700 text-[10px]">
+              {formatarTelefone(fixo)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </fieldset>
   );
 }

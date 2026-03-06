@@ -1,10 +1,17 @@
 "use client";
 import { useState } from "react";
-// Importando o cliente centralizado que usa o createBrowserClient do @supabase/ssr
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { useColigada } from "@/context/ColigadaContext"; // <-- Importamos o contexto das coligadas
-import { X, Save, Loader2, ClipboardList, ShieldCheck } from "lucide-react";
+import { useColigada } from "@/context/ColigadaContext";
+import Swal from "sweetalert2"; // ✅ Alertas modernos
+import {
+  X,
+  Save,
+  Loader2,
+  ClipboardList,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 
 interface ModalOcorrenciaProps {
   aluno: any;
@@ -17,106 +24,137 @@ export default function ModalOcorrencia({
 }: ModalOcorrenciaProps) {
   const [texto, setTexto] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState("");
-  const { user } = useAuth(); // Pega usuário logado via Supabase Auth
-  const { coligadaAtual } = useColigada(); // <-- Puxamos a coligada selecionada no cabeçalho
+  const { user } = useAuth();
+  const { coligadaAtual } = useColigada();
 
   const salvarOcorrencia = async () => {
-    if (!texto.trim()) return alert("Por favor, preencha o relato.");
-    if (!user) return alert("Erro: Usuário não autenticado.");
-    if (!coligadaAtual) return alert("Erro: Nenhuma unidade selecionada."); // Trava de segurança
+    // Validações com SweetAlert2
+    if (!texto.trim()) {
+      return Swal.fire({
+        title: "Campo Vazio",
+        text: "Por favor, descreva o ocorrido antes de salvar.",
+        icon: "warning",
+        confirmButtonColor: "#3182ce",
+      });
+    }
+
+    if (!user || !coligadaAtual) {
+      return Swal.fire(
+        "Erro de Sessão",
+        "Usuário ou unidade não identificada.",
+        "error",
+      );
+    }
 
     setSalvando(true);
-    setErro("");
 
     try {
       const { error } = await supabase.from("ocorrencias").insert([
         {
           aluno_id: aluno.id,
-          // Mapeia corretamente os dados do Google via Supabase
           colaborador_nome: user.user_metadata?.full_name || user.email,
-          colaborador_id: user.id, // UUID único do Supabase
+          colaborador_id: user.id,
           texto: texto,
-          sede_id: coligadaAtual.id, // <-- A MÁGICA ESTÁ AQUI: Carimba a ocorrência com a sede atual!
+          sede_id: coligadaAtual.id, // ✅ Mantido o carimbo da sede
         },
       ]);
 
       if (error) throw error;
 
-      alert("Registro salvo com sucesso!");
+      await Swal.fire({
+        title: "Sucesso!",
+        text: "O registro foi gravado no prontuário do aluno.",
+        icon: "success",
+        confirmButtonColor: "#16a34a",
+      });
+
       onClose();
     } catch (err: any) {
       console.error("Erro ao salvar:", err);
-      setErro("Falha na segurança ou conexão: " + err.message);
+      Swal.fire("Falha na Gravação", err.message, "error");
     } finally {
       setSalvando(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-md border border-gray-400 shadow-2xl rounded-sm overflow-hidden flex flex-col">
-        {/* HEADER */}
-        <div className="bg-[#1a202c] p-2 px-3 text-white flex justify-between items-center font-bold text-[11px] uppercase tracking-widest">
-          <span className="flex items-center gap-2">
-            <ClipboardList size={14} className="text-blue-400" />
-            Registro do Colaborador - RA {aluno.id}
-          </span>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-lg border border-slate-200 shadow-2xl rounded-2xl overflow-hidden flex flex-col scale-in-center">
+        {/* HEADER ESTILIZADO */}
+        <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-500 p-1.5 rounded-lg">
+              <ClipboardList size={18} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-[12px] font-black uppercase tracking-wider leading-none">
+                Novo Registro de Ocorrência
+              </h2>
+              <p className="text-[10px] text-slate-400 font-bold mt-1">
+                UNIDADE: {coligadaAtual?.sigla}
+              </p>
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="hover:text-red-400 transition-colors outline-none"
+            className="text-slate-400 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-all"
           >
-            <X size={16} />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="p-4 flex flex-col gap-3">
-          {/* IDENTIFICAÇÃO DO ALUNO */}
-          <div className="bg-blue-50/50 p-2 rounded border-l-4 border-blue-600">
-            <span className="text-gray-800 font-bold block text-[12px] uppercase">
-              {aluno.nome}
-            </span>
-            <span className="text-gray-500 text-[10px] font-medium">
-              {aluno.serie}º Ano - Turma {aluno.turma}
-            </span>
+        <div className="p-6 flex flex-col gap-5">
+          {/* IDENTIFICAÇÃO DO ALUNO (Visual mais limpo) */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black shadow-sm">
+              {aluno.nome ? aluno.nome[0] : "?"}
+            </div>
+            <div>
+              <span className="text-slate-900 font-black block text-[13px] uppercase">
+                {aluno.nome}
+              </span>
+              <span className="text-slate-500 text-[10px] font-bold uppercase tracking-tight">
+                RA: {aluno.id} • {aluno.serie}º Ano - {aluno.turma}
+              </span>
+            </div>
           </div>
 
-          <label className="text-gray-600 font-bold text-[10px] uppercase tracking-tight flex items-center gap-1">
-            Relato do Ocorrido / Observação ({coligadaAtual?.sigla}):
-          </label>
-
-          <textarea
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            disabled={salvando}
-            className="w-full h-44 border border-gray-300 p-3 text-[12px] focus:ring-1 focus:ring-blue-600 outline-none resize-none bg-white shadow-sm rounded-sm disabled:bg-gray-50"
-            placeholder="Descreva aqui os fatos de forma clara..."
-          />
-
-          <div className="flex items-center gap-1 text-[9px] text-green-600 font-bold uppercase">
-            <ShieldCheck size={12} /> Autenticação Ativa via Supabase
+          <div className="space-y-2">
+            <label className="text-slate-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 ml-1">
+              Relato Detalhado
+            </label>
+            <textarea
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              disabled={salvando}
+              className="w-full h-48 border border-slate-200 p-4 text-[13px] font-medium focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none resize-none bg-slate-50/30 rounded-xl transition-all shadow-inner placeholder:text-slate-300"
+              placeholder="Descreva aqui os fatos, observações ou encaminhamentos de forma profissional..."
+            />
           </div>
 
-          {erro && (
-            <span className="text-red-600 text-[10px] font-bold bg-red-50 p-2 border border-red-100 rounded animate-pulse">
-              {erro}
-            </span>
-          )}
+          {/* RODAPÉ DE SEGURANÇA */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-black uppercase">
+              <ShieldCheck size={14} />
+              Sessão Identificada:{" "}
+              {user?.user_metadata?.full_name?.split(" ")[0] || "Usuário"}
+            </div>
+          </div>
         </div>
 
-        {/* RODAPÉ */}
-        <div className="bg-gray-50 p-2 flex justify-end gap-2 border-t border-gray-200">
+        {/* BOTÕES DE AÇÃO */}
+        <div className="bg-slate-50 p-4 flex justify-end gap-3 border-t border-slate-100">
           <button
             onClick={onClose}
             disabled={salvando}
-            className="px-4 py-1.5 text-gray-500 font-bold text-[10px] hover:bg-gray-200 rounded uppercase"
+            className="px-6 py-2.5 text-slate-500 font-black text-[10px] hover:bg-slate-200 rounded-xl uppercase transition-all"
           >
-            Cancelar
+            Descartar
           </button>
           <button
             onClick={salvarOcorrencia}
             disabled={salvando}
-            className="bg-[#1a202c] hover:bg-gray-800 text-white px-6 py-1.5 rounded-sm font-bold text-[10px] flex items-center gap-2 shadow-md disabled:bg-gray-400 uppercase transition-all"
+            className="bg-slate-900 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-black text-[10px] flex items-center gap-2 shadow-lg shadow-slate-200 disabled:bg-slate-400 uppercase transition-all active:scale-95"
           >
             {salvando ? (
               <>
@@ -124,7 +162,7 @@ export default function ModalOcorrencia({
               </>
             ) : (
               <>
-                <Save size={14} /> Salvar no Banco
+                <Save size={14} /> Finalizar Registro
               </>
             )}
           </button>

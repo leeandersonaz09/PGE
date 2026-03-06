@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useColigada } from "@/context/ColigadaContext";
 import Papa from "papaparse";
+import Swal from "sweetalert2"; // ✅ Janelas de confirmação premium
 import {
   Users,
   ShieldCheck,
@@ -12,7 +13,6 @@ import {
   Clock,
   Save,
   X,
-  Edit,
   Loader2,
   AlertCircle,
   CheckCircle2,
@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 export default function AdminPage() {
+  const { coligadaAtual, loadingColigadas } = useColigada();
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [sedes, setSedes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,23 +35,20 @@ export default function AdminPage() {
     tipo: "sucesso" | "erro" | "processando" | null;
     msg: string;
   }>({ tipo: null, msg: "" });
-
-  // Estado para a data dinâmica por sede
   const [ultimaImportacao, setUltimaImportacao] = useState(
     "Selecione uma sede...",
   );
 
-  // Estados de Edição de Usuário (Funcionários)
+  // Estados de Edição de Usuário
   const [modalAberto, setModalAberto] = useState(false);
   const [editandoUser, setEditandoUser] = useState<any>(null);
   const [salvando, setSalvando] = useState(false);
 
-  // Estados de Gestão de Equipamentos (Novo)
+  // Estados de Gestão de Equipamentos
   const [equipamentos, setEquipamentos] = useState<any[]>([]);
   const [novoEquipNome, setNovoEquipNome] = useState("");
   const [novoEquipQtd, setNovoEquipQtd] = useState(1);
 
-  // Adicionado o módulo "locacoes" na lista
   const modulosDisponiveis = [
     "alunos",
     "repouso",
@@ -66,44 +64,43 @@ export default function AdminPage() {
 
   useEffect(() => {
     carregarDadosIniciais();
-  }, []);
+    if (coligadaAtual) setSedeImportacao(String(coligadaAtual.id));
+  }, [coligadaAtual]);
 
-  // EFEITO: Monitora a mudança de sede para atualizar a data da última sincronização
   useEffect(() => {
     if (sedeImportacao) {
       buscarUltimaSincronizacaoPorSede(sedeImportacao);
+      carregarEquipamentosPorSede(Number(sedeImportacao));
     } else {
       setUltimaImportacao("Selecione uma sede...");
+      setEquipamentos([]);
     }
   }, [sedeImportacao]);
 
   async function carregarDadosIniciais() {
     setLoading(true);
-    // Busca funcionários através da View segura
     const { data: usersData } = await supabase
       .from("vw_gestao_usuarios")
       .select("*")
       .order("nome");
-
-    // Busca todas as sedes cadastradas
     const { data: sedesData } = await supabase
       .from("sedes")
       .select("*")
       .order("nome");
-
-    // Busca equipamentos
-    const { data: equipData } = await supabase
-      .from("equipamentos")
-      .select("*")
-      .order("nome");
-
     if (usersData) setUsuarios(usersData);
     if (sedesData) setSedes(sedesData);
-    if (equipData) setEquipamentos(equipData);
     setLoading(false);
   }
 
-  // Função para buscar a data da última importação filtrada pela SEDE selecionada
+  async function carregarEquipamentosPorSede(idSede: number) {
+    const { data } = await supabase
+      .from("equipamentos")
+      .select("*")
+      .eq("sede_id", idSede)
+      .order("nome");
+    if (data) setEquipamentos(data);
+  }
+
   async function buscarUltimaSincronizacaoPorSede(idSede: string) {
     setUltimaImportacao("Buscando...");
     const { data } = await supabase
@@ -112,13 +109,12 @@ export default function AdminPage() {
       .eq("sede_id", idSede)
       .order("importado_em", { ascending: false })
       .limit(1);
-
-    if (data && data.length > 0 && data[0].importado_em) {
+    if (data?.[0]?.importado_em) {
       setUltimaImportacao(
         new Date(data[0].importado_em).toLocaleString("pt-BR"),
       );
     } else {
-      setUltimaImportacao("Nenhum registro encontrado nesta sede");
+      setUltimaImportacao("Nenhum registro encontrado");
     }
   }
 
@@ -126,26 +122,20 @@ export default function AdminPage() {
     if (!arquivo || !sedeImportacao) return;
     setStatusImport({
       tipo: "processando",
-      msg: "Sincronizando dados com o banco...",
+      msg: "Sincronizando dados com o servidor...",
     });
-
     Papa.parse(arquivo, {
       header: true,
       skipEmptyLines: true,
-      delimiter: ";", // Forçamos o delimitador ponto-e-vírgula do seu CSV
+      delimiter: ";",
       complete: async (results) => {
         const rows = results.data;
         const codigosVistos = new Set();
         const listaFinal: any[] = [];
-
         rows.forEach((row: any) => {
           const cod = row["Código"];
-
-          // 1. DEDUPLICAÇÃO (Garante que não processe o mesmo código duas vezes na mesma planilha)
           if (cod && !codigosVistos.has(cod)) {
             codigosVistos.add(cod);
-
-            // 2. MAPEAMENTO CORRIGIDO (Baseado no Relatorio HBV.csv)
             listaFinal.push({
               id: Number(cod),
               nome: row["Nome"] || "NOME NÃO INFORMADO",
@@ -159,47 +149,40 @@ export default function AdminPage() {
               status: row["Situação matrícula"],
               nascimento: row["Data nascimento"],
               email: row["Email"],
-
-              // FINANCEIRO (AJUSTADO PARA O SEU CSV)
               financeiro_nome: row["Nome r. financeiro"],
               financeiro_fixo: row["Telefone residencial r. financeiro"],
               financeiro_celular: row["Telefone celular r. financeiro"],
               financeiro_email: row["Email r. financeiro"],
-
-              // PAI
               pai: row["Nome Pai"],
               fixo_pai: row["Telefone residencial Pai"],
               celular_pai: row["Telefone celular Pai"],
               email_pai: row["Email Pai"],
-
-              // MÃE
               mae: row["Nome Mãe"],
               fixo_mae: row["Telefone residencial Mãe"],
               celular_mae: row["Telefone celular Mãe"],
               email_mae: row["Email Mãe"],
-
+              foto_url: row["ds_link_foto"] || "",
               sede_id: Number(sedeImportacao),
               importado_em: new Date().toISOString(),
             });
           }
         });
-
-        // 3. UPSERT (Garante a unicidade no banco de dados)
-        // Se o ID já existir, ele ATUALIZA os dados. Se não existir, ele INSERE.
         const { error } = await supabase
           .from("alunos")
           .upsert(listaFinal, { onConflict: "id" });
-
         if (error) {
-          setStatusImport({
-            tipo: "erro",
-            msg: "Erro na sincronização: " + error.message,
-          });
+          setStatusImport({ tipo: "erro", msg: "Erro: " + error.message });
+          Swal.fire("Erro!", error.message, "error");
         } else {
           setStatusImport({
             tipo: "sucesso",
-            msg: `${listaFinal.length} alunos sincronizados/atualizados com sucesso!`,
+            msg: `${listaFinal.length} alunos importados com sucesso!`,
           });
+          Swal.fire(
+            "Sucesso!",
+            `${listaFinal.length} alunos sincronizados.`,
+            "success",
+          );
           buscarUltimaSincronizacaoPorSede(sedeImportacao);
         }
       },
@@ -214,302 +197,280 @@ export default function AdminPage() {
   const salvarAlteracoes = async () => {
     if (!editandoUser) return;
     setSalvando(true);
-
-    const sedesFormatadas = Array.from(
-      new Set(
-        editandoUser.sedes_permitidas?.map((id: any) => Number(id)) || [],
-      ),
+    const { error } = await supabase.from("permissoes_usuarios").upsert(
+      {
+        user_id: editandoUser.user_id,
+        is_admin: editandoUser.is_admin,
+        sedes_permitidas: editandoUser.sedes_permitidas,
+        modulos_permitidos: editandoUser.modulos_permitidos,
+      },
+      { onConflict: "user_id" },
     );
-    const modulosFormatados = Array.from(
-      new Set(editandoUser.modulos_permitidos || []),
-    );
 
-    const { data, error, status } = await supabase
-      .from("permissoes_usuarios")
-      .upsert(
-        {
-          user_id: editandoUser.user_id,
-          is_admin: editandoUser.is_admin,
-          sedes_permitidas: sedesFormatadas,
-          modulos_permitidos: modulosFormatados,
-        },
-        { onConflict: "user_id" },
-      )
-      .select();
-
-    if (error) {
-      alert(`Erro técnico: ${error.message} (Código: ${error.code})`);
-    } else if (data && data.length > 0) {
+    if (error) Swal.fire("Erro", error.message, "error");
+    else {
       setModalAberto(false);
-      await carregarDadosIniciais();
-      alert("Permissões atualizadas com sucesso!");
-    } else {
-      alert(
-        "Atenção: Você não tem permissão de Administrador no banco de dados para realizar esta alteração.",
-      );
+      carregarDadosIniciais();
+      Swal.fire("Salvo!", "Acessos atualizados.", "success");
     }
     setSalvando(false);
   };
 
-  // Funções de Gestão de Equipamentos
   const adicionarEquipamento = async () => {
-    if (!novoEquipNome || novoEquipQtd < 1) return;
-    const { error } = await supabase
-      .from("equipamentos")
-      .insert([{ nome: novoEquipNome, quantidade_total: novoEquipQtd }]);
+    if (!novoEquipNome || !sedeImportacao) {
+      return Swal.fire(
+        "Atenção",
+        "Selecione uma sede antes de cadastrar.",
+        "warning",
+      );
+    }
+    const { error } = await supabase.from("equipamentos").insert([
+      {
+        nome: novoEquipNome,
+        quantidade_total: novoEquipQtd,
+        sede_id: Number(sedeImportacao),
+      },
+    ]);
     if (!error) {
       setNovoEquipNome("");
-      setNovoEquipQtd(1);
-      carregarDadosIniciais();
-    } else {
-      alert("Erro ao adicionar equipamento: " + error.message);
+      carregarEquipamentosPorSede(Number(sedeImportacao));
+      Swal.fire({
+        title: "Salvo!",
+        icon: "success",
+        toast: true,
+        position: "top-end",
+        timer: 2000,
+        showConfirmButton: false,
+      });
     }
   };
 
   const deletarEquipamento = async (id: string) => {
-    if (
-      window.confirm(
-        "Apagar este equipamento? Isso apagará o histórico de locações dele também.",
-      )
-    ) {
+    const result = await Swal.fire({
+      title: "Apagar Dispositivo?",
+      text: "O item será removido desta sede.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      confirmButtonText: "Sim, remover!",
+    });
+    if (result.isConfirmed) {
       await supabase.from("equipamentos").delete().eq("id", id);
-      carregarDadosIniciais();
+      carregarEquipamentosPorSede(Number(sedeImportacao));
+      Swal.fire("Removido!", "Item excluído.", "success");
     }
   };
 
   if (loading)
     return (
-      <div className="p-20 text-center text-blue-600 font-bold animate-pulse italic text-gray-900 bg-white">
-        Carregando CPD...
+      <div className="p-20 text-center text-blue-600 font-bold animate-pulse italic">
+        CPD Sincronizando...
       </div>
     );
 
   return (
-    <div className="p-8 bg-gray-50 min-h-full flex flex-col gap-6 text-gray-900 font-sans">
+    <div className="p-4 sm:p-8 bg-gray-50 min-h-full flex flex-col gap-6 text-slate-900 font-sans overflow-x-hidden">
       <div className="flex justify-between items-center border-b pb-4">
-        <h1 className="text-2xl font-black flex items-center gap-2 text-gray-800">
-          <ShieldCheck className="text-red-600" size={32} /> Painel
-          Administrativo
+        <h1 className="text-xl sm:text-2xl font-black flex items-center gap-2 text-slate-800">
+          <ShieldCheck className="text-red-600 shrink-0" size={28} />
+          <span className="truncate">Painel Administrativo</span>
         </h1>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* LADO ESQUERDO: GESTÃO DE ACESSOS */}
-        <div className="xl:col-span-2 bg-white border border-gray-300 rounded shadow-sm overflow-hidden">
-          <div className="bg-gray-800 text-white px-4 py-2 border-b font-bold text-[10px] uppercase flex items-center gap-2">
-            <Users size={14} /> Contas de Funcionários Habilitadas
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* LISTA DE USUÁRIOS */}
+        <div className="xl:col-span-2 bg-white border border-slate-300 rounded shadow-sm overflow-hidden">
+          <div className="bg-slate-800 text-white px-4 py-2 border-b font-bold text-[10px] uppercase flex items-center gap-2">
+            <Users size={14} /> Contas Habilitadas
           </div>
-          <table className="w-full text-left text-[11px]">
-            <thead className="bg-gray-100 border-b text-gray-700 font-bold uppercase tracking-wider">
-              <tr>
-                <th className="p-3">Colaborador / Email</th>
-                <th className="p-3 text-center">Tipo</th>
-                <th className="p-3">Módulos</th>
-                <th className="p-3 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y text-gray-900">
-              {usuarios.map((u) => (
-                <tr
-                  key={u.user_id}
-                  className="hover:bg-blue-50 transition-colors"
-                >
-                  <td className="p-3">
-                    <div className="font-bold text-gray-900">{u.nome}</div>
-                    <div className="text-gray-500 font-mono text-[10px]">
-                      {u.email}
-                    </div>
-                  </td>
-                  <td className="p-3 text-center font-black">
-                    {u.is_admin ? (
-                      <span className="text-red-600">ADMIN</span>
-                    ) : (
-                      <span className="text-blue-600">USER</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap gap-1">
-                      {u.modulos_permitidos?.map((m: any) => (
-                        <span
-                          key={m}
-                          className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold"
-                        >
-                          {m}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-3 text-right">
-                    <button
-                      onClick={() => abrirEdicao(u)}
-                      className="bg-gray-900 text-white px-3 py-1.5 rounded border transition-all font-black uppercase text-[10px] hover:bg-blue-600"
-                    >
-                      Configurar
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[11px] min-w-[500px]">
+              <thead className="bg-slate-100 border-b text-slate-700 font-bold uppercase">
+                <tr>
+                  <th className="p-3">Colaborador</th>
+                  <th className="p-3 text-center">Tipo</th>
+                  <th className="p-3">Módulos</th>
+                  <th className="p-3 text-right">Ação</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y text-slate-900">
+                {usuarios.map((u) => (
+                  <tr
+                    key={u.user_id}
+                    className="hover:bg-blue-50 transition-colors"
+                  >
+                    <td className="p-3">
+                      <div className="font-bold text-slate-900">{u.nome}</div>
+                      <div className="text-slate-500 font-mono text-[10px]">
+                        {u.email}
+                      </div>
+                    </td>
+                    <td className="p-3 text-center font-black text-slate-900">
+                      {u.is_admin ? "ADMIN" : "USER"}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {u.modulos_permitidos?.map((m: any) => (
+                          <span
+                            key={m}
+                            className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
+                          >
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => abrirEdicao(u)}
+                        className="bg-slate-900 text-white px-3 py-1.5 rounded text-[10px] hover:bg-blue-600 uppercase font-black"
+                      >
+                        Configurar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* LADO DIREITO: IMPORTAÇÃO DE ALUNOS */}
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-300 rounded shadow-sm overflow-hidden">
-            <div className="bg-blue-600 text-white px-4 py-2 font-bold text-[10px] uppercase flex items-center gap-2">
-              <UploadCloud size={14} /> Atualizar Base de Alunos (CSV)
+        {/* SINCRONIZAÇÃO CSV (AQUI VOLTOU AS INFORMAÇÕES) */}
+        <div className="bg-white border border-slate-300 rounded shadow-sm overflow-hidden">
+          <div className="bg-blue-600 text-white px-4 py-2 font-bold text-[10px] uppercase flex items-center gap-2">
+            <UploadCloud size={14} /> Sincronizar Base
+          </div>
+          <div className="p-4 space-y-4">
+            <select
+              value={sedeImportacao}
+              onChange={(e) => setSedeImportacao(e.target.value)}
+              className="w-full border-2 rounded p-2 text-sm font-black bg-white text-slate-900 outline-none focus:border-blue-500"
+            >
+              <option value="">Selecione a sede...</option>
+              {sedes.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nome}
+                </option>
+              ))}
+            </select>
+            <div className="relative border-2 border-dashed rounded-lg p-6 flex flex-col items-center bg-slate-50 hover:bg-blue-50 transition-all cursor-pointer group text-center text-slate-900 font-bold">
+              <input
+                type="file"
+                accept=".csv"
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                onChange={(e) => setArquivo(e.target.files?.[0] || null)}
+              />
+              <FileSpreadsheet
+                size={40}
+                className={arquivo ? "text-emerald-600" : "text-slate-400"}
+              />
+              <p className="text-[10px] mt-2 uppercase">
+                {arquivo ? arquivo.name : "Subir CSV"}
+              </p>
             </div>
-            <div className="p-4 space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">
-                  1. Unidade de Destino
-                </label>
-                <select
-                  value={sedeImportacao}
-                  onChange={(e) => setSedeImportacao(e.target.value)}
-                  className="w-full border-2 border-gray-200 rounded p-2 text-sm text-black font-black bg-white focus:border-blue-500 outline-none transition-all"
-                >
-                  <option value="">Selecione a sede...</option>
-                  {sedes.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center bg-gray-50 hover:bg-blue-50 hover:border-blue-400 transition-all cursor-pointer group">
-                <input
-                  type="file"
-                  accept=".csv"
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  onChange={(e) => setArquivo(e.target.files?.[0] || null)}
-                />
-                <FileSpreadsheet
-                  size={40}
-                  className={
-                    arquivo
-                      ? "text-green-600"
-                      : "text-gray-400 group-hover:text-blue-500"
-                  }
-                />
-                <p className="text-[10px] font-black text-gray-500 mt-2 uppercase text-center">
-                  {arquivo ? arquivo.name : "Clique para subir o Relatório 4"}
+            {/* ✅ BLOCO RESTAURADO: Última Importação e Status */}
+            <div className="p-3 rounded flex items-center gap-3 border bg-slate-50 border-slate-200">
+              <Clock className="text-slate-400 shrink-0" size={18} />
+              <div className="leading-tight overflow-hidden">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  Última Sincronização
+                </p>
+                <p className="text-xs font-black text-slate-900 truncate">
+                  {ultimaImportacao}
                 </p>
               </div>
-
-              {/* STATUS DINÂMICO DA SEDE */}
-              <div
-                className={`p-3 rounded flex items-center gap-3 border transition-all ${sedeImportacao ? "bg-blue-50 border-blue-100 shadow-inner" : "bg-gray-50 border-gray-200"}`}
-              >
-                <Clock
-                  className={sedeImportacao ? "text-blue-600" : "text-gray-400"}
-                  size={18}
-                />
-                <div className="leading-tight">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase leading-none mb-1">
-                    Última Sincronização na Unidade
-                  </p>
-                  <p
-                    className={`text-xs font-black ${sedeImportacao ? "text-blue-900" : "text-gray-400 italic"}`}
-                  >
-                    {ultimaImportacao}
-                  </p>
-                </div>
-              </div>
-
-              {statusImport.tipo && (
-                <div
-                  className={`p-3 rounded text-[11px] font-bold border flex gap-2 items-start ${statusImport.tipo === "sucesso" ? "bg-green-100 text-green-800 border-green-200" : "bg-red-100 text-red-800 border-red-200"}`}
-                >
-                  {statusImport.tipo === "sucesso" ? (
-                    <CheckCircle2 size={14} />
-                  ) : (
-                    <AlertCircle size={14} />
-                  )}
-                  {statusImport.msg}
-                </div>
-              )}
-
-              <button
-                onClick={handleProcessarPlanilha}
-                disabled={
-                  !arquivo ||
-                  !sedeImportacao ||
-                  statusImport.tipo === "processando"
-                }
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded text-xs uppercase shadow-lg disabled:bg-gray-300 transition-all"
-              >
-                {statusImport.tipo === "processando"
-                  ? "Sincronizando..."
-                  : "Sincronizar Dados"}
-              </button>
             </div>
+
+            {statusImport.tipo && (
+              <div
+                className={`p-3 rounded text-[11px] font-bold border flex gap-2 items-start animate-in fade-in slide-in-from-top-1 ${statusImport.tipo === "sucesso" ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-700 border-red-100"}`}
+              >
+                {statusImport.tipo === "sucesso" ? (
+                  <CheckCircle2 size={14} className="shrink-0" />
+                ) : (
+                  <AlertCircle size={14} className="shrink-0" />
+                )}
+                {statusImport.msg}
+              </div>
+            )}
+
+            <button
+              onClick={handleProcessarPlanilha}
+              disabled={
+                !arquivo ||
+                !sedeImportacao ||
+                statusImport.tipo === "processando"
+              }
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded text-xs uppercase shadow-lg disabled:bg-slate-300 transition-all"
+            >
+              {statusImport.tipo === "processando"
+                ? "Sincronizando..."
+                : "Sincronizar Dados"}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* GESTÃO DE EQUIPAMENTOS MULTIMÍDIA */}
-      <div className="bg-white border border-gray-300 rounded shadow-sm overflow-hidden mt-6">
+      {/* GESTÃO EQUIPAMENTOS */}
+      <div className="bg-white border border-slate-300 rounded shadow-sm overflow-hidden">
         <div className="bg-indigo-600 text-white px-4 py-2 border-b font-bold text-[10px] uppercase flex items-center gap-2">
-          <Laptop size={14} /> Gestão de Equipamentos Multimídia (Locação)
+          <Laptop size={14} /> Dispositivos (
+          {sedeImportacao
+            ? sedes.find((s) => s.id === Number(sedeImportacao))?.sigla
+            : "Escolha a Unidade"}
+          )
         </div>
         <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gray-50 p-4 border rounded">
-            <h3 className="text-xs font-black text-gray-700 uppercase mb-3">
-              Cadastrar Novo
+          <div className="bg-slate-50 p-4 border rounded h-fit">
+            <h3 className="text-xs font-black text-slate-700 uppercase mb-3 text-center">
+              Cadastrar Item
             </h3>
             <div className="space-y-3">
               <input
                 type="text"
-                placeholder="Ex: Chromebook 01"
+                placeholder="Ex: Projetor 01"
                 value={novoEquipNome}
                 onChange={(e) => setNovoEquipNome(e.target.value)}
-                className="w-full border p-2 text-sm rounded bg-white outline-none focus:border-indigo-600 font-medium"
+                className="w-full border p-2 text-sm rounded bg-white text-slate-900 outline-none focus:border-indigo-500"
               />
-              <div className="flex gap-2 items-center">
-                <label className="text-xs font-bold text-gray-600">
-                  Quantidade Total:
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={novoEquipQtd}
-                  onChange={(e) => setNovoEquipQtd(Number(e.target.value))}
-                  className="w-20 border p-2 text-sm rounded bg-white outline-none focus:border-indigo-600 font-bold"
-                />
-              </div>
+              <input
+                type="number"
+                min="1"
+                value={novoEquipQtd}
+                onChange={(e) => setNovoEquipQtd(Number(e.target.value))}
+                className="w-full border p-2 text-sm rounded bg-white text-slate-900"
+              />
               <button
                 onClick={adicionarEquipamento}
-                className="bg-indigo-600 text-white font-bold text-xs uppercase px-4 py-2 rounded flex items-center gap-2 w-full justify-center hover:bg-indigo-700 transition-colors"
+                className="bg-indigo-600 text-white font-black text-xs uppercase px-4 py-2 rounded w-full hover:bg-indigo-700 transition-all"
               >
-                <PlusCircle size={14} /> Salvar Equipamento
+                Salvar
               </button>
             </div>
           </div>
-          <div className="md:col-span-2">
-            <table className="w-full text-left text-[11px] border">
-              <thead className="bg-gray-100 border-b text-gray-700 font-bold uppercase">
+          <div className="md:col-span-2 overflow-x-auto border rounded">
+            <table className="w-full text-left text-[11px] min-w-[300px]">
+              <thead className="bg-slate-100 border-b text-slate-700 font-bold uppercase">
                 <tr>
                   <th className="p-3 border-r">Equipamento</th>
-                  <th className="p-3 border-r text-center w-24">Qtd Total</th>
-                  <th className="p-3 text-center w-20">Ação</th>
+                  <th className="p-3 text-center">Qtd</th>
+                  <th className="p-3 text-center">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y text-gray-900">
+              <tbody className="divide-y text-slate-900 bg-white">
                 {equipamentos.map((eq) => (
                   <tr key={eq.id} className="hover:bg-gray-50">
-                    <td className="p-3 border-r font-bold text-gray-800">
+                    <td className="p-3 border-r font-bold text-slate-900">
                       {eq.nome}
                     </td>
-                    <td className="p-3 border-r text-center font-black text-indigo-600">
+                    <td className="p-3 text-center font-black text-indigo-600">
                       {eq.quantidade_total}
                     </td>
                     <td className="p-3 text-center">
                       <button
                         onClick={() => deletarEquipamento(eq.id)}
-                        className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
-                        title="Deletar Equipamento"
+                        className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-all"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -520,9 +481,9 @@ export default function AdminPage() {
                   <tr>
                     <td
                       colSpan={3}
-                      className="p-6 text-center text-gray-400 font-medium"
+                      className="p-4 text-center text-slate-400 italic font-bold"
                     >
-                      Nenhum equipamento cadastrado ainda. Adicione ao lado!
+                      Selecione uma sede acima para ver os itens.
                     </td>
                   </tr>
                 )}
@@ -532,39 +493,39 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* MODAL LATERAL DE CONFIGURAÇÃO DE ACESSO */}
+      {/* MODAL DE PERMISSÕES RESPONSIVO */}
       {modalAberto && (
-        <div className="fixed inset-0 bg-black/60 flex justify-end z-[999] animate-in fade-in duration-200 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white h-full p-6 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="flex justify-between items-center border-b pb-4 mb-6 text-gray-900">
+        <div className="fixed inset-0 bg-black/60 flex justify-center sm:justify-end z-[999] animate-in fade-in backdrop-blur-sm p-0">
+          <div className="w-full sm:max-w-md bg-white h-full p-4 sm:p-6 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="flex justify-between items-center border-b pb-4 mb-4">
               <div className="flex items-center gap-2">
-                <UserCog size={24} />
-                <h2 className="text-xl font-black uppercase">
-                  Perfil e Acessos
+                <UserCog size={24} className="text-blue-600" />
+                <h2 className="text-lg font-black uppercase text-slate-900">
+                  Acessos do Usuário
                 </h2>
               </div>
               <button
                 onClick={() => setModalAberto(false)}
-                className="hover:bg-red-500 hover:text-white p-2 rounded-full transition-all"
+                className="hover:bg-red-500 hover:text-white p-2 rounded-full text-slate-500"
               >
-                <X size={20} />
+                <X size={24} />
               </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto space-y-8 pr-2">
-              <div className="p-4 bg-gray-900 rounded-lg text-white shadow-xl">
-                <p className="text-[9px] font-bold text-gray-400 uppercase">
+            <div className="flex-1 overflow-y-auto space-y-6">
+              <div className="p-4 bg-slate-900 rounded-lg text-white">
+                <p className="text-[9px] font-bold text-slate-400 uppercase">
                   Colaborador
                 </p>
-                <p className="text-lg font-black">{editandoUser.nome}</p>
-                <p className="text-xs text-blue-400 font-mono italic">
+                <p className="text-base sm:text-lg font-black">
+                  {editandoUser.nome}
+                </p>
+                <p className="text-xs text-blue-400 font-mono italic truncate">
                   {editandoUser.email}
                 </p>
               </div>
-
               <div className="flex items-center justify-between p-4 border-2 border-red-100 bg-red-50 rounded-lg">
-                <span className="text-sm font-black text-red-900 uppercase">
-                  Acesso Administrador
+                <span className="text-xs font-black text-red-900 uppercase">
+                  Administrador do Sistema
                 </span>
                 <input
                   type="checkbox"
@@ -575,19 +536,18 @@ export default function AdminPage() {
                       is_admin: e.target.checked,
                     })
                   }
-                  className="w-6 h-6 accent-red-600 cursor-pointer"
+                  className="w-7 h-7 accent-red-600"
                 />
               </div>
-
               <div className="space-y-3">
-                <h3 className="text-xs font-black text-gray-500 uppercase border-b pb-1">
-                  Módulos Autorizados
+                <h3 className="text-[10px] font-black text-slate-500 uppercase border-b pb-1">
+                  Módulos Disponíveis
                 </h3>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {modulosDisponiveis.map((m) => (
                     <label
                       key={m}
-                      className="flex items-center gap-2 p-3 border-2 rounded hover:border-blue-500 cursor-pointer bg-white text-gray-900 font-bold text-[10px] transition-all has-[:checked]:bg-blue-50 has-[:checked]:border-blue-600 uppercase"
+                      className="flex items-center gap-3 p-3 border-2 rounded hover:border-blue-500 cursor-pointer bg-white text-slate-900 font-bold text-[10px] uppercase transition-all has-[:checked]:bg-blue-50"
                     >
                       <input
                         type="checkbox"
@@ -602,23 +562,22 @@ export default function AdminPage() {
                             modulos_permitidos: nova,
                           });
                         }}
-                        className="w-4 h-4"
+                        className="w-5 h-5"
                       />{" "}
-                      {m}
+                      {m.replace("_", " ")}
                     </label>
                   ))}
                 </div>
               </div>
-
-              <div className="space-y-3 pb-10">
-                <h3 className="text-xs font-black text-gray-500 uppercase border-b pb-1">
-                  Sedes Autorizadas
+              <div className="space-y-3 pb-20">
+                <h3 className="text-[10px] font-black text-slate-500 uppercase border-b pb-1">
+                  Unidades Permitidas
                 </h3>
                 <div className="space-y-2">
                   {sedes.map((s) => (
                     <label
                       key={s.id}
-                      className="flex items-center gap-3 p-3 border-2 rounded hover:border-green-500 cursor-pointer bg-white text-gray-900 font-bold text-xs transition-all has-[:checked]:bg-green-50 has-[:checked]:border-green-600"
+                      className="flex items-center gap-3 p-3 border-2 rounded hover:border-green-500 cursor-pointer bg-white text-slate-900 font-bold text-xs has-[:checked]:bg-green-50"
                     >
                       <input
                         type="checkbox"
@@ -633,27 +592,33 @@ export default function AdminPage() {
                             sedes_permitidas: nova,
                           });
                         }}
-                        className="w-4 h-4"
-                      />{" "}
-                      {s.sigla} - {s.nome}
+                        className="w-5 h-5"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] sm:text-xs">{s.nome}</span>
+                        <span className="text-[9px] text-slate-400 font-black uppercase">
+                          {s.sigla}
+                        </span>
+                      </div>
                     </label>
                   ))}
                 </div>
               </div>
             </div>
-
-            <button
-              onClick={salvarAlteracoes}
-              disabled={salvando}
-              className="w-full bg-gray-900 hover:bg-green-600 text-white font-black py-4 rounded-xl text-sm uppercase shadow-2xl transition-all flex items-center justify-center gap-3 disabled:bg-gray-400"
-            >
-              {salvando ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Save size={20} />
-              )}{" "}
-              Confirmar Alterações
-            </button>
+            <div className="pt-4 border-t mt-auto bg-white">
+              <button
+                onClick={salvarAlteracoes}
+                disabled={salvando}
+                className="w-full bg-slate-900 hover:bg-emerald-600 text-white font-black py-4 rounded-xl text-sm uppercase shadow-2xl transition-all flex items-center justify-center gap-3 active:scale-95 disabled:bg-slate-400"
+              >
+                {salvando ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Save size={20} />
+                )}{" "}
+                Confirmar Acessos
+              </button>
+            </div>
           </div>
         </div>
       )}
