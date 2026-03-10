@@ -198,7 +198,7 @@ export default function ModalDetalhesAluno({
           <div className="flex items-center gap-2">
             <User size={16} />
             <span className="tracking-wide uppercase truncate max-w-[200px] sm:max-w-none">
-              Prontuário - {coligadaAtual?.nome || "SISTEMA"}
+              Detalhes do Aluno - {coligadaAtual?.nome || "SISTEMA"}
             </span>
           </div>
           <button
