@@ -24,7 +24,7 @@ export default function DashboardLayout({
   // 1. TRAVA DE SESSÃO: Só barra a tela no PRIMEIRO carregamento
   if (!initialCheckDone && loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#f1f5f9] text-blue-600 font-bold text-sm italic">
+      <div className="flex h-screen w-full items-center justify-center bg-[#f1f5f9] dark:bg-slate-950 text-blue-600 dark:text-blue-400 font-bold text-sm italic">
         Sincronizando credenciais...
       </div>
     );
@@ -32,11 +32,11 @@ export default function DashboardLayout({
 
   return (
     <ColigadaProvider>
-      <div className="flex flex-col h-screen w-full bg-[#f1f5f9] font-sans overflow-hidden">
+      <div className="flex flex-col h-screen w-full bg-[#f1f5f9] dark:bg-slate-950 font-sans overflow-hidden">
         <Header />
         <TabsBar />
         {/* O 'main' nunca mais será desmontado se o loading piscar */}
-        <main className="flex-1 overflow-auto bg-white relative">
+        <main className="flex-1 overflow-auto bg-white dark:bg-slate-900 relative">
           {children}
         </main>
       </div>

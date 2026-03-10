@@ -150,7 +150,7 @@ export default function SelecaoSistema({ onConfirm }: SelecaoSistemaProps) {
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
       {/* BARRA DE FILTROS ATUALIZADA */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 bg-slate-100 p-2 rounded-xl border border-slate-300">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 bg-slate-100 dark:bg-slate-800 p-2 rounded-xl border border-slate-300 dark:border-slate-700">
         {/* Filtro de Série */}
         <select
           value={filtroSerie}
@@ -158,7 +158,7 @@ export default function SelecaoSistema({ onConfirm }: SelecaoSistemaProps) {
             setFiltroSerie(e.target.value);
             setFiltroTurma("");
           }}
-          className="h-10 text-[10px] font-black uppercase border border-slate-400 rounded-lg px-2 bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+          className="h-10 text-[10px] font-black uppercase border border-slate-400 dark:border-slate-600 rounded-lg px-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
         >
           <option value="">Série (Todas)</option>
           {listaSeries.map((s) => (
@@ -173,7 +173,7 @@ export default function SelecaoSistema({ onConfirm }: SelecaoSistemaProps) {
           value={filtroTurma}
           onChange={(e) => setFiltroTurma(e.target.value)}
           disabled={!filtroSerie}
-          className="h-10 text-[10px] font-black uppercase border border-slate-400 rounded-lg px-2 bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm disabled:opacity-50"
+          className="h-10 text-[10px] font-black uppercase border border-slate-400 dark:border-slate-600 rounded-lg px-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm disabled:opacity-50"
         >
           <option value="">Turma (Todas)</option>
           {listaTurmas.map((t) => (
@@ -187,7 +187,7 @@ export default function SelecaoSistema({ onConfirm }: SelecaoSistemaProps) {
         <select
           value={filtroStatus}
           onChange={(e) => setFiltroStatus(e.target.value)}
-          className="h-10 text-[10px] font-black uppercase border border-slate-400 rounded-lg px-2 bg-white text-blue-700 border-l-4 border-l-blue-500 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+          className="h-10 text-[10px] font-black uppercase border border-slate-400 dark:border-slate-600 rounded-lg px-2 bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 border-l-4 border-l-blue-500 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
         >
           <option value="">Status (Todos)</option>
           {listaStatus.map((st) => (
@@ -204,15 +204,18 @@ export default function SelecaoSistema({ onConfirm }: SelecaoSistemaProps) {
             placeholder="PESQUISAR NOME DO ALUNO..."
             value={buscaNome}
             onChange={(e) => setBuscaNome(e.target.value)}
-            className="w-full h-10 text-[10px] font-black uppercase border border-slate-400 rounded-lg pl-9 pr-2 bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm placeholder:text-slate-400"
+            className="w-full h-10 text-[10px] font-black uppercase border border-slate-400 dark:border-slate-600 rounded-lg pl-9 pr-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
-          <Search size={16} className="absolute left-3 top-3 text-slate-400" />
+          <Search
+            size={16}
+            className="absolute left-3 top-3 text-slate-400 dark:text-slate-500"
+          />
         </div>
       </div>
 
       {/* CANAIS DE ENVIO */}
-      <div className="bg-blue-600 p-3 rounded-xl shadow-md">
-        <h4 className="text-[10px] uppercase font-black text-blue-100 mb-2 flex items-center gap-2">
+      <div className="bg-blue-600 dark:bg-blue-800/50 p-3 rounded-xl shadow-md">
+        <h4 className="text-[10px] uppercase font-black text-blue-100 dark:text-blue-300 mb-2 flex items-center gap-2">
           <Users size={12} /> Destinatários por aluno selecionado:
         </h4>
         <div className="flex flex-wrap gap-2">
@@ -233,7 +236,7 @@ export default function SelecaoSistema({ onConfirm }: SelecaoSistemaProps) {
               className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
                 canais[item.id as keyof typeof canais]
                   ? "bg-green-500 text-white shadow-lg"
-                  : "bg-blue-700 text-blue-200 hover:bg-blue-800"
+                  : "bg-blue-700 dark:bg-blue-900 text-blue-200 dark:text-blue-300 hover:bg-blue-800 dark:hover:bg-blue-900/50"
               }`}
             >
               {item.label}
@@ -243,19 +246,19 @@ export default function SelecaoSistema({ onConfirm }: SelecaoSistemaProps) {
       </div>
 
       {/* TABELA DE ALUNOS */}
-      <div className="border border-slate-300 rounded-xl overflow-hidden bg-white shadow-sm">
-        <div className="bg-slate-50 px-3 py-2 border-b border-slate-300 flex justify-between items-center font-black text-[10px] text-slate-500 uppercase">
+      <div className="border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+        <div className="bg-slate-50 dark:bg-slate-800 px-3 py-2 border-b border-slate-300 dark:border-slate-700 flex justify-between items-center font-black text-[10px] text-slate-500 dark:text-slate-400 uppercase">
           <span>{alunosFiltrados.length} Alunos encontrados</span>
           <div className="flex gap-3">
             <button
               onClick={() => setSelecionados(alunosFiltrados.map((a) => a.id))}
-              className="text-blue-600 hover:underline"
+              className="text-blue-600 dark:text-blue-400 hover:underline"
             >
               Selecionar Filtrados
             </button>
             <button
               onClick={() => setSelecionados([])}
-              className="text-red-600 hover:underline"
+              className="text-red-600 dark:text-red-500 hover:underline"
             >
               Limpar
             </button>
@@ -267,12 +270,12 @@ export default function SelecaoSistema({ onConfirm }: SelecaoSistemaProps) {
               <Loader2 className="animate-spin text-blue-600" />
             </div>
           ) : (
-            <table className="w-full text-left border-collapse bg-white">
+            <table className="w-full text-left border-collapse bg-white dark:bg-slate-900">
               <tbody className="text-[11px]">
                 {alunosFiltrados.map((aluno) => (
                   <tr
                     key={aluno.id}
-                    className={`border-b border-slate-100 hover:bg-blue-50 cursor-pointer ${selecionados.includes(aluno.id) ? "bg-blue-50" : ""}`}
+                    className={`border-b border-slate-100 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer ${selecionados.includes(aluno.id) ? "bg-blue-50 dark:bg-blue-900/30" : ""}`}
                     onClick={() => {
                       setSelecionados((prev) =>
                         prev.includes(aluno.id)
@@ -286,20 +289,20 @@ export default function SelecaoSistema({ onConfirm }: SelecaoSistemaProps) {
                         type="checkbox"
                         checked={selecionados.includes(aluno.id)}
                         readOnly
-                        className="rounded border-slate-400 text-blue-600"
+                        className="rounded border-slate-400 dark:border-slate-600 text-blue-600 dark:accent-blue-500 bg-transparent"
                       />
                     </td>
                     <td className="p-3">
-                      <div className="font-black text-slate-800 uppercase leading-none">
+                      <div className="font-black text-slate-800 dark:text-slate-200 uppercase leading-none">
                         {aluno.nome}
                       </div>
-                      <div className="text-[9px] text-slate-400 font-bold mt-1 uppercase">
+                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1 uppercase">
                         {aluno.serie}º {aluno.turma} • {aluno.status}
                       </div>
                     </td>
                     <td className="p-3 text-right">
                       <span
-                        className={`text-[9px] font-black px-2 py-1 rounded-full uppercase ${aluno.status === "CURSANDO" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}
+                        className={`text-[9px] font-black px-2 py-1 rounded-full uppercase ${aluno.status === "CURSANDO" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"}`}
                       >
                         {aluno.status}
                       </span>

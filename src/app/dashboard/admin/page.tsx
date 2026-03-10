@@ -263,15 +263,15 @@ export default function AdminPage() {
 
   if (loading)
     return (
-      <div className="p-20 text-center text-blue-600 font-bold animate-pulse italic">
+      <div className="p-20 text-center text-blue-600 dark:text-blue-400 font-bold animate-pulse italic">
         CPD Sincronizando...
       </div>
     );
 
   return (
-    <div className="p-4 sm:p-8 bg-gray-50 min-h-full flex flex-col gap-6 text-slate-900 font-sans overflow-x-hidden">
-      <div className="flex justify-between items-center border-b pb-4">
-        <h1 className="text-xl sm:text-2xl font-black flex items-center gap-2 text-slate-800">
+    <div className="p-4 sm:p-8 bg-gray-50 dark:bg-slate-950 min-h-full flex flex-col gap-6 text-slate-900 font-sans overflow-x-hidden">
+      <div className="flex justify-between items-center border-b dark:border-slate-800 pb-4">
+        <h1 className="text-xl sm:text-2xl font-black flex items-center gap-2 text-slate-800 dark:text-slate-200">
           <ShieldCheck className="text-red-600 shrink-0" size={28} />
           <span className="truncate">Painel Administrativo</span>
         </h1>
@@ -279,13 +279,13 @@ export default function AdminPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* LISTA DE USUÁRIOS */}
-        <div className="xl:col-span-2 bg-white border border-slate-300 rounded shadow-sm overflow-hidden">
-          <div className="bg-slate-800 text-white px-4 py-2 border-b font-bold text-[10px] uppercase flex items-center gap-2">
+        <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded shadow-sm overflow-hidden">
+          <div className="bg-slate-800 text-white px-4 py-2 border-b dark:border-slate-600 font-bold text-[10px] uppercase flex items-center gap-2">
             <Users size={14} /> Contas Habilitadas
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[11px] min-w-[500px]">
-              <thead className="bg-slate-100 border-b text-slate-700 font-bold uppercase">
+              <thead className="bg-slate-100 dark:bg-slate-800 border-b dark:border-slate-700 text-slate-700 dark:text-slate-400 font-bold uppercase">
                 <tr>
                   <th className="p-3">Colaborador</th>
                   <th className="p-3 text-center">Tipo</th>
@@ -293,19 +293,21 @@ export default function AdminPage() {
                   <th className="p-3 text-right">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y text-slate-900">
+              <tbody className="divide-y dark:divide-slate-800 text-slate-900 dark:text-slate-300">
                 {usuarios.map((u) => (
                   <tr
                     key={u.user_id}
-                    className="hover:bg-blue-50 transition-colors"
+                    className="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                   >
                     <td className="p-3">
-                      <div className="font-bold text-slate-900">{u.nome}</div>
-                      <div className="text-slate-500 font-mono text-[10px]">
+                      <div className="font-bold text-slate-900 dark:text-slate-100">
+                        {u.nome}
+                      </div>
+                      <div className="text-slate-500 dark:text-slate-400 font-mono text-[10px]">
                         {u.email}
                       </div>
                     </td>
-                    <td className="p-3 text-center font-black text-slate-900">
+                    <td className="p-3 text-center font-black text-slate-900 dark:text-slate-100">
                       {u.is_admin ? "ADMIN" : "USER"}
                     </td>
                     <td className="p-3">
@@ -313,7 +315,7 @@ export default function AdminPage() {
                         {u.modulos_permitidos?.map((m: any) => (
                           <span
                             key={m}
-                            className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
+                            className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
                           >
                             {m}
                           </span>
@@ -323,7 +325,7 @@ export default function AdminPage() {
                     <td className="p-3 text-right">
                       <button
                         onClick={() => abrirEdicao(u)}
-                        className="bg-slate-900 text-white px-3 py-1.5 rounded text-[10px] hover:bg-blue-600 uppercase font-black"
+                        className="bg-slate-900 dark:bg-blue-600 text-white px-3 py-1.5 rounded text-[10px] hover:bg-blue-600 dark:hover:bg-blue-500 uppercase font-black"
                       >
                         Configurar
                       </button>
@@ -336,7 +338,7 @@ export default function AdminPage() {
         </div>
 
         {/* SINCRONIZAÇÃO CSV (AQUI VOLTOU AS INFORMAÇÕES) */}
-        <div className="bg-white border border-slate-300 rounded shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded shadow-sm overflow-hidden">
           <div className="bg-blue-600 text-white px-4 py-2 font-bold text-[10px] uppercase flex items-center gap-2">
             <UploadCloud size={14} /> Sincronizar Base
           </div>
@@ -344,7 +346,7 @@ export default function AdminPage() {
             <select
               value={sedeImportacao}
               onChange={(e) => setSedeImportacao(e.target.value)}
-              className="w-full border-2 rounded p-2 text-sm font-black bg-white text-slate-900 outline-none focus:border-blue-500"
+              className="w-full border-2 dark:border-slate-600 rounded p-2 text-sm font-black bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200 outline-none focus:border-blue-500"
             >
               <option value="">Selecione a sede...</option>
               {sedes.map((s) => (
@@ -353,7 +355,7 @@ export default function AdminPage() {
                 </option>
               ))}
             </select>
-            <div className="relative border-2 border-dashed rounded-lg p-6 flex flex-col items-center bg-slate-50 hover:bg-blue-50 transition-all cursor-pointer group text-center text-slate-900 font-bold">
+            <div className="relative border-2 border-dashed dark:border-slate-600 rounded-lg p-6 flex flex-col items-center bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all cursor-pointer group text-center text-slate-900 dark:text-slate-200 font-bold">
               <input
                 type="file"
                 accept=".csv"
@@ -362,7 +364,11 @@ export default function AdminPage() {
               />
               <FileSpreadsheet
                 size={40}
-                className={arquivo ? "text-emerald-600" : "text-slate-400"}
+                className={
+                  arquivo
+                    ? "text-emerald-600"
+                    : "text-slate-400 dark:text-slate-500"
+                }
               />
               <p className="text-[10px] mt-2 uppercase">
                 {arquivo ? arquivo.name : "Subir CSV"}
@@ -370,13 +376,16 @@ export default function AdminPage() {
             </div>
 
             {/* ✅ BLOCO RESTAURADO: Última Importação e Status */}
-            <div className="p-3 rounded flex items-center gap-3 border bg-slate-50 border-slate-200">
-              <Clock className="text-slate-400 shrink-0" size={18} />
+            <div className="p-3 rounded flex items-center gap-3 border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+              <Clock
+                className="text-slate-400 dark:text-slate-500 shrink-0"
+                size={18}
+              />
               <div className="leading-tight overflow-hidden">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                   Última Sincronização
                 </p>
-                <p className="text-xs font-black text-slate-900 truncate">
+                <p className="text-xs font-black text-slate-900 dark:text-slate-200 truncate">
                   {ultimaImportacao}
                 </p>
               </div>
@@ -384,7 +393,7 @@ export default function AdminPage() {
 
             {statusImport.tipo && (
               <div
-                className={`p-3 rounded text-[11px] font-bold border flex gap-2 items-start animate-in fade-in slide-in-from-top-1 ${statusImport.tipo === "sucesso" ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-700 border-red-100"}`}
+                className={`p-3 rounded text-[11px] font-bold border flex gap-2 items-start animate-in fade-in slide-in-from-top-1 ${statusImport.tipo === "sucesso" ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-800/50" : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-100 dark:border-red-800/50"}`}
               >
                 {statusImport.tipo === "sucesso" ? (
                   <CheckCircle2 size={14} className="shrink-0" />
@@ -413,8 +422,8 @@ export default function AdminPage() {
       </div>
 
       {/* GESTÃO EQUIPAMENTOS */}
-      <div className="bg-white border border-slate-300 rounded shadow-sm overflow-hidden">
-        <div className="bg-indigo-600 text-white px-4 py-2 border-b font-bold text-[10px] uppercase flex items-center gap-2">
+      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded shadow-sm overflow-hidden">
+        <div className="bg-indigo-600 text-white px-4 py-2 border-b dark:border-indigo-500 font-bold text-[10px] uppercase flex items-center gap-2">
           <Laptop size={14} /> Dispositivos (
           {sedeImportacao
             ? sedes.find((s) => s.id === Number(sedeImportacao))?.sigla
@@ -422,8 +431,8 @@ export default function AdminPage() {
           )
         </div>
         <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-50 p-4 border rounded h-fit">
-            <h3 className="text-xs font-black text-slate-700 uppercase mb-3 text-center">
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 border dark:border-slate-700 rounded h-fit">
+            <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase mb-3 text-center">
               Cadastrar Item
             </h3>
             <div className="space-y-3">
@@ -432,14 +441,14 @@ export default function AdminPage() {
                 placeholder="Ex: Projetor 01"
                 value={novoEquipNome}
                 onChange={(e) => setNovoEquipNome(e.target.value)}
-                className="w-full border p-2 text-sm rounded bg-white text-slate-900 outline-none focus:border-indigo-500"
+                className="w-full border dark:border-slate-600 p-2 text-sm rounded bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 outline-none focus:border-indigo-500"
               />
               <input
                 type="number"
                 min="1"
                 value={novoEquipQtd}
                 onChange={(e) => setNovoEquipQtd(Number(e.target.value))}
-                className="w-full border p-2 text-sm rounded bg-white text-slate-900"
+                className="w-full border dark:border-slate-600 p-2 text-sm rounded bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200"
               />
               <button
                 onClick={adicionarEquipamento}
@@ -449,28 +458,33 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
-          <div className="md:col-span-2 overflow-x-auto border rounded">
+          <div className="md:col-span-2 overflow-x-auto border dark:border-slate-700 rounded">
             <table className="w-full text-left text-[11px] min-w-[300px]">
-              <thead className="bg-slate-100 border-b text-slate-700 font-bold uppercase">
+              <thead className="bg-slate-100 dark:bg-slate-800 border-b dark:border-slate-700 text-slate-700 dark:text-slate-400 font-bold uppercase">
                 <tr>
-                  <th className="p-3 border-r">Equipamento</th>
+                  <th className="p-3 border-r dark:border-slate-700">
+                    Equipamento
+                  </th>
                   <th className="p-3 text-center">Qtd</th>
                   <th className="p-3 text-center">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y text-slate-900 bg-white">
+              <tbody className="divide-y dark:divide-slate-800 text-slate-900 dark:text-slate-300 bg-white dark:bg-slate-900">
                 {equipamentos.map((eq) => (
-                  <tr key={eq.id} className="hover:bg-gray-50">
-                    <td className="p-3 border-r font-bold text-slate-900">
+                  <tr
+                    key={eq.id}
+                    className="hover:bg-gray-50 dark:hover:bg-slate-800/50"
+                  >
+                    <td className="p-3 border-r dark:border-slate-800 font-bold text-slate-900 dark:text-slate-200">
                       {eq.nome}
                     </td>
-                    <td className="p-3 text-center font-black text-indigo-600">
+                    <td className="p-3 text-center font-black text-indigo-600 dark:text-indigo-400">
                       {eq.quantidade_total}
                     </td>
                     <td className="p-3 text-center">
                       <button
                         onClick={() => deletarEquipamento(eq.id)}
-                        className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-all"
+                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 p-1.5 rounded transition-all"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -481,7 +495,7 @@ export default function AdminPage() {
                   <tr>
                     <td
                       colSpan={3}
-                      className="p-4 text-center text-slate-400 italic font-bold"
+                      className="p-4 text-center text-slate-400 dark:text-slate-500 italic font-bold"
                     >
                       Selecione uma sede acima para ver os itens.
                     </td>
@@ -496,23 +510,23 @@ export default function AdminPage() {
       {/* MODAL DE PERMISSÕES RESPONSIVO */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/60 flex justify-center sm:justify-end z-[999] animate-in fade-in backdrop-blur-sm p-0">
-          <div className="w-full sm:max-w-md bg-white h-full p-4 sm:p-6 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="flex justify-between items-center border-b pb-4 mb-4">
+          <div className="w-full sm:max-w-md bg-white dark:bg-slate-900 h-full p-4 sm:p-6 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="flex justify-between items-center border-b dark:border-slate-700 pb-4 mb-4">
               <div className="flex items-center gap-2">
-                <UserCog size={24} className="text-blue-600" />
-                <h2 className="text-lg font-black uppercase text-slate-900">
+                <UserCog size={24} className="text-blue-600 dark:text-blue-500" />
+                <h2 className="text-lg font-black uppercase text-slate-900 dark:text-slate-200">
                   Acessos do Usuário
                 </h2>
               </div>
               <button
                 onClick={() => setModalAberto(false)}
-                className="hover:bg-red-500 hover:text-white p-2 rounded-full text-slate-500"
+                className="hover:bg-red-500 hover:text-white p-2 rounded-full text-slate-500 dark:text-slate-400"
               >
                 <X size={24} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-6">
-              <div className="p-4 bg-slate-900 rounded-lg text-white">
+              <div className="p-4 bg-slate-900 dark:bg-slate-800 rounded-lg text-white">
                 <p className="text-[9px] font-bold text-slate-400 uppercase">
                   Colaborador
                 </p>
@@ -523,8 +537,8 @@ export default function AdminPage() {
                   {editandoUser.email}
                 </p>
               </div>
-              <div className="flex items-center justify-between p-4 border-2 border-red-100 bg-red-50 rounded-lg">
-                <span className="text-xs font-black text-red-900 uppercase">
+              <div className="flex items-center justify-between p-4 border-2 border-red-100 dark:border-red-900/40 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <span className="text-xs font-black text-red-900 dark:text-red-300 uppercase">
                   Administrador do Sistema
                 </span>
                 <input
@@ -540,14 +554,14 @@ export default function AdminPage() {
                 />
               </div>
               <div className="space-y-3">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase border-b pb-1">
+                <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase border-b dark:border-slate-700 pb-1">
                   Módulos Disponíveis
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {modulosDisponiveis.map((m) => (
                     <label
                       key={m}
-                      className="flex items-center gap-3 p-3 border-2 rounded hover:border-blue-500 cursor-pointer bg-white text-slate-900 font-bold text-[10px] uppercase transition-all has-[:checked]:bg-blue-50"
+                      className="flex items-center gap-3 p-3 border-2 dark:border-slate-800 rounded hover:border-blue-500 cursor-pointer bg-white dark:bg-slate-800/50 text-slate-900 dark:text-slate-200 font-bold text-[10px] uppercase transition-all has-[:checked]:bg-blue-50 dark:has-[:checked]:bg-blue-900/30"
                     >
                       <input
                         type="checkbox"
@@ -562,7 +576,7 @@ export default function AdminPage() {
                             modulos_permitidos: nova,
                           });
                         }}
-                        className="w-5 h-5"
+                        className="w-5 h-5 dark:accent-blue-500"
                       />{" "}
                       {m.replace("_", " ")}
                     </label>
@@ -570,14 +584,14 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="space-y-3 pb-20">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase border-b pb-1">
+                <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase border-b dark:border-slate-700 pb-1">
                   Unidades Permitidas
                 </h3>
                 <div className="space-y-2">
                   {sedes.map((s) => (
                     <label
                       key={s.id}
-                      className="flex items-center gap-3 p-3 border-2 rounded hover:border-green-500 cursor-pointer bg-white text-slate-900 font-bold text-xs has-[:checked]:bg-green-50"
+                      className="flex items-center gap-3 p-3 border-2 dark:border-slate-800 rounded hover:border-green-500 cursor-pointer bg-white dark:bg-slate-800/50 text-slate-900 dark:text-slate-200 font-bold text-xs has-[:checked]:bg-green-50 dark:has-[:checked]:bg-green-900/20"
                     >
                       <input
                         type="checkbox"
@@ -592,7 +606,7 @@ export default function AdminPage() {
                             sedes_permitidas: nova,
                           });
                         }}
-                        className="w-5 h-5"
+                        className="w-5 h-5 dark:accent-green-500"
                       />
                       <div className="flex flex-col">
                         <span className="text-[10px] sm:text-xs">{s.nome}</span>
@@ -605,11 +619,11 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
-            <div className="pt-4 border-t mt-auto bg-white">
+            <div className="pt-4 border-t dark:border-slate-700 mt-auto bg-white dark:bg-slate-900">
               <button
                 onClick={salvarAlteracoes}
                 disabled={salvando}
-                className="w-full bg-slate-900 hover:bg-emerald-600 text-white font-black py-4 rounded-xl text-sm uppercase shadow-2xl transition-all flex items-center justify-center gap-3 active:scale-95 disabled:bg-slate-400"
+                className="w-full bg-slate-900 dark:bg-emerald-600 hover:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-black py-4 rounded-xl text-sm uppercase shadow-2xl transition-all flex items-center justify-center gap-3 active:scale-95 disabled:bg-slate-400"
               >
                 {salvando ? (
                   <Loader2 className="animate-spin" />

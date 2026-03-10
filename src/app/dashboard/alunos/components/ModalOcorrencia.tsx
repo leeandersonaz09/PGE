@@ -79,9 +79,9 @@ export default function ModalOcorrencia({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-lg border border-slate-200 shadow-2xl rounded-2xl overflow-hidden flex flex-col scale-in-center">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-lg border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl overflow-hidden flex flex-col scale-in-center">
         {/* HEADER ESTILIZADO */}
-        <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
+        <div className="bg-slate-900 dark:bg-slate-800 p-4 text-white flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="bg-blue-500 p-1.5 rounded-lg">
               <ClipboardList size={18} className="text-white" />
@@ -105,36 +105,36 @@ export default function ModalOcorrencia({
 
         <div className="p-6 flex flex-col gap-5">
           {/* IDENTIFICAÇÃO DO ALUNO (Visual mais limpo) */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-4">
+          <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-black shadow-sm">
               {aluno.nome ? aluno.nome[0] : "?"}
             </div>
             <div>
-              <span className="text-slate-900 font-black block text-[13px] uppercase">
+              <span className="text-slate-900 dark:text-slate-200 font-black block text-[13px] uppercase">
                 {aluno.nome}
               </span>
-              <span className="text-slate-500 text-[10px] font-bold uppercase tracking-tight">
+              <span className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-tight">
                 RA: {aluno.id} • {aluno.serie}º Ano - {aluno.turma}
               </span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-slate-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 ml-1">
+            <label className="text-slate-500 dark:text-slate-400 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 ml-1">
               Relato Detalhado
             </label>
             <textarea
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               disabled={salvando}
-              className="w-full h-48 border border-slate-200 p-4 text-[13px] font-medium focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none resize-none bg-slate-50/30 rounded-xl transition-all shadow-inner placeholder:text-slate-300"
+              className="w-full h-48 border border-slate-200 dark:border-slate-700 p-4 text-[13px] font-medium focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none resize-none bg-slate-50/30 dark:bg-slate-800/50 rounded-xl transition-all shadow-inner placeholder:text-slate-300 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-200"
               placeholder="Descreva aqui os fatos, observações ou encaminhamentos de forma profissional..."
             />
           </div>
 
           {/* RODAPÉ DE SEGURANÇA */}
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-black uppercase">
+            <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-500 font-black uppercase">
               <ShieldCheck size={14} />
               Sessão Identificada:{" "}
               {user?.user_metadata?.full_name?.split(" ")[0] || "Usuário"}
@@ -143,18 +143,18 @@ export default function ModalOcorrencia({
         </div>
 
         {/* BOTÕES DE AÇÃO */}
-        <div className="bg-slate-50 p-4 flex justify-end gap-3 border-t border-slate-100">
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-700">
           <button
             onClick={onClose}
             disabled={salvando}
-            className="px-6 py-2.5 text-slate-500 font-black text-[10px] hover:bg-slate-200 rounded-xl uppercase transition-all"
+            className="px-6 py-2.5 text-slate-500 dark:text-slate-400 font-black text-[10px] hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl uppercase transition-all"
           >
             Descartar
           </button>
           <button
             onClick={salvarOcorrencia}
             disabled={salvando}
-            className="bg-slate-900 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-black text-[10px] flex items-center gap-2 shadow-lg shadow-slate-200 disabled:bg-slate-400 uppercase transition-all active:scale-95"
+            className="bg-slate-900 dark:bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-black text-[10px] flex items-center gap-2 shadow-lg shadow-slate-200 dark:shadow-blue-900/50 disabled:bg-slate-400 uppercase transition-all active:scale-95"
           >
             {salvando ? (
               <>

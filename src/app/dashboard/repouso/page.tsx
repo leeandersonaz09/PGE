@@ -175,23 +175,23 @@ export default function SalaRepousoPage() {
 
   if (loadingColigadas) {
     return (
-      <div className="p-10 text-center text-blue-600 font-bold italic">
+      <div className="p-10 text-center text-blue-600 dark:text-blue-400 font-bold italic">
         Sincronizando Unidade...
       </div>
     );
   }
 
   return (
-    <div className="p-6 min-h-full bg-gray-50 flex flex-col gap-6">
-      <div className="flex justify-between items-center border-b pb-4">
+    <div className="p-6 min-h-full bg-gray-50 dark:bg-slate-950 flex flex-col gap-6">
+      <div className="flex justify-between items-center border-b border-gray-200 dark:border-slate-800 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-slate-200 flex items-center gap-2">
             <Stethoscope className="text-[#3182ce]" size={28} />
             Sala de Repouso - {coligadaAtual?.sigla || "PGE"}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Unidade Atual:{" "}
-            <span className="font-bold text-blue-600">
+            <span className="font-bold text-blue-600 dark:text-blue-400">
               {coligadaAtual?.nome}
             </span>
           </p>
@@ -205,17 +205,17 @@ export default function SalaRepousoPage() {
       </div>
 
       <div>
-        <h2 className="text-md font-bold text-gray-700 mb-4 flex items-center gap-2">
+        <h2 className="text-md font-bold text-gray-700 dark:text-slate-300 mb-4 flex items-center gap-2">
           <AlertCircle size={18} className="text-orange-500" />
           Aguardando Atendimento ({encaminhamentos.length})
         </h2>
 
         {loadingDados ? (
-          <div className="text-center py-10 text-gray-400 font-semibold animate-pulse">
+          <div className="text-center py-10 text-gray-400 dark:text-slate-500 font-semibold animate-pulse">
             Buscando fila...
           </div>
         ) : encaminhamentos.length === 0 ? (
-          <div className="text-center py-10 text-gray-400 bg-white rounded-lg border border-dashed">
+          <div className="text-center py-10 text-gray-400 dark:text-slate-500 bg-white dark:bg-slate-800/50 rounded-lg border border-dashed border-gray-200 dark:border-slate-700">
             Nenhum aluno aguardando.
           </div>
         ) : (
@@ -227,29 +227,29 @@ export default function SalaRepousoPage() {
                   setCardSelecionado(enc);
                   setModalAtenderOpen(true);
                 }}
-                className="bg-white border-l-4 border-orange-500 p-4 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 relative"
+                className="bg-white dark:bg-slate-800 border-l-4 border-orange-500 p-4 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 relative"
               >
                 <div className="absolute top-3 right-3 flex items-center gap-2">
-                  <div className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-full flex items-center gap-1">
+                  <div className="text-xs font-bold text-orange-600 bg-orange-100 dark:text-orange-300 dark:bg-orange-900/50 px-2 py-1 rounded-full flex items-center gap-1">
                     <Clock size={12} /> {enc.hora_encaminhamento}
                   </div>
                   <button
                     onClick={(e) => handleExcluirEncaminhamento(enc.id, e)}
-                    className="text-red-400 hover:text-red-600 p-1.5 rounded-full transition-colors"
+                    className="text-red-400 hover:text-red-600 dark:hover:text-red-500 p-1.5 rounded-full transition-colors"
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
-                <h3 className="font-bold text-gray-900 text-lg pr-20 uppercase">
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg pr-20 uppercase">
                   {enc.aluno?.nome}
                 </h3>
-                <p className="text-xs text-gray-500 mb-3 font-semibold">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-3 font-semibold">
                   {enc.aluno?.turma}
                 </p>
-                <div className="bg-gray-50 p-2 rounded text-sm text-gray-800 mb-3 border font-medium">
+                <div className="bg-gray-50 dark:bg-slate-700/50 p-2 rounded text-sm text-gray-800 dark:text-slate-200 mb-3 border border-gray-200 dark:border-slate-700 font-medium">
                   {enc.sintoma}
                 </div>
-                <div className="flex items-center gap-1 text-xs text-gray-500 font-bold">
+                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400 font-bold">
                   <User size={12} />
                   <span>Por: {enc.encaminhado_por}</span>
                 </div>
@@ -262,7 +262,7 @@ export default function SalaRepousoPage() {
       {/* MODAL 1: NOVO ENCAMINHAMENTO */}
       {modalNovoOpen && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="bg-[#3182ce] text-white p-4 flex justify-between items-center">
               <h2 className="font-bold flex items-center gap-2">
                 <Plus size={18} /> Encaminhar Aluno
@@ -278,31 +278,31 @@ export default function SalaRepousoPage() {
             <div className="p-6 overflow-y-auto flex-1">
               {!alunoSelecionado ? (
                 <>
-                  <label className="text-sm font-bold text-gray-700 mb-1 block">
+                  <label className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1 block">
                     Buscar Aluno
                   </label>
                   <div className="relative mb-4">
                     <Search
-                      className="absolute left-3 top-2.5 text-gray-400"
+                      className="absolute left-3 top-2.5 text-gray-400 dark:text-slate-500"
                       size={18}
                     />
                     <input
                       type="text"
                       placeholder="Pesquisar..."
-                      className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-[#3182ce] outline-none font-medium"
+                      className="w-full border border-gray-300 dark:border-slate-700 rounded-lg pl-10 pr-3 py-2 text-sm text-gray-900 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-[#3182ce] outline-none font-medium"
                       value={busca}
                       onChange={(e) => setBusca(e.target.value)}
                     />
                   </div>
-                  <div className="border rounded-lg max-h-48 overflow-y-auto divide-y bg-white">
+                  <div className="border dark:border-slate-700 rounded-lg max-h-48 overflow-y-auto divide-y dark:divide-slate-700 bg-white dark:bg-slate-800">
                     {alunosFiltrados.map((a) => (
                       <div
                         key={a.id}
                         onClick={() => setAlunoSelecionado(a)}
-                        className="p-3 hover:bg-blue-50 cursor-pointer flex justify-between text-gray-900"
+                        className="p-3 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer flex justify-between text-gray-900 dark:text-slate-200"
                       >
                         <span className="font-bold text-sm">{a.nome}</span>
-                        <span className="text-xs text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded">
+                        <span className="text-xs text-gray-500 dark:text-slate-400 font-bold bg-gray-100 dark:bg-slate-900 px-2 py-1 rounded">
                           {a.turma}
                         </span>
                       </div>
@@ -311,28 +311,28 @@ export default function SalaRepousoPage() {
                 </>
               ) : (
                 <div className="animate-in fade-in slide-in-from-right-4">
-                  <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg flex justify-between items-center mb-4">
+                  <div className="bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 p-3 rounded-lg flex justify-between items-center mb-4">
                     <div>
-                      <p className="text-[10px] text-blue-600 font-black">
+                      <p className="text-[10px] text-blue-600 dark:text-blue-400 font-black">
                         ALUNO SELECIONADO
                       </p>
-                      <p className="font-bold text-gray-900">
+                      <p className="font-bold text-gray-900 dark:text-slate-100">
                         {alunoSelecionado.nome} ({alunoSelecionado.turma})
                       </p>
                     </div>
                     <button
                       onClick={() => setAlunoSelecionado(null)}
-                      className="text-xs text-blue-600 font-bold underline"
+                      className="text-xs text-blue-600 dark:text-blue-400 font-bold underline"
                     >
                       Trocar
                     </button>
                   </div>
-                  <label className="text-sm font-bold text-gray-700 mb-1 block">
+                  <label className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1 block">
                     Relato do Sintoma:
                   </label>
                   <textarea
                     rows={4}
-                    className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-[#3182ce] outline-none resize-none font-medium"
+                    className="w-full border border-gray-300 dark:border-slate-700 rounded-lg p-3 text-sm text-gray-900 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-[#3182ce] outline-none resize-none font-medium"
                     placeholder="Descreva o que o aluno está sentindo..."
                     value={sintoma}
                     onChange={(e) => setSintoma(e.target.value)}
@@ -341,10 +341,10 @@ export default function SalaRepousoPage() {
               )}
             </div>
 
-            <div className="border-t p-4 bg-gray-50 flex justify-end gap-2">
+            <div className="border-t dark:border-slate-800 p-4 bg-gray-50 dark:bg-slate-900/50 flex justify-end gap-2">
               <button
                 onClick={() => setModalNovoOpen(false)}
-                className="px-4 py-2 text-gray-600 text-sm font-black"
+                className="px-4 py-2 text-gray-600 dark:text-slate-400 text-sm font-black"
               >
                 CANCELAR
               </button>
@@ -363,7 +363,7 @@ export default function SalaRepousoPage() {
       {/* MODAL 2: ATENDIMENTO */}
       {modalAtenderOpen && cardSelecionado && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="bg-orange-500 text-white p-4 flex justify-between items-center">
               <h2 className="font-bold flex items-center gap-2">
                 <CheckCircle size={18} /> Realizar Atendimento
@@ -378,35 +378,35 @@ export default function SalaRepousoPage() {
 
             <div className="p-6 overflow-y-auto flex-1">
               <div className="mb-4">
-                <h3 className="text-xl font-black uppercase text-gray-900">
+                <h3 className="text-xl font-black uppercase text-gray-900 dark:text-slate-100">
                   {cardSelecionado.aluno?.nome}
                 </h3>
-                <p className="text-sm font-bold text-gray-500">
+                <p className="text-sm font-bold text-gray-500 dark:text-slate-400">
                   {cardSelecionado.aluno?.turma}
                 </p>
               </div>
 
-              <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg mb-5">
-                <p className="text-[10px] text-orange-600 font-black uppercase mb-1">
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50 p-3 rounded-lg mb-5">
+                <p className="text-[10px] text-orange-600 dark:text-orange-400 font-black uppercase mb-1">
                   Motivo do Encaminhamento
                 </p>
-                <p className="text-sm text-gray-900 font-medium">
+                <p className="text-sm text-gray-900 dark:text-slate-200 font-medium">
                   {cardSelecionado.sintoma}
                 </p>
               </div>
 
-              <label className="text-sm font-bold text-gray-700 mb-1 block">
+              <label className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-1 block">
                 Observações do Atendimento:
               </label>
               <textarea
                 rows={3}
-                className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-orange-500 outline-none resize-none mb-5 font-medium"
+                className="w-full border border-gray-300 dark:border-slate-700 rounded-lg p-3 text-sm text-gray-900 dark:text-slate-100 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-orange-500 outline-none resize-none mb-5 font-medium"
                 placeholder="Descreva o procedimento realizado..."
                 value={obsAtendimento}
                 onChange={(e) => setObsAtendimento(e.target.value)}
               />
 
-              <label className="text-sm font-bold text-gray-700 mb-2 block">
+              <label className="text-sm font-bold text-gray-700 dark:text-slate-300 mb-2 block">
                 Destino do Aluno:
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -414,8 +414,8 @@ export default function SalaRepousoPage() {
                   onClick={() => setDestino("sala")}
                   className={`border-2 rounded-lg p-3 text-sm font-black flex flex-col items-center transition-all ${
                     destino === "sala"
-                      ? "border-blue-600 bg-blue-50 text-blue-700"
-                      : "border-gray-200 text-gray-400 bg-white"
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                      : "border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"
                   }`}
                 >
                   Liberado para Sala
@@ -424,8 +424,8 @@ export default function SalaRepousoPage() {
                   onClick={() => setDestino("casa")}
                   className={`border-2 rounded-lg p-3 text-sm font-black flex flex-col items-center transition-all ${
                     destino === "casa"
-                      ? "border-green-600 bg-green-50 text-green-700"
-                      : "border-gray-200 text-gray-400 bg-white"
+                      ? "border-green-600 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                      : "border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"
                   }`}
                 >
                   Liberado para Casa
@@ -433,10 +433,10 @@ export default function SalaRepousoPage() {
               </div>
             </div>
 
-            <div className="border-t p-4 bg-gray-50 flex justify-end gap-2">
+            <div className="border-t dark:border-slate-800 p-4 bg-gray-50 dark:bg-slate-900/50 flex justify-end gap-2">
               <button
                 onClick={() => setModalAtenderOpen(false)}
-                className="px-4 py-2 text-gray-600 text-sm font-black uppercase"
+                className="px-4 py-2 text-gray-600 dark:text-slate-400 text-sm font-black uppercase"
               >
                 CANCELAR
               </button>
