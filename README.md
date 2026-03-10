@@ -27,13 +27,11 @@ O sistema foi construído sob uma arquitetura **Multi-Tenant (Múltiplas Sedes)*
 
 > *A interface foi desenhada com foco em UX, responsividade e acessibilidade, contando com suporte nativo a **Dark Mode**.*
 
-| Dashboard Principal |Detalhes do Aluno (Dark Mode) |
+| Dashboard Principal | Detalhes do Aluno (Dark Mode) |
 | :---: | :---: |
-| `<img src="caminho/para/print_dashboard.png" width="400"/>` | `<img src="caminho/para/print_prontuario_dark.png" width="400"/>` |
+| <img src="public/assets/dashboard.png" width="400" alt="Dashboard Principal"/> | <img src="public/assets/detalhes-aluno.png" width="400" alt="Detalhes do Aluno"/> |
 | **Locação Multimídia (Smart Booking)** | **Relatórios & Mala Direta** |
-| `<img src="caminho/para/print_locacao.png" width="400"/>` | `<img src="caminho/para/print_mala_direta.png" width="400"/>` |
-
-*(Substitua os caminhos acima pelos links das suas imagens)*
+| <img src="public/assets/locacao.png" width="400" alt="Módulo de Locação"/> | <img src="public/assets/mala-direta.png" width="400" alt="Mala Direta"/> |
 
 ---
 
