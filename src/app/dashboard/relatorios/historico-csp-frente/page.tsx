@@ -220,7 +220,7 @@ export default function HistoricoCSPPage() {
   };
 
   return (
-    <div className="bg-slate-200 min-h-screen flex flex-col font-sans overflow-auto no-scrollbar">
+    <div className="bg-slate-200 dark:bg-slate-900 min-h-screen flex flex-col font-sans overflow-auto no-scrollbar">
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -234,16 +234,16 @@ export default function HistoricoCSPPage() {
         }}
       />
 
-      <div className="no-print bg-white p-4 sticky top-0 z-50 border-b border-slate-300 shadow-sm flex flex-wrap justify-between items-center gap-4">
+      <div className="no-print bg-white dark:bg-slate-800 p-4 sticky top-0 z-50 border-b border-slate-300 dark:border-slate-700 shadow-sm flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-4 flex-1">
           <Link
             href="/dashboard/relatorios"
-            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-700"
+            className="p-2 bg-slate-100 dark:bg-slate-700 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300"
           >
             <ArrowLeft size={20} />
           </Link>
           <div className="relative w-full max-w-sm">
-            <div className="flex items-center border border-slate-400 rounded-lg px-3 bg-white focus-within:ring-2 focus-within:ring-blue-500 transition-all shadow-sm">
+            <div className="flex items-center border border-slate-400 dark:border-slate-600 rounded-lg px-3 bg-white dark:bg-slate-900 focus-within:ring-2 focus-within:ring-blue-500 transition-all shadow-sm">
               <Search size={18} className="text-slate-500" />
               <input
                 type="text"
@@ -253,19 +253,19 @@ export default function HistoricoCSPPage() {
                   setBusca(e.target.value);
                   buscarAlunos(e.target.value);
                 }}
-                className="w-full p-2 bg-white outline-none text-xs font-bold text-slate-900"
+                className="w-full p-2 bg-transparent outline-none text-xs font-bold text-slate-900 dark:text-slate-200"
               />
               {loadingBusca && (
                 <Loader2 size={16} className="animate-spin text-blue-500" />
               )}
             </div>
             {alunos.length > 0 && (
-              <div className="absolute top-full left-0 w-full bg-white border border-slate-300 shadow-2xl rounded-lg mt-1 z-50 overflow-hidden">
+              <div className="absolute top-full left-0 w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-2xl rounded-lg mt-1 z-50 overflow-hidden">
                 {alunos.map((a) => (
                   <button
                     key={a.id}
                     onClick={() => selecionarAluno(a)}
-                    className="w-full text-left p-3 hover:bg-blue-50 border-b text-[11px] font-bold uppercase text-slate-800 transition-colors font-sans"
+                    className="w-full text-left p-3 hover:bg-blue-50 dark:hover:bg-blue-700 border-b dark:border-slate-700 text-[11px] font-bold uppercase text-slate-800 dark:text-slate-200 transition-colors font-sans"
                   >
                     RA: {a.id} - {a.nome}
                   </button>
@@ -277,19 +277,19 @@ export default function HistoricoCSPPage() {
         <div className="flex gap-2">
           <button
             onClick={() => adicionarLinha("comum")}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-400 dark:border-slate-600 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
           >
             <PlusCircle size={14} className="text-blue-600" /> + COMUM
           </button>
           <button
             onClick={() => adicionarLinha("diversificada")}
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-400 dark:border-slate-600 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
           >
             <PlusCircle size={14} className="text-orange-600" /> + DIVERSIF.
           </button>
           <button
             onClick={() => setMostrarDiversificada(!mostrarDiversificada)}
-            className={`px-3 py-2 rounded text-[10px] font-bold border shadow-sm transition-all ${mostrarDiversificada ? "bg-orange-50 border-orange-300 text-orange-700" : "bg-white border-slate-400 text-slate-500"}`}
+            className={`px-3 py-2 rounded text-[10px] font-bold border shadow-sm transition-all ${mostrarDiversificada ? "bg-orange-50 dark:bg-orange-900/30 border-orange-300 dark:border-orange-800/50 text-orange-700 dark:text-orange-300" : "bg-white dark:bg-slate-700 border-slate-400 dark:border-slate-600 text-slate-500 dark:text-slate-400"}`}
           >
             {mostrarDiversificada ? "OCULTAR DIVERSIF." : "MOSTRAR DIVERSIF."}
           </button>
