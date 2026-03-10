@@ -27,7 +27,7 @@ O sistema foi construído sob uma arquitetura **Multi-Tenant (Múltiplas Sedes)*
 
 > *A interface foi desenhada com foco em UX, responsividade e acessibilidade, contando com suporte nativo a **Dark Mode**.*
 
-| Dashboard Principal | Prontuário do Aluno (Dark Mode) |
+| Dashboard Principal |Detalhes do Aluno (Dark Mode) |
 | :---: | :---: |
 | `<img src="caminho/para/print_dashboard.png" width="400"/>` | `<img src="caminho/para/print_prontuario_dark.png" width="400"/>` |
 | **Locação Multimídia (Smart Booking)** | **Relatórios & Mala Direta** |
@@ -44,7 +44,7 @@ O sistema foi construído sob uma arquitetura **Multi-Tenant (Múltiplas Sedes)*
 - **SSO Institucional:** Autenticação via Google OAuth2, restrita a domínios autorizados (ex: `@cspba.com.br`).
 - **Painel de Administração:** Controle granular de acesso por colaborador (Admin vs User), definindo quais módulos e quais sedes cada um pode visualizar.
 
-### 🎓 Gestão de Alunos (Prontuário 360º)
+### 🎓 Gestão de Alunos (Detalhes 360º)
 - Busca unificada ultrarrápida.
 - **Modal de Detalhes:** Visualização consolidada de dados acadêmicos, contatos dos responsáveis e foto com recurso de zoom in/out.
 - Linha do tempo centralizada unindo o histórico disciplinar e médico do aluno.
