@@ -3,89 +3,153 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useColigada } from "@/context/ColigadaContext";
-import { Search, Loader2, AlertCircle } from "lucide-react";
+import { Search, Loader2, AlertCircle, Users } from "lucide-react";
 import Swal from "sweetalert2";
 import ModalDetalhesAluno from "@/app/dashboard/alunos/components/ModalDetalhesAluno";
 import ModalOcorrencia from "@/app/dashboard/alunos/components/ModalOcorrencia";
 
 export default function AlunosPage() {
-  const [todosAlunos, setTodosAlunos] = useState<any[]>([]);
-  const [resultados, setResultados] = useState<any[]>([]);
   const { user, loading: authLoading } = useAuth();
   const { coligadaAtual, loadingColigadas } = useColigada();
-  const [dataLoading, setDataLoading] = useState(false);
 
+  // Estados de Dados
+  const [resultados, setResultados] = useState<any[]>([]);
+  const [opcoesFiltro, setOpcoesFiltro] = useState<
+    { serie: any; turma: string }[]
+  >([]);
+
+  // Estados de Controle (Paginação e UI)
+  const [pesquisaRealizada, setPesquisaRealizada] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Filtros
   const [filtroSerie, setFiltroSerie] = useState("");
   const [filtroTurma, setFiltroTurma] = useState("");
   const [buscaNome, setBuscaNome] = useState("");
+
+  // Modais
   const [selecionado, setSelecionado] = useState<any>(null);
   const [mostrarOcorrencia, setMostrarOcorrencia] = useState(false);
 
+  // 1. CARREGA APENAS AS SÉRIES E TURMAS AO ABRIR A PÁGINA (SUPER LEVE)
   useEffect(() => {
-    async function carregarAlunos() {
+    async function carregarOpcoesFiltro() {
       if (!user || !coligadaAtual) return;
-      setDataLoading(true);
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("alunos")
-          .select("*")
-          .eq("sede_id", coligadaAtual.id)
-          .order("nome", { ascending: true });
-
-        if (!error) {
-          setTodosAlunos(data || []);
-          setResultados(data || []);
-        }
+          .select("serie, turma")
+          .eq("sede_id", coligadaAtual.id);
+        if (data) setOpcoesFiltro(data);
       } catch (err) {
         console.error(err);
-      } finally {
-        setDataLoading(false);
       }
     }
-    carregarAlunos();
+    carregarOpcoesFiltro();
+    // Reseta a tela se trocar de Sede
+    setResultados([]);
+    setPesquisaRealizada(false);
   }, [user, coligadaAtual]);
 
-  // FILTROS (MANTIDOS)
+  // 2. MOTOR DE BUSCA COM PAGINAÇÃO NO SERVIDOR
+  const fetchAlunos = async (paginaAtual: number, isNovaBusca: boolean) => {
+    if (!coligadaAtual) return;
+    if (isNovaBusca) setDataLoading(true);
+    else setLoadingMore(true);
+
+    try {
+      let query = supabase
+        .from("alunos")
+        .select("*")
+        .eq("sede_id", coligadaAtual.id)
+        .order("nome", { ascending: true });
+
+      // Aplica os filtros diretamente no Banco de Dados (PostgreSQL)
+      if (filtroSerie) query = query.eq("serie", filtroSerie);
+      if (filtroTurma) query = query.eq("turma", filtroTurma);
+      if (buscaNome) query = query.ilike("nome", `%${buscaNome}%`);
+
+      // Lógica de Paginação (Traz de 50 em 50)
+      const pageSize = 50;
+      const from = paginaAtual * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
+
+      const { data, error } = await query;
+
+      if (!error && data) {
+        if (isNovaBusca) {
+          setResultados(data);
+          if (data.length === 0) {
+            Swal.fire({
+              title: "Nenhum resultado",
+              icon: "info",
+              toast: true,
+              position: "top-end",
+              timer: 3000,
+              showConfirmButton: false,
+            });
+          }
+        } else {
+          setResultados((prev) => [...prev, ...data]); // Junta os novos com os que já estavam na tela
+        }
+        // Se trouxe 50 completos, significa que tem chance de ter uma próxima página
+        setHasMore(data.length === pageSize);
+      }
+    } catch (err) {
+      console.error("Erro na busca:", err);
+    } finally {
+      setDataLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Disparado ao clicar em "BUSCAR"
+  const realizarBusca = () => {
+    setPesquisaRealizada(true);
+    setPage(0);
+    setHasMore(true);
+    fetchAlunos(0, true);
+  };
+
+  // Disparado quando o scroll da página rola para baixo
+  useEffect(() => {
+    if (page > 0) {
+      fetchAlunos(page, false);
+    }
+  }, [page]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    // Se chegou perto do final da tela (margem de 100px)
+    if (scrollHeight - scrollTop <= clientHeight + 100) {
+      if (hasMore && !loadingMore && !dataLoading) {
+        setPage((prev) => prev + 1); // Dispara a busca da próxima página
+      }
+    }
+  };
+
+  // POPULA OS DROPDOWNS COM DADOS ÚNICOS
   const listaSeries = useMemo(() => {
-    const series = todosAlunos.map((a) => String(a.serie));
+    const series = opcoesFiltro.map((a) => String(a.serie));
     return Array.from(new Set(series)).sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true }),
     );
-  }, [todosAlunos]);
+  }, [opcoesFiltro]);
 
   const turmasFiltradas = useMemo(() => {
     if (!filtroSerie) return [];
     return Array.from(
       new Set(
-        todosAlunos
+        opcoesFiltro
           .filter((a) => String(a.serie) === filtroSerie)
           .map((a) => a.turma),
       ),
     ).sort();
-  }, [filtroSerie, todosAlunos]);
-
-  const realizarBusca = () => {
-    const filtrados = todosAlunos.filter((aluno) => {
-      const nomeMatch = aluno.nome
-        ?.toLowerCase()
-        .includes(buscaNome.toLowerCase());
-      const serieMatch =
-        filtroSerie === "" || String(aluno.serie) === filtroSerie;
-      const turmaMatch = filtroTurma === "" || aluno.turma === filtroTurma;
-      return nomeMatch && serieMatch && turmaMatch;
-    });
-    setResultados(filtrados);
-    if (filtrados.length === 0) {
-      Swal.fire({
-        title: "Nenhum resultado",
-        icon: "info",
-        toast: true,
-        position: "top-end",
-        timer: 3000,
-        showConfirmButton: false,
-      });
-    }
-  };
+  }, [filtroSerie, opcoesFiltro]);
 
   const navegarAluno = (direcao: "anterior" | "proximo") => {
     if (!selecionado) return;
@@ -148,22 +212,40 @@ export default function AlunosPage() {
           value={buscaNome}
           onChange={(e) => setBuscaNome(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && realizarBusca()}
-          placeholder="Pesquisar..."
+          placeholder="Pesquisar aluno por nome..."
           className="border border-gray-400 dark:border-slate-600 rounded-sm px-2 h-6 flex-1 max-w-md bg-white dark:bg-slate-900 outline-none"
         />
         <button
           onClick={realizarBusca}
-          className="bg-[#3182ce] text-white px-3 h-6 rounded-sm flex items-center gap-1 font-bold shadow-sm"
+          className="bg-[#3182ce] text-white px-4 h-6 rounded-sm flex items-center gap-2 font-bold shadow-sm hover:bg-blue-600 transition-colors"
         >
           <Search size={12} /> BUSCAR
         </button>
       </div>
 
-      <div className="overflow-auto flex-1 bg-gray-50 dark:bg-slate-950">
-        {dataLoading ? (
+      {/* ÁREA DE CONTEÚDO (COM EVENTO DE SCROLL INFINITO) */}
+      <div
+        className="overflow-auto flex-1 bg-gray-50 dark:bg-slate-950 relative"
+        onScroll={handleScroll} // ✅ Escuta a rolagem do mouse
+      >
+        {!pesquisaRealizada ? (
+          // ✅ TELA LIMPA INICIAL PARA ECONOMIZAR MEMÓRIA
+          <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 gap-3 animate-in fade-in">
+            <div className="bg-slate-200 dark:bg-slate-800 p-4 rounded-full">
+              <Users size={48} className="opacity-50" />
+            </div>
+            <p className="text-sm font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">
+             FAÇA A BUSCA PARA CARREGAR OS ALUNOS
+            </p>
+            <p className="text-xs max-w-md text-center">
+              Utilize os filtros acima e clique em <b>Buscar</b> para localizar
+              os alunos. Caso clique em buscar sem preencher nenhum filtro, todos os alunos da sede serão carregados (recomendado apenas para sedes pequenas). O sistema carrega os alunos de forma paginada, trazendo os primeiros 50 resultados e carregando mais conforme você rola a página para baixo. 
+            </p>
+          </div>
+        ) : dataLoading ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-blue-600 dark:text-blue-400 italic">
-            <Loader2 className="animate-spin" size={24} />{" "}
-            <span>Sincronizando...</span>
+            <Loader2 className="animate-spin" size={24} />
+            <span>Consultando banco de dados...</span>
           </div>
         ) : (
           <table className="w-full border-collapse bg-white dark:bg-slate-900">
@@ -232,6 +314,14 @@ export default function AlunosPage() {
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* INDICADOR DE CARREGAMENTO DO INFINITE SCROLL */}
+        {loadingMore && (
+          <div className="py-4 flex justify-center items-center gap-2 text-blue-500 font-bold bg-white dark:bg-slate-900 border-t dark:border-slate-800">
+            <Loader2 className="animate-spin" size={16} /> Carregando mais
+            resultados...
+          </div>
         )}
       </div>
 
