@@ -21,6 +21,7 @@
     "react-dom": "19.2.3",
     "react-quill-new": "^3.8.3",
     "react-to-print": "^3.3.0",
+    "recharts": "^3.8.0",
     "sweetalert2": "^11.26.21",
     "xlsx": "^0.18.5"
   },
