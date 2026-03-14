@@ -41,7 +41,7 @@ O sistema foi construído sob uma arquitetura **Multi-Tenant (Múltiplas Sedes)*
 ### 🏢 Arquitetura Multi-Tenant & Acessos
 - **Seletor de Unidades:** Os usuários transitam entre diferentes sedes (ex: Pituba, Itaigara) com um clique, reidratando todo o contexto da aplicação em tempo real.
 - **SSO Institucional:** Autenticação via Google OAuth2, restrita a domínios autorizados (ex: `@cspba.com.br`).
-- **Painel de Administração:** Controle granular de acesso por colaborador (Admin vs User), definindo quais módulos e quais sedes cada um pode visualizar.
+- **Painel de Administração Modular:** Controle granular de acesso por colaborador (Admin vs User), gestão de unidades escolares independentes e **rastreabilidade total via Logs de Auditoria** de todas as ações críticas.
 
 ### 🎓 Gestão de Alunos (Detalhes 360º)
 - Busca unificada ultrarrápida.
@@ -90,7 +90,7 @@ O sistema foi construído sob uma arquitetura **Multi-Tenant (Múltiplas Sedes)*
 **Backend & Integrações:**
 - [Supabase](https://supabase.com/) (BaaS)
 - **Google Generative AI SDK** (Integração com Gemini 2.5 Flash)
-- **Next.js API Routes** (Edge Functions para processamento de e-mails e IA)
+- **Next.js API Routes** (Edge Functions para processamento de e-mails, exclusão segura de usuários e IA)
 - **Nodemailer** (Serviço SMTP de disparos)
 - **PapaParse & XLSX** (Processamento em memória de planilhas)
 
@@ -108,6 +108,7 @@ Um dos maiores diferenciais deste projeto é a arquitetura de segurança de dado
 3. **Secure Views:** Uso de Views com `security_invoker = on` para cruzar dados sensíveis de usuários com matrizes de permissões sem expor a camada de autenticação ao Client-Side.
 4. **Proteção da Chave da IA:** As requisições ao Gemini são processadas exclusivamente Server-Side (via API Routes) para evitar a exposição da `GEMINI_API_KEY` ao navegador do usuário.
 5. **Cookies Seguros:** Middleware interceptador e rotas de callback que forçam o armazenamento de tokens com flags `sameSite: "lax"` e `secure: true`.
+6. **Trilha de Auditoria (Audit Trail):** Sistema de logs blindado no banco de dados. Qualquer alteração de acessos, exclusão de registros ou importação em massa é gravada com carimbo de tempo e identificação do usuário. As políticas de RLS impedem até mesmo administradores de apagar ou adulterar este histórico.
 
 ---
 
@@ -118,26 +119,34 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── gemini/               # Rota segura Server-Side para IA
-│   │   └── mala-direta/          # Rota de Node para SMTP/Disparos
+│   │   ├── mala-direta/          # Rota de Node para SMTP/Disparos
+│   │   └── usuarios/             # Rota segura Server-Side para exclusão de contas
 │   ├── auth/callback/            # Fluxo OAuth2 Seguro
 │   ├── dashboard/                # Rotas Protegidas do Sistema
-│   │   ├── admin/                # Gestão de Permissões e Importação CSV
+│   │   ├── admin/                # Painel Administrativo Modularizado
+│   │   │   ├── GestaoEquipamentos.tsx # CRUD de Inventário e Dispositivos
+│   │   │   ├── GestaoSedes.tsx        # Gestão de Unidades (Multi-Tenant)
+│   │   │   ├── GestaoUsuarios.tsx     # Controle Granular de Permissões
+│   │   │   ├── LogsAuditoria.tsx      # Rastreabilidade e Segurança de Eventos
+│   │   │   ├── SincronizacaoBase.tsx  # Importador de Planilhas (CSV)
+│   │   │   └── page.tsx               # Interface (Menu Lateral) do Painel
 │   │   ├── alunos/               # Grid, Busca e Modais (Prontuário/Ocorrência)
 │   │   ├── conselho/             # Parse de Notas e Regras Acadêmicas
 │   │   ├── locacoes/             # Smart Booking
 │   │   ├── mala-direta/          # Editor Rich Text + IA Assistente
-│   │   ├── relatorios/           # Motor de Impressão A4
+│   │   ├── relatorios/           # Motor de Impressão A4 (Pixel-Perfect)
 │   │   └── repouso/              # Fluxo de Enfermaria Hospitalar
 │   ├── layout.tsx                # Tema (Dark Mode) e Provedores Root
 │   └── page.tsx                  # Interface de Login (Google SSO)
 ├── components/
 │   ├── layout/                   # Header, Seletor de Unidades, Tabs
-│   └── ThemeProvider.tsx         # Next-Themes
+│   └── ThemeProvider.tsx         # Motor Next-Themes
 ├── context/
-│   ├── AuthContext.tsx           # Gestão de Sessão
-│   └── ColigadaContext.tsx       # Controle de Estado Multi-Tenant
+│   ├── AuthContext.tsx           # Gestão de Sessão do Usuário
+│   └── ColigadaContext.tsx       # Controle de Estado das Sedes
 └── lib/
-    └── supabase.ts               # Instância do Cliente SSR
+    ├── audit.ts                  # Função Global "Espiã" de Logs de Auditoria
+    └── supabase.ts               # Instância do Banco de Dados (BaaS)
 ```
 
 ---
@@ -260,6 +269,15 @@ CREATE TABLE public.conselho_notas (
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   sede_id integer DEFAULT 1219 REFERENCES public.sedes(id)
 );
+
+-- Tabela para a Trilha de Auditoria (Logs)
+CREATE TABLE public.logs_auditoria (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  usuario_nome text NOT NULL,
+  acao text NOT NULL,
+  detalhes text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+);
 ```
 
 #### B. Triggers e Functions (Sincronização Segura)
@@ -321,6 +339,19 @@ CREATE POLICY "Deletar locacoes" ON public.locacoes FOR DELETE USING (
   auth.uid() = user_id OR
   (SELECT is_admin FROM public.permissoes_usuarios WHERE user_id = auth.uid()) = true
 );
+
+-- Políticas Blindadas para Logs de Auditoria
+ALTER TABLE public.logs_auditoria ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Leitura de logs" ON public.logs_auditoria 
+FOR SELECT USING (
+  (SELECT is_admin FROM public.permissoes_usuarios WHERE user_id = auth.uid()) = true
+);
+
+CREATE POLICY "Inserir logs" ON public.logs_auditoria 
+FOR INSERT WITH CHECK (
+  auth.role() = 'authenticated'
+);
 ```
 
 ---
@@ -340,6 +371,7 @@ CREATE POLICY "Deletar locacoes" ON public.locacoes FOR DELETE USING (
    ```env
    NEXT_PUBLIC_SUPABASE_URL=sua_url_supabase
    NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anon_supabase
+   SUPABASE_SERVICE_ROLE_KEY=sua_chave_secreta_de_service_role
    EMAIL_USER=seu_email_smtp_aqui
    EMAIL_PASS=sua_senha_de_aplicativo_aqui
    GEMINI_API_KEY=sua_chave_de_api_do_google_ai_studio
@@ -367,9 +399,10 @@ O projeto possui um arquivo `netlify.toml` na raiz, o que automatiza grande part
 **Passo 5:** Clique no botão **"Add environment variables"** (Adicionar variáveis de ambiente). É **obrigatório** inserir as chaves para o sistema em produção funcionar:
 - Chave 1: `NEXT_PUBLIC_SUPABASE_URL` 
 - Chave 2: `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- Chave 3: `EMAIL_USER`
-- Chave 4: `EMAIL_PASS`
-- Chave 5: `GEMINI_API_KEY`
+- Chave 3: `SUPABASE_SERVICE_ROLE_KEY`
+- Chave 4: `EMAIL_USER`
+- Chave 5: `EMAIL_PASS`
+- Chave 6: `GEMINI_API_KEY`
 
 **Passo 6:** Clique em **"Deploy site"**.
 
