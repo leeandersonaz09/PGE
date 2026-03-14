@@ -118,18 +118,18 @@ export default function RelatorioOcorrenciasPage() {
 
   if (loadingColigadas) {
     return (
-      <div className="flex items-center justify-center h-full text-[#3182ce] font-bold italic">
+      <div className="flex items-center justify-center h-full text-[#3182ce] dark:text-blue-400 font-bold italic">
         Sincronizando Unidade...
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans text-[11px] text-gray-800">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 font-sans text-[11px] text-gray-800 dark:text-slate-300">
       {/* BARRA SUPERIOR E FILTROS */}
-      <div className="bg-[#cbd5e0] p-2 flex justify-between items-center border-b border-gray-400">
+      <div className="bg-slate-200 dark:bg-slate-800 p-2 flex justify-between items-center border-b border-gray-400 dark:border-slate-700">
         <div className="flex gap-2 items-center flex-1">
-          <div className="bg-white border border-gray-400 rounded-sm px-2 h-7 flex items-center font-bold text-blue-700 uppercase mr-1">
+          <div className="bg-white dark:bg-slate-700 border border-gray-400 dark:border-slate-600 rounded-sm px-2 h-7 flex items-center font-bold text-blue-700 dark:text-blue-400 uppercase mr-1">
             {coligadaAtual?.sigla}
           </div>
 
@@ -139,7 +139,7 @@ export default function RelatorioOcorrenciasPage() {
             onChange={(e) => setBuscaNome(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && realizarBusca()}
             placeholder={`Pesquisar ocorrência por nome do aluno em ${coligadaAtual?.sigla}...`}
-            className="border border-gray-400 rounded-sm px-2 h-7 w-full max-w-md bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#3182ce]"
+            className="border border-gray-400 dark:border-slate-600 rounded-sm px-2 h-7 w-full max-w-md bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#3182ce]"
           />
           <button
             onClick={realizarBusca}
@@ -159,26 +159,26 @@ export default function RelatorioOcorrenciasPage() {
       </div>
 
       {/* ÁREA DA TABELA */}
-      <div className="overflow-auto flex-1 bg-gray-50">
+      <div className="overflow-auto flex-1 bg-gray-50 dark:bg-slate-950">
         {loadingDados ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-[#3182ce] italic">
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-[#3182ce] dark:text-blue-400 italic">
             <Loader2 className="animate-spin" size={24} />
             <span>Carregando base de dados de {coligadaAtual?.nome}...</span>
           </div>
         ) : (
-          <table className="w-full border-collapse bg-white">
-            <thead className="sticky top-0 bg-[#f1f5f9] z-10 shadow-sm">
-              <tr className="border-b border-gray-300 font-bold text-left uppercase text-gray-600 text-[10px]">
-                <th className="border-r border-gray-300 p-2 text-center w-24">
+          <table className="w-full border-collapse bg-white dark:bg-slate-900">
+            <thead className="sticky top-0 bg-[#f1f5f9] dark:bg-slate-800 z-10 shadow-sm">
+              <tr className="border-b border-gray-300 dark:border-slate-700 font-bold text-left uppercase text-gray-600 dark:text-slate-400 text-[10px]">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2 text-center w-24">
                   Data / Hora
                 </th>
-                <th className="border-r border-gray-300 p-2 w-20 text-center">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2 w-20 text-center">
                   Série/Turma
                 </th>
-                <th className="border-r border-gray-300 p-2 min-w-[180px]">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2 min-w-[180px]">
                   Aluno
                 </th>
-                <th className="border-r border-gray-300 p-2">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2">
                   Descrição da Ocorrência
                 </th>
                 <th className="p-2 w-40">Registrado por</th>
@@ -189,11 +189,13 @@ export default function RelatorioOcorrenciasPage() {
                 resultados.map((item, index) => (
                   <tr
                     key={item.id}
-                    className={`border-b border-gray-100 transition-colors hover:bg-blue-50 ${
-                      index % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"
+                    className={`border-b border-gray-100 dark:border-slate-800 transition-colors hover:bg-blue-50 dark:hover:bg-slate-800/50 ${
+                      index % 2 === 0
+                        ? "bg-white dark:bg-slate-900"
+                        : "bg-[#f8fafc] dark:bg-slate-900/50"
                     }`}
                   >
-                    <td className="border-r border-gray-100 p-2 text-center text-gray-500 font-medium">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 text-center text-gray-500 dark:text-slate-400 font-medium">
                       {new Date(item.data).toLocaleDateString("pt-BR")}
                       <span className="block text-[9px] font-normal">
                         {new Date(item.data).toLocaleTimeString("pt-BR", {
@@ -202,19 +204,19 @@ export default function RelatorioOcorrenciasPage() {
                         })}
                       </span>
                     </td>
-                    <td className="border-r border-gray-100 p-2 text-center">
-                      <div className="font-bold text-[#3182ce]">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 text-center">
+                      <div className="font-bold text-[#3182ce] dark:text-blue-400">
                         {item.aluno?.serie}º {item.aluno?.turma}
                       </div>
                     </td>
-                    <td className="border-r border-gray-100 p-2 font-bold uppercase text-gray-700">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 font-bold uppercase text-gray-700 dark:text-slate-300">
                       {item.aluno?.nome}
                     </td>
-                    <td className="border-r border-gray-100 p-2 text-gray-600 leading-relaxed text-justify">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 text-gray-600 dark:text-slate-300 leading-relaxed text-justify">
                       {item.texto}
                     </td>
-                    <td className="p-2 text-gray-500">
-                      <div className="flex items-center gap-1 font-bold text-orange-600">
+                    <td className="p-2 text-gray-500 dark:text-slate-400">
+                      <div className="flex items-center gap-1 font-bold text-orange-600 dark:text-orange-400">
                         <UserCheck size={12} /> {item.colaborador_nome}
                       </div>
                     </td>
@@ -222,7 +224,7 @@ export default function RelatorioOcorrenciasPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="p-10 text-center text-gray-400">
+                  <td colSpan={5} className="p-10 text-center text-gray-400 dark:text-slate-500">
                     <div className="flex flex-col items-center gap-2">
                       <FileText size={32} />
                       <span className="italic text-sm">

@@ -194,21 +194,24 @@ export default function LocacoesPage() {
 
   if (loadingColigadas)
     return (
-      <div className="flex items-center justify-center h-full italic text-blue-600">
+      <div className="flex items-center justify-center h-full italic text-blue-600 dark:text-blue-400">
         <Loader2 className="animate-spin mr-2" /> Sincronizando Unidade...
       </div>
     );
 
   return (
-    <div className="p-4 sm:p-6 bg-gray-50 min-h-full flex flex-col font-sans">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-300 pb-4 mb-6 gap-4">
+    <div className="p-4 sm:p-6 bg-gray-50 dark:bg-slate-950 min-h-full flex flex-col font-sans">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-300 dark:border-slate-700 pb-4 mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-800 flex items-center gap-2">
+          <h1 className="text-2xl font-black text-gray-800 dark:text-slate-200 flex items-center gap-2">
             <Projector className="text-indigo-600" size={28} /> Locação
             Multimídia
           </h1>
-          <p className="text-sm text-gray-500 uppercase">
-            Unidade: <b className="text-blue-600">{coligadaAtual?.nome}</b>
+          <p className="text-sm text-gray-500 dark:text-slate-400 uppercase">
+            Unidade:{" "}
+            <b className="text-blue-600 dark:text-blue-400">
+              {coligadaAtual?.nome}
+            </b>
           </p>
         </div>
         <button
@@ -219,7 +222,7 @@ export default function LocacoesPage() {
         </button>
       </div>
 
-      <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex gap-4 items-center mb-6 text-[11px] font-bold text-slate-700 overflow-x-auto">
+      <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex gap-4 items-center mb-6 text-[11px] font-bold text-slate-700 dark:text-slate-300 overflow-x-auto">
         <label className="flex items-center gap-2 shrink-0 cursor-pointer">
           <input
             type="radio"
@@ -238,7 +241,7 @@ export default function LocacoesPage() {
           />{" "}
           7 Dias
         </label>
-        <label className="flex items-center gap-2 shrink-0 border-l border-slate-200 pl-4 cursor-pointer">
+        <label className="flex items-center gap-2 shrink-0 border-l border-slate-200 dark:border-slate-700 pl-4 cursor-pointer">
           <input
             type="radio"
             checked={filtro === "especifico"}
@@ -252,17 +255,17 @@ export default function LocacoesPage() {
           disabled={filtro !== "especifico"}
           value={dataBusca}
           onChange={(e) => setDataBusca(e.target.value)}
-          className="border border-slate-200 p-1 rounded bg-slate-50 text-slate-900 outline-none focus:border-indigo-500"
+          className="border border-slate-200 dark:border-slate-700 p-1 rounded bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-200 outline-none focus:border-indigo-500"
         />
       </div>
 
       <div className="flex-1">
         {loading ? (
-          <div className="text-center text-indigo-600 font-bold animate-pulse py-10">
+          <div className="text-center text-indigo-600 dark:text-indigo-400 font-bold animate-pulse py-10">
             Carregando agenda de {coligadaAtual?.sigla}...
           </div>
         ) : locacoes.length === 0 ? (
-          <div className="text-center py-20 text-slate-400 font-bold border-2 border-dashed border-slate-200 rounded-2xl">
+          <div className="text-center py-20 text-slate-400 dark:text-slate-500 font-bold border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
             Nenhuma reserva para este período.
           </div>
         ) : (
@@ -270,41 +273,44 @@ export default function LocacoesPage() {
             {locacoes.map((loc) => (
               <div
                 key={loc.id}
-                className="bg-white border border-slate-200 border-l-4 border-l-indigo-600 p-4 rounded-xl shadow-sm relative animate-in fade-in duration-300"
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 border-l-4 border-l-indigo-600 p-4 rounded-xl shadow-sm relative animate-in fade-in duration-300"
               >
-                <div className="absolute top-3 right-3 bg-indigo-50 text-indigo-800 text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter">
+                <div className="absolute top-3 right-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter">
                   {new Date(loc.data_locacao + "T12:00:00").toLocaleDateString(
                     "pt-BR",
                   )}
                 </div>
                 <div className="flex items-start gap-3 mb-3 pr-20">
-                  <div className="bg-indigo-50 p-2.5 rounded-lg shrink-0 border border-indigo-100 shadow-sm">
+                  <div className="bg-indigo-50 dark:bg-indigo-900/30 p-2.5 rounded-lg shrink-0 border border-indigo-100 dark:border-indigo-800/50 shadow-sm">
                     {getIconForEquipamento(loc.equipamento?.nome || "")}
                   </div>
-                  <h3 className="font-black text-slate-800 text-base uppercase leading-tight pt-1 truncate">
+                  <h3 className="font-black text-slate-800 dark:text-slate-200 text-base uppercase leading-tight pt-1 truncate">
                     {loc.equipamento?.nome}
                   </h3>
                 </div>
-                <p className="text-indigo-600 font-black text-xs mb-1 uppercase tracking-tight">
+                <p className="text-indigo-600 dark:text-indigo-400 font-black text-xs mb-1 uppercase tracking-tight">
                   SALA / LOCAL: {loc.sala}
                 </p>
-                <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 mb-3 bg-slate-100 w-fit px-2.5 py-1 rounded-full">
+                <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 dark:text-slate-400 mb-3 bg-slate-100 dark:bg-slate-700 w-fit px-2.5 py-1 rounded-full">
                   <Clock size={12} />{" "}
                   {loc.dia_inteiro
                     ? "DIA INTEIRO"
                     : `${loc.hora_inicio} - ${loc.hora_fim}`}
                 </div>
-                <p className="text-[11px] text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 italic font-medium leading-relaxed">
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700 italic font-medium leading-relaxed">
                   "{loc.observacao}"
                 </p>
-                <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-100 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
                   <span className="truncate max-w-[200px]">
-                    Por: <b className="text-slate-600">{loc.solicitante}</b>
+                    Por:{" "}
+                    <b className="text-slate-600 dark:text-slate-300">
+                      {loc.solicitante}
+                    </b>
                   </span>
                   {(isAdmin || loc.user_id === user?.id) && (
                     <button
                       onClick={() => deletarLocacao(loc.id)}
-                      className="bg-red-50 text-red-500 hover:bg-red-500 hover:text-white p-2 rounded-lg transition-all shadow-sm active:scale-90"
+                      className="bg-red-50 dark:bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white dark:hover:bg-red-500 p-2 rounded-lg transition-all shadow-sm active:scale-90"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -318,7 +324,7 @@ export default function LocacoesPage() {
 
       {modalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[100] backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="bg-indigo-600 p-4 text-white flex justify-between items-center shadow-lg">
               <h2 className="font-black uppercase tracking-widest text-xs flex items-center gap-2">
                 <Plus size={18} /> Reservar Equipamento
@@ -341,12 +347,12 @@ export default function LocacoesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, data_locacao: e.target.value })
                   }
-                  className="w-full border-2 border-slate-100 p-3 rounded-xl font-black text-slate-900 focus:border-indigo-500 outline-none bg-slate-50 transition-all shadow-inner"
+                  className="w-full border-2 border-slate-100 dark:border-slate-800 p-3 rounded-xl font-black text-slate-900 dark:text-slate-200 focus:border-indigo-500 outline-none bg-slate-50 dark:bg-slate-800 transition-all shadow-inner"
                 />
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner">
-                <label className="flex items-center gap-2 mb-3 cursor-pointer text-xs font-black text-indigo-700 uppercase tracking-tighter">
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner">
+                <label className="flex items-center gap-2 mb-3 cursor-pointer text-xs font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-tighter">
                   <input
                     type="checkbox"
                     checked={diaInteiro}
@@ -358,25 +364,25 @@ export default function LocacoesPage() {
                 {!diaInteiro && (
                   <div className="flex gap-4 animate-in slide-in-from-top-2">
                     <div className="flex-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                      <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1">
                         Início
                       </label>
                       <input
                         type="time"
                         value={horaInicio}
                         onChange={(e) => setHoraInicio(e.target.value)}
-                        className="w-full border border-slate-200 p-2 rounded-lg text-slate-900 font-bold bg-white"
+                        className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-lg text-slate-900 dark:text-slate-200 font-bold bg-white dark:bg-slate-900"
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                      <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1">
                         Término
                       </label>
                       <input
                         type="time"
                         value={horaFim}
                         onChange={(e) => setHoraFim(e.target.value)}
-                        className="w-full border border-slate-200 p-2 rounded-lg text-slate-900 font-bold bg-white"
+                        className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-lg text-slate-900 dark:text-slate-200 font-bold bg-white dark:bg-slate-900"
                       />
                     </div>
                   </div>
@@ -392,7 +398,7 @@ export default function LocacoesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, equipamento_id: e.target.value })
                   }
-                  className="w-full border-2 border-slate-100 p-3 rounded-xl font-black text-slate-900 focus:border-indigo-500 outline-none bg-slate-50 transition-all shadow-inner"
+                  className="w-full border-2 border-slate-100 dark:border-slate-800 p-3 rounded-xl font-black text-slate-900 dark:text-slate-200 focus:border-indigo-500 outline-none bg-slate-50 dark:bg-slate-800 transition-all shadow-inner"
                 >
                   <option value="">Selecione o item...</option>
                   {equipamentosDisponiveis.map((eq) => (
@@ -400,6 +406,7 @@ export default function LocacoesPage() {
                       key={eq.id}
                       value={eq.id}
                       disabled={eq.disponivel <= 0}
+                      className="font-black"
                     >
                       {eq.nome} ({eq.disponivel} disponíveis)
                     </option>
@@ -418,7 +425,7 @@ export default function LocacoesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, sala: e.target.value })
                   }
-                  className="w-full border-2 border-slate-100 p-3 rounded-xl font-black text-slate-900 uppercase focus:border-indigo-500 outline-none bg-slate-50 transition-all shadow-inner"
+                  className="w-full border-2 border-slate-100 dark:border-slate-800 p-3 rounded-xl font-black text-slate-900 dark:text-slate-200 uppercase focus:border-indigo-500 outline-none bg-slate-50 dark:bg-slate-800 transition-all shadow-inner"
                 />
               </div>
 
@@ -433,14 +440,14 @@ export default function LocacoesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, observacao: e.target.value })
                   }
-                  className="w-full border-2 border-slate-100 p-3 rounded-xl font-medium text-slate-900 focus:border-indigo-500 outline-none bg-slate-50 transition-all resize-none shadow-inner"
+                  className="w-full border-2 border-slate-100 dark:border-slate-800 p-3 rounded-xl font-medium text-slate-900 dark:text-slate-200 focus:border-indigo-500 outline-none bg-slate-50 dark:bg-slate-800 transition-all resize-none shadow-inner"
                 />
               </div>
 
               <button
                 onClick={handleSalvar}
                 disabled={salvando}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase shadow-xl shadow-indigo-200 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:bg-slate-300"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase shadow-xl shadow-indigo-200 dark:shadow-indigo-900/50 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:bg-slate-300"
               >
                 {salvando ? (
                   <Loader2 className="animate-spin" />

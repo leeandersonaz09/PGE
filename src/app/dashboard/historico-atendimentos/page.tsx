@@ -129,19 +129,19 @@ export default function HistoricoRepousoPage() {
 
   if (loadingColigadas) {
     return (
-      <div className="flex items-center justify-center h-full text-[#3182ce] font-bold italic">
+      <div className="flex items-center justify-center h-full text-[#3182ce] dark:text-blue-400 font-bold italic">
         Sincronizando Unidade...
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-white font-sans text-[11px] text-gray-800">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 font-sans text-[11px] text-gray-800 dark:text-slate-300">
       {/* BARRA SUPERIOR E FILTROS */}
-      <div className="bg-[#cbd5e0] p-2 flex justify-between items-center border-b border-gray-400">
+      <div className="bg-slate-200 dark:bg-slate-800 p-2 flex justify-between items-center border-b border-gray-400 dark:border-slate-700">
         <div className="flex gap-2 items-center flex-1">
           {/* Indicador de Unidade Atual */}
-          <div className="bg-white border border-gray-400 rounded-sm px-2 h-7 flex items-center font-bold text-blue-700 uppercase mr-1">
+          <div className="bg-white dark:bg-slate-700 border border-gray-400 dark:border-slate-600 rounded-sm px-2 h-7 flex items-center font-bold text-blue-700 dark:text-blue-400 uppercase mr-1">
             {coligadaAtual?.sigla}
           </div>
 
@@ -151,7 +151,7 @@ export default function HistoricoRepousoPage() {
             onChange={(e) => setBuscaNome(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && realizarBusca()}
             placeholder={`Buscar em ${coligadaAtual?.nome}...`}
-            className="border border-gray-400 rounded-sm px-2 h-7 w-full max-w-md bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-[#3182ce]"
+            className="border border-gray-400 dark:border-slate-600 rounded-sm px-2 h-7 w-full max-w-md bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#3182ce]"
           />
           <button
             onClick={realizarBusca}
@@ -171,32 +171,32 @@ export default function HistoricoRepousoPage() {
       </div>
 
       {/* ÁREA DA TABELA */}
-      <div className="overflow-auto flex-1 bg-gray-50">
+      <div className="overflow-auto flex-1 bg-gray-50 dark:bg-slate-950">
         {loadingDados ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-[#3182ce] italic">
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-[#3182ce] dark:text-blue-400 italic">
             <Loader2 className="animate-spin" size={24} />
             <span>Consultando base de {coligadaAtual?.nome}...</span>
           </div>
         ) : (
-          <table className="w-full border-collapse bg-white">
-            <thead className="sticky top-0 bg-[#f1f5f9] z-10 shadow-sm">
-              <tr className="border-b border-gray-300 font-bold text-left uppercase text-gray-600 text-[10px]">
-                <th className="border-r border-gray-300 p-2 text-center w-16">
+          <table className="w-full border-collapse bg-white dark:bg-slate-900">
+            <thead className="sticky top-0 bg-[#f1f5f9] dark:bg-slate-800 z-10 shadow-sm">
+              <tr className="border-b border-gray-300 dark:border-slate-700 font-bold text-left uppercase text-gray-600 dark:text-slate-400 text-[10px]">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2 text-center w-16">
                   Data
                 </th>
-                <th className="border-r border-gray-300 p-2 w-20 text-center">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2 w-20 text-center">
                   RA / Turma
                 </th>
-                <th className="border-r border-gray-300 p-2 min-w-[150px]">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2 min-w-[150px]">
                   Aluno
                 </th>
-                <th className="border-r border-gray-300 p-2 min-w-[200px]">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2 min-w-[200px]">
                   Sintoma
                 </th>
-                <th className="border-r border-gray-300 p-2 min-w-[200px]">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2 min-w-[200px]">
                   Observações (Atendimento)
                 </th>
-                <th className="border-r border-gray-300 p-2 text-center">
+                <th className="border-r border-gray-300 dark:border-slate-700 p-2 text-center">
                   Destino
                 </th>
                 <th className="p-2 text-center">Profissionais</th>
@@ -207,11 +207,13 @@ export default function HistoricoRepousoPage() {
                 resultados.map((item, index) => (
                   <tr
                     key={item.id}
-                    className={`border-b border-gray-100 transition-colors hover:bg-blue-50 ${
-                      index % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"
+                    className={`border-b border-gray-100 dark:border-slate-800 transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 ${
+                      index % 2 === 0
+                        ? "bg-white dark:bg-slate-900"
+                        : "bg-[#f8fafc] dark:bg-slate-900/50"
                     }`}
                   >
-                    <td className="border-r border-gray-100 p-2 text-center font-bold text-gray-500">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 text-center font-bold text-gray-500 dark:text-slate-400">
                       {item.hora_atendimento
                         ? new Date(item.hora_atendimento).toLocaleDateString(
                             "pt-BR",
@@ -226,35 +228,35 @@ export default function HistoricoRepousoPage() {
                           : ""}
                       </span>
                     </td>
-                    <td className="border-r border-gray-100 p-2 text-center">
-                      <div className="font-mono text-gray-500">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 text-center">
+                      <div className="font-mono text-gray-500 dark:text-slate-500">
                         {item.aluno?.id}
                       </div>
-                      <div className="font-bold text-[#3182ce]">
+                      <div className="font-bold text-[#3182ce] dark:text-blue-400">
                         {item.aluno?.serie}º {item.aluno?.turma}
                       </div>
                     </td>
-                    <td className="border-r border-gray-100 p-2 font-bold uppercase text-gray-700">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 font-bold uppercase text-gray-700 dark:text-slate-300">
                       {item.aluno?.nome}
                     </td>
-                    <td className="border-r border-gray-100 p-2 text-gray-600">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 text-gray-600 dark:text-slate-300">
                       {item.sintoma}
                     </td>
-                    <td className="border-r border-gray-100 p-2 text-gray-600 italic">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 text-gray-600 dark:text-slate-400 italic">
                       {item.obs_atendimento || "Sem observações."}
                     </td>
-                    <td className="border-r border-gray-100 p-2 text-center font-bold">
+                    <td className="border-r border-gray-100 dark:border-slate-800 p-2 text-center font-bold">
                       <span
                         className={`px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wide ${
                           item.destino === "casa"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-blue-100 text-blue-700"
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                         }`}
                       >
                         {item.destino === "sala" ? "Sala" : "Casa"}
                       </span>
                     </td>
-                    <td className="p-2 text-[9px] text-gray-500">
+                    <td className="p-2 text-[9px] text-gray-500 dark:text-slate-400">
                       <div>
                         Encam:{" "}
                         <span className="font-bold">
@@ -263,7 +265,7 @@ export default function HistoricoRepousoPage() {
                       </div>
                       <div>
                         Atend:{" "}
-                        <span className="font-bold text-orange-600">
+                        <span className="font-bold text-orange-600 dark:text-orange-400">
                           {item.atendido_por}
                         </span>
                       </div>
@@ -272,7 +274,10 @@ export default function HistoricoRepousoPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="p-10 text-center text-gray-400">
+                  <td
+                    colSpan={7}
+                    className="p-10 text-center text-gray-400 dark:text-slate-500"
+                  >
                     <div className="flex flex-col items-center gap-2">
                       <AlertCircle size={32} />
                       <span className="italic text-sm">

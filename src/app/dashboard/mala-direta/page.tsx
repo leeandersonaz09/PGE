@@ -34,10 +34,18 @@ const quillStyle = `
     border-bottom-left-radius: 12px;
     border-bottom-right-radius: 12px;
   }
+  .dark .ql-container {
+    background-color: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+  }
   .ql-editor {
     min-height: 250px !important;
     color: #1e293b !important;
     word-break: break-word !important;
+  }
+  .dark .ql-editor {
+    color: #e2e8f0 !important;
   }
   .ql-toolbar {
     background-color: #f8fafc !important;
@@ -45,10 +53,28 @@ const quillStyle = `
     border-top-right-radius: 12px;
     border-color: #cbd5e1 !important;
   }
+  .dark .ql-toolbar {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+  }
+  .dark .ql-snow .ql-stroke {
+    stroke: #94a3b8;
+  }
+  .dark .ql-snow .ql-picker-label {
+    color: #94a3b8;
+  }
+  .dark .ql-snow .ql-active .ql-stroke {
+    stroke: #e2e8f0;
+  }
   input, select {
     background-color: white !important;
     color: #1e293b !important;
     border: 1px solid #cbd5e1 !important;
+  }
+  .dark input, .dark select {
+    background-color: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
   }
   input::placeholder {
     color: #94a3b8 !important;
@@ -63,7 +89,7 @@ const quillStyle = `
 const ReactQuill = dynamic(() => import("react-quill-new"), {
   ssr: false,
   loading: () => (
-    <div className="h-[250px] bg-slate-50 animate-pulse rounded-xl" />
+    <div className="h-[250px] bg-slate-50 dark:bg-slate-800 animate-pulse rounded-xl" />
   ),
 }) as any;
 
@@ -244,30 +270,32 @@ export default function MalaDiretaPage() {
   };
 
   return (
-    <div className="bg-slate-50 min-h-screen flex flex-col font-sans">
+    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen flex flex-col font-sans">
       <style>{quillStyle}</style>
 
       {/* HEADER */}
-      <div className="bg-white p-6 border-b border-slate-200 flex items-center gap-4">
+      <div className="bg-white dark:bg-slate-900 p-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-4">
         <Link
           href="/dashboard"
-          className="p-2 bg-slate-100 rounded-full text-slate-700 hover:bg-slate-200 transition-colors"
+          className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
         >
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2 uppercase tracking-tight">
-            <Send className="text-blue-600" /> Mala Direta
+          <h1 className="text-2xl font-black text-slate-800 dark:text-slate-200 flex items-center gap-2 uppercase tracking-tight">
+            <Send className="text-blue-600 dark:text-blue-500" /> Mala Direta
           </h1>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
             Unidade:{" "}
-            <span className="text-blue-600">{coligadaAtual?.nome}</span>
+            <span className="text-blue-600 dark:text-blue-400">
+              {coligadaAtual?.nome}
+            </span>
           </p>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto w-full flex-1 p-6 mt-6">
-        <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 min-h-[500px]">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-800 p-8 min-h-[500px]">
           {/* ETAPA 1 */}
           {etapa === 1 && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -275,29 +303,29 @@ export default function MalaDiretaPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto mt-10">
                   <button
                     onClick={() => setOrigem("banco")}
-                    className="p-12 rounded-3xl border-2 border-slate-100 hover:border-blue-400 hover:bg-blue-50 transition-all flex flex-col items-center gap-4 group"
+                    className="p-12 rounded-3xl border-2 border-slate-100 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all flex flex-col items-center gap-4 group"
                   >
-                    <div className="p-5 rounded-full bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <div className="p-5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                       <Database size={40} />
                     </div>
-                    <h3 className="font-black text-slate-800 uppercase">
+                    <h3 className="font-black text-slate-800 dark:text-slate-200 uppercase">
                       Alunos do Sistema
                     </h3>
-                    <p className="text-[10px] text-slate-400 uppercase font-bold text-center">
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold text-center">
                       Filtre por série e turma direto do banco
                     </p>
                   </button>
                   <button
                     onClick={() => setOrigem("planilha")}
-                    className="p-12 rounded-3xl border-2 border-slate-100 hover:border-green-400 hover:bg-green-50 transition-all flex flex-col items-center gap-4 group"
+                    className="p-12 rounded-3xl border-2 border-slate-100 dark:border-slate-800 hover:border-green-400 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all flex flex-col items-center gap-4 group"
                   >
-                    <div className="p-5 rounded-full bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                    <div className="p-5 rounded-full bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 group-hover:bg-green-600 group-hover:text-white transition-colors">
                       <UploadCloud size={40} />
                     </div>
-                    <h3 className="font-black text-slate-800 uppercase">
+                    <h3 className="font-black text-slate-800 dark:text-slate-200 uppercase">
                       Subir Planilha
                     </h3>
-                    <p className="text-[10px] text-slate-400 uppercase font-bold text-center">
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold text-center">
                       Use um arquivo Excel ou CSV externo
                     </p>
                   </button>
@@ -306,7 +334,7 @@ export default function MalaDiretaPage() {
                 <div className="max-w-4xl mx-auto">
                   <button
                     onClick={() => setOrigem(null)}
-                    className="mb-6 flex items-center gap-1 text-[10px] font-black text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors"
+                    className="mb-6 flex items-center gap-1 text-[10px] font-black text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 uppercase tracking-widest transition-colors"
                   >
                     <X size={14} /> Voltar para Origem
                   </button>
@@ -326,7 +354,7 @@ export default function MalaDiretaPage() {
                             (window.location.href =
                               "/modelo_mala_direta_PGE.xlsx")
                           }
-                          className="flex items-center gap-2 text-[10px] text-blue-600 bg-blue-50 px-4 py-2 rounded-xl font-black border border-blue-200 uppercase tracking-widest"
+                          className="flex items-center gap-2 text-[10px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-xl font-black border border-blue-200 dark:border-blue-800/50 uppercase tracking-widest"
                         >
                           <Download size={14} /> Baixar Modelo .XLSX
                         </button>
@@ -342,11 +370,14 @@ export default function MalaDiretaPage() {
                           setIsDragging(false);
                           processarArquivo(e.dataTransfer.files[0]);
                         }}
-                        className={`p-20 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center text-center gap-4 cursor-pointer ${isDragging ? "border-blue-500 bg-blue-50 scale-105" : "border-slate-200 hover:border-blue-400"}`}
+                        className={`p-20 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center text-center gap-4 cursor-pointer ${isDragging ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-105" : "border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600"}`}
                         onClick={() => arquivoRef.current?.click()}
                       >
-                        <UploadCloud size={40} className="text-slate-300" />
-                        <h3 className="font-bold text-slate-800 uppercase">
+                        <UploadCloud
+                          size={40}
+                          className="text-slate-300 dark:text-slate-600"
+                        />
+                        <h3 className="font-bold text-slate-800 dark:text-slate-300 uppercase">
                           Arraste seu arquivo aqui
                         </h3>
                         <input
@@ -371,10 +402,10 @@ export default function MalaDiretaPage() {
           {etapa === 2 && (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500 flex flex-col h-full">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-slate-800 uppercase">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 uppercase">
                   Compor Mensagem
                 </h2>
-                <div className="px-4 py-2 bg-blue-50 text-blue-700 font-bold rounded-xl text-xs uppercase tracking-tight flex items-center gap-2">
+                <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold rounded-xl text-xs uppercase tracking-tight flex items-center gap-2">
                   <Users size={14} /> {contatos.length} Destinatários
                 </div>
               </div>
@@ -383,6 +414,8 @@ export default function MalaDiretaPage() {
               <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-wrap justify-between items-center gap-4">
                 {/* LADO ESQUERDO: TAGS */}
                 <div className="flex flex-wrap gap-2 items-center">
+              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6">
+                <div className="flex flex-wrap gap-2">
                   <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1 mr-2">
                     <Tag size={12} /> Inserir Tag:
                   </span>
@@ -421,9 +454,9 @@ export default function MalaDiretaPage() {
                   value={assunto}
                   onChange={(e) => setAssunto(e.target.value)}
                   placeholder="Assunto do E-mail"
-                  className="w-full p-4 border border-slate-400 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                  className="w-full p-4 border border-slate-400 dark:border-slate-600 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 shadow-sm"
                 />
-                <div className="flex-1 flex flex-col mb-12 bg-white rounded-xl overflow-hidden shadow-sm">
+                <div className="flex-1 flex flex-col mb-12 bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm">
                   <ReactQuill
                     ref={quillRef}
                     theme="snow"
@@ -433,10 +466,10 @@ export default function MalaDiretaPage() {
                   />
                 </div>
 
-                <div className="flex justify-between items-center pt-8 border-t border-slate-100">
+                <div className="flex justify-between items-center pt-8 border-t border-slate-100 dark:border-slate-800">
                   <button
                     onClick={() => setEtapa(1)}
-                    className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-800"
+                    className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-800 dark:hover:text-slate-300"
                   >
                     Voltar
                   </button>
@@ -450,19 +483,19 @@ export default function MalaDiretaPage() {
                     {!anexo ? (
                       <button
                         onClick={() => anexoRef.current?.click()}
-                        className="flex items-center gap-2 px-5 py-3 border border-slate-300 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+                        className="flex items-center gap-2 px-5 py-3 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
                       >
                         <Paperclip size={16} /> Anexar Arquivo
                       </button>
                     ) : (
-                      <div className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest animate-in zoom-in-95">
+                      <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/50 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest animate-in zoom-in-95">
                         <Paperclip size={14} />{" "}
                         <span className="max-w-[120px] truncate">
                           {anexo.nome}
                         </span>
                         <button
                           onClick={() => setAnexo(null)}
-                          className="ml-2 p-1 hover:bg-blue-200 rounded-full"
+                          className="ml-2 p-1 hover:bg-blue-200 dark:hover:bg-blue-700 rounded-full"
                         >
                           <X size={14} />
                         </button>
@@ -478,7 +511,7 @@ export default function MalaDiretaPage() {
                           );
                         setEtapa(3);
                       }}
-                      className="flex items-center gap-3 px-10 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 active:scale-95 shadow-lg shadow-blue-200"
+                      className="flex items-center gap-3 px-10 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 active:scale-95 shadow-lg shadow-blue-200 dark:shadow-blue-900/50"
                     >
                       Revisar Envio <ChevronRight size={18} />
                     </button>
@@ -491,19 +524,19 @@ export default function MalaDiretaPage() {
           {/* ETAPA 3: REVISÃO FINAL */}
           {etapa === 3 && (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500 flex flex-col h-full max-w-full">
-              <h2 className="text-xl font-bold text-slate-800 uppercase mb-6">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 uppercase mb-6">
                 Revisão Final
               </h2>
-              <div className="bg-slate-50 border border-slate-200 rounded-3xl p-8 mb-6 shadow-inner max-w-full overflow-hidden">
-                <div className="mb-4 font-bold text-slate-500 border-b border-slate-200 pb-3 uppercase text-[10px] tracking-widest break-all">
+              <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 mb-6 shadow-inner max-w-full overflow-hidden">
+                <div className="mb-4 font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 pb-3 uppercase text-[10px] tracking-widest break-all">
                   Para:{" "}
-                  <span className="text-slate-900">
+                  <span className="text-slate-900 dark:text-slate-200">
                     {contatos[0]?.email || contatos[0]?.Email}
                   </span>
                 </div>
-                <div className="mb-6 font-bold text-slate-500 border-b border-slate-200 pb-3 uppercase text-[10px] tracking-widest break-words">
+                <div className="mb-6 font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 pb-3 uppercase text-[10px] tracking-widest break-words">
                   Assunto:{" "}
-                  <span className="text-slate-900">
+                  <span className="text-slate-900 dark:text-slate-200">
                     {tags.reduce(
                       (txt, tag) =>
                         txt.replace(
@@ -515,13 +548,13 @@ export default function MalaDiretaPage() {
                   </span>
                 </div>
                 <div
-                  className="bg-white border border-slate-200 p-8 rounded-2xl text-slate-800 min-h-[200px] shadow-sm leading-relaxed max-w-full overflow-x-auto break-words ql-editor preview-content"
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-8 rounded-2xl text-slate-800 dark:text-slate-200 min-h-[200px] shadow-sm leading-relaxed max-w-full overflow-x-auto break-words ql-editor preview-content"
                   dangerouslySetInnerHTML={{
                     __html: tags.reduce(
                       (txt, tag) =>
                         txt.replace(
                           new RegExp(`{{${tag}}}`, "g"),
-                          `<strong class="text-blue-700">${contatos[0]?.[tag] || ""}</strong>`,
+                          `<strong class="text-blue-700 dark:text-blue-400">${contatos[0]?.[tag] || ""}</strong>`,
                         ),
                       mensagem,
                     ),
@@ -531,14 +564,14 @@ export default function MalaDiretaPage() {
               <div className="mt-auto flex justify-between items-center pt-4">
                 <button
                   onClick={() => setEtapa(2)}
-                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-800"
+                  className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-slate-800 dark:hover:text-slate-300"
                 >
                   Voltar e Editar
                 </button>
                 <button
                   onClick={handleDispararEmails}
                   disabled={disparando}
-                  className="px-12 py-5 bg-green-600 text-white rounded-2xl font-black text-[12px] uppercase tracking-widest hover:bg-green-700 active:scale-95 shadow-xl shadow-green-100 disabled:opacity-50"
+                  className="px-12 py-5 bg-green-600 text-white rounded-2xl font-black text-[12px] uppercase tracking-widest hover:bg-green-700 active:scale-95 shadow-xl shadow-green-100 dark:shadow-green-900/50 disabled:opacity-50"
                 >
                   {disparando
                     ? "DISPARANDO..."

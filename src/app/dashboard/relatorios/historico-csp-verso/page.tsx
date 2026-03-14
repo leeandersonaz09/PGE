@@ -180,7 +180,7 @@ export default function HistoricoVersoPage() {
   if (!mounted) return null;
 
   return (
-    <div className="bg-slate-200 min-h-screen flex flex-col overflow-auto no-scrollbar">
+    <div className="bg-slate-200 dark:bg-slate-900 min-h-screen flex flex-col overflow-auto no-scrollbar">
       {/* ===== REGRAS DE IMPRESSÃO (FIDELIDADE AO HTML ORIGINAL) ===== */}
       <style
         dangerouslySetInnerHTML={{
@@ -203,16 +203,16 @@ export default function HistoricoVersoPage() {
       />
 
       {/* TOOLBAR PADRÃO CPD */}
-      <div className="no-print bg-white p-4 sticky top-0 z-50 border-b border-slate-300 shadow-md flex flex-wrap justify-between items-center gap-4 font-sans">
+      <div className="no-print bg-white dark:bg-slate-800 p-4 sticky top-0 z-50 border-b border-slate-300 dark:border-slate-700 shadow-md flex flex-wrap justify-between items-center gap-4 font-sans">
         <div className="flex items-center gap-4 flex-1">
           <Link
             href="/dashboard/relatorios"
-            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"
+            className="p-2 bg-slate-100 dark:bg-slate-700 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600"
           >
-            <ArrowLeft size={20} className="text-slate-700" />
+            <ArrowLeft size={20} className="text-slate-700 dark:text-slate-300" />
           </Link>
           <div className="relative w-full max-w-sm">
-            <div className="flex items-center border border-slate-400 rounded-lg px-3 bg-white focus-within:ring-2 focus-within:ring-blue-500 shadow-sm">
+            <div className="flex items-center border border-slate-400 dark:border-slate-600 rounded-lg px-3 bg-white dark:bg-slate-900 focus-within:ring-2 focus-within:ring-blue-500 shadow-sm">
               <Search size={18} className="text-slate-500" />
               <input
                 type="text"
@@ -222,19 +222,19 @@ export default function HistoricoVersoPage() {
                   setBusca(e.target.value);
                   buscarAlunos(e.target.value);
                 }}
-                className="w-full p-2 text-xs font-bold text-slate-900"
+                className="w-full p-2 bg-transparent text-xs font-bold text-slate-900 dark:text-slate-200"
               />
               {loadingBusca && (
                 <Loader2 size={16} className="animate-spin text-blue-500" />
               )}
             </div>
             {alunos.length > 0 && (
-              <div className="absolute top-full left-0 w-full bg-white border border-slate-300 shadow-2xl rounded-lg mt-1 z-50 overflow-hidden">
+              <div className="absolute top-full left-0 w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-2xl rounded-lg mt-1 z-50 overflow-hidden">
                 {alunos.map((a) => (
                   <button
                     key={a.id}
                     onClick={() => selecionarAluno(a)}
-                    className="w-full text-left p-3 hover:bg-blue-50 border-b text-[11px] font-bold text-slate-800 uppercase"
+                    className="w-full text-left p-3 hover:bg-blue-50 dark:hover:bg-blue-700 border-b dark:border-slate-700 text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase"
                   >
                     RA: {a.id} - {a.nome}
                   </button>
@@ -251,7 +251,7 @@ export default function HistoricoVersoPage() {
                 { serie: "", ano: "", escola: "", cidade: "" },
               ])
             }
-            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-400 rounded text-[10px] font-bold text-slate-700 hover:bg-slate-50"
+            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-400 dark:border-slate-600 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600"
           >
             <PlusCircle size={14} className="text-blue-600" /> + LINHA
           </button>

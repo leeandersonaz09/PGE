@@ -279,14 +279,17 @@ export default function ConselhoNotasPage() {
     const num = safeParseFloat(value);
     if (num === null)
       return {
-        value: <span className="text-gray-400 italic">-</span>,
+        value: (
+          <span className="text-gray-400 dark:text-slate-500 italic">-</span>
+        ),
         className: "",
       };
 
     const displayVal = num.toFixed(1).replace(".", ",");
     let className = "font-medium ";
     if (applyRedClass && num < mediaCorte)
-      className += "bg-red-100 text-red-700 px-2 py-0.5 rounded";
+      className +=
+        "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 px-2 py-0.5 rounded";
 
     return { value: displayVal, className };
   };
@@ -309,9 +312,9 @@ export default function ConselhoNotasPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f1f5f9] font-sans overflow-hidden">
+    <div className="flex flex-col h-full bg-[#f1f5f9] dark:bg-slate-950 font-sans overflow-hidden">
       {/* BARRA SUPERIOR DE CONTROLES */}
-      <div className="bg-white p-3 border-b flex flex-wrap gap-4 items-center justify-between shadow-sm z-10 shrink-0">
+      <div className="bg-white dark:bg-slate-900 p-3 border-b dark:border-slate-800 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10 shrink-0">
         {/* Upload e Turma */}
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2 bg-[#0d9488] hover:bg-teal-700 text-white px-4 py-1.5 rounded-md cursor-pointer text-xs font-bold transition-colors">
@@ -331,11 +334,13 @@ export default function ConselhoNotasPage() {
           </label>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs font-bold text-gray-700">Turma:</label>
+            <label className="text-xs font-bold text-gray-700 dark:text-slate-300">
+              Turma:
+            </label>
             <select
               value={selectedTurma}
               onChange={(e) => setSelectedTurma(e.target.value)}
-              className="border rounded px-2 py-1 text-xs bg-gray-50 text-gray-800 outline-none"
+              className="border dark:border-slate-700 rounded px-2 py-1 text-xs bg-gray-50 dark:bg-slate-800 text-gray-800 dark:text-slate-200 outline-none"
             >
               <option value="todas">Todas</option>
               {turmas.map((t) => (
@@ -350,37 +355,42 @@ export default function ConselhoNotasPage() {
         {/* Filtros de Notas */}
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-2">
-            <label className="font-bold text-gray-700">Média Corte:</label>
+            <label className="font-bold text-gray-700 dark:text-slate-300">
+              Média Corte:
+            </label>
             <input
               type="number"
               value={mediaCorte}
               step="0.1"
               onChange={(e) => setMediaCorte(parseFloat(e.target.value))}
-              className="border rounded w-16 px-2 py-1 bg-gray-50 text-gray-800 outline-none"
+              className="border dark:border-slate-700 rounded w-16 px-2 py-1 bg-gray-50 dark:bg-slate-800 text-gray-800 dark:text-slate-200 outline-none"
             />
           </div>
 
-          <label className="flex items-center gap-1 cursor-pointer select-none text-gray-700">
+          <label className="flex items-center gap-1 cursor-pointer select-none text-gray-700 dark:text-slate-300">
             <input
               type="checkbox"
               checked={showExameFinal}
               onChange={(e) => setShowExameFinal(e.target.checked)}
+              className="dark:accent-teal-500"
             />{" "}
             Exame Final
           </label>
-          <label className="flex items-center gap-1 cursor-pointer select-none text-gray-700">
+          <label className="flex items-center gap-1 cursor-pointer select-none text-gray-700 dark:text-slate-300">
             <input
               type="checkbox"
               checked={showMediaFinal}
               onChange={(e) => setShowMediaFinal(e.target.checked)}
+              className="dark:accent-teal-500"
             />{" "}
             Média Final
           </label>
-          <label className="flex items-center gap-1 cursor-pointer select-none text-gray-700">
+          <label className="flex items-center gap-1 cursor-pointer select-none text-gray-700 dark:text-slate-300">
             <input
               type="checkbox"
               checked={showStages}
               onChange={(e) => setShowStages(e.target.checked)}
+              className="dark:accent-teal-500"
             />{" "}
             Etapas
           </label>
@@ -389,7 +399,7 @@ export default function ConselhoNotasPage() {
         {/* Fechar */}
         <button
           onClick={() => router.push("/dashboard")}
-          className="flex items-center gap-1 text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md transition-colors"
+          className="flex items-center gap-1 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 px-3 py-1.5 rounded-md transition-colors"
         >
           <X size={16} /> Fechar
         </button>
@@ -398,19 +408,19 @@ export default function ConselhoNotasPage() {
       {/* ÁREA PRINCIPAL (Flex-1 e hidden para travar a tela) */}
       <div className="flex-1 overflow-hidden p-4 flex flex-col items-center justify-center">
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-full text-[#0d9488] gap-2">
+          <div className="flex flex-col items-center justify-center h-full text-[#0d9488] dark:text-teal-400 gap-2">
             <Loader2 size={32} className="animate-spin" />
             <p className="font-bold text-sm">Carregando dados do banco...</p>
           </div>
         ) : errorMsg ? (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800/50 text-red-700 dark:text-red-300 px-4 py-3 rounded relative">
             <strong className="font-bold">Erro: </strong>
             <span className="block sm:inline">{errorMsg}</span>
           </div>
         ) : allStudents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-4">
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-slate-500 gap-4">
             <FileSpreadsheet size={64} className="opacity-50" />
-            <h2 className="text-xl font-bold text-gray-600">
+            <h2 className="text-xl font-bold text-gray-600 dark:text-slate-400">
               Nenhum dado encontrado
             </h2>
             <p className="text-sm text-center max-w-md">
@@ -419,7 +429,7 @@ export default function ConselhoNotasPage() {
             </p>
           </div>
         ) : filteredStudents.length === 0 ? (
-          <div className="text-center text-gray-500 font-medium">
+          <div className="text-center text-gray-500 dark:text-slate-400 font-medium">
             Nenhum aluno encontrado com pendências nas turmas/disciplinas
             selecionadas.
           </div>
@@ -427,11 +437,11 @@ export default function ConselhoNotasPage() {
           /* =========================================================
              AQUI ESTÁ A CORREÇÃO PRINCIPAL (Flex, Col e Max-H)
           ========================================================= */
-          <div className="w-full max-w-5xl bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden flex flex-col h-full max-h-full">
+          <div className="w-full max-w-5xl bg-white dark:bg-slate-800 rounded-xl shadow-md border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col h-full max-h-full">
             {/* Cabeçalho do Card (Shrink-0 para não amassar) */}
             <div className="bg-gradient-to-r from-[#0d9488] to-teal-800 p-6 flex gap-6 items-center text-white shrink-0">
               <div
-                className="w-24 h-24 rounded-full bg-white border-4 border-teal-200 overflow-hidden cursor-pointer shadow-inner flex-shrink-0 relative group"
+                className="w-24 h-24 rounded-full bg-white dark:bg-slate-700 border-4 border-teal-200 dark:border-teal-600 overflow-hidden cursor-pointer shadow-inner flex-shrink-0 relative group"
                 onClick={() => {
                   setModalImgSrc(
                     currentStudent.full_foto_url || currentStudent.foto_url
@@ -446,7 +456,7 @@ export default function ConselhoNotasPage() {
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-slate-500">
                     <ImageIcon size={32} />
                   </div>
                 )}
@@ -486,36 +496,36 @@ export default function ConselhoNotasPage() {
             </div>
 
             {/* Tabela de Notas (Flex-1 e Overflow-auto para rolar DENTRO) */}
-            <div className="p-0 overflow-auto flex-1 bg-white relative">
-              <table className="w-full text-left text-sm text-gray-700 border-collapse">
+            <div className="p-0 overflow-auto flex-1 bg-white dark:bg-slate-800 relative">
+              <table className="w-full text-left text-sm text-gray-700 dark:text-slate-300 border-collapse">
                 {/* Thead com Sticky Top e Bg para grudar no topo */}
-                <thead className="bg-gray-50 uppercase text-[10px] font-bold text-gray-500 sticky top-0 z-10 shadow-sm">
+                <thead className="bg-gray-50 dark:bg-slate-900 uppercase text-[10px] font-bold text-gray-500 dark:text-slate-400 sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th className="px-6 py-3 border-b border-r border-gray-200 bg-gray-50">
+                    <th className="px-6 py-3 border-b border-r border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
                       Disciplina
                     </th>
                     {showStages && (
-                      <th className="px-4 py-3 border-b border-r border-gray-200 bg-gray-50 text-center">
+                      <th className="px-4 py-3 border-b border-r border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-center">
                         Etapa 1
                       </th>
                     )}
                     {showStages && (
-                      <th className="px-4 py-3 border-b border-r border-gray-200 bg-gray-50 text-center">
+                      <th className="px-4 py-3 border-b border-r border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-center">
                         Etapa 2
                       </th>
                     )}
                     {showStages && (
-                      <th className="px-4 py-3 border-b border-r border-gray-200 bg-gray-50 text-center">
+                      <th className="px-4 py-3 border-b border-r border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-center">
                         Etapa 3
                       </th>
                     )}
                     {showExameFinal && (
-                      <th className="px-4 py-3 border-b border-r border-gray-200 bg-gray-50 text-center">
+                      <th className="px-4 py-3 border-b border-r border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-center">
                         Exame Final
                       </th>
                     )}
                     {showMediaFinal && (
-                      <th className="px-4 py-3 border-b border-gray-200 bg-gray-50 text-center">
+                      <th className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-center">
                         Média Final
                       </th>
                     )}
@@ -536,46 +546,48 @@ export default function ConselhoNotasPage() {
                     return (
                       <tr
                         key={subject}
-                        className={`border-b border-gray-100 ${
-                          idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                        className={`border-b border-gray-100 dark:border-slate-700/50 ${
+                          idx % 2 === 0
+                            ? "bg-white dark:bg-slate-800"
+                            : "bg-gray-50/50 dark:bg-slate-800/50"
                         } ${
                           !isCalculated
                             ? "opacity-40 grayscale"
-                            : "hover:bg-teal-50"
+                            : "hover:bg-teal-50 dark:hover:bg-teal-900/20"
                         }`}
                       >
-                        <td className="px-6 py-2 border-r border-gray-100 font-bold text-gray-800">
+                        <td className="px-6 py-2 border-r border-gray-100 dark:border-slate-700/50 font-bold text-gray-800 dark:text-slate-200">
                           {subject}{" "}
                           {!isCalculated && (
-                            <span className="text-[9px] font-normal text-gray-400 ml-2 border px-1 rounded">
+                            <span className="text-[9px] font-normal text-gray-400 dark:text-slate-500 ml-2 border dark:border-slate-600 px-1 rounded">
                               Ignorada
                             </span>
                           )}
                         </td>
                         {showStages && (
                           <td
-                            className={`px-4 py-2 border-r border-gray-100 text-center ${d1.className}`}
+                            className={`px-4 py-2 border-r border-gray-100 dark:border-slate-700/50 text-center ${d1.className}`}
                           >
                             {d1.value}
                           </td>
                         )}
                         {showStages && (
                           <td
-                            className={`px-4 py-2 border-r border-gray-100 text-center ${d2.className}`}
+                            className={`px-4 py-2 border-r border-gray-100 dark:border-slate-700/50 text-center ${d2.className}`}
                           >
                             {d2.value}
                           </td>
                         )}
                         {showStages && (
                           <td
-                            className={`px-4 py-2 border-r border-gray-100 text-center ${d3.className}`}
+                            className={`px-4 py-2 border-r border-gray-100 dark:border-slate-700/50 text-center ${d3.className}`}
                           >
                             {d3.value}
                           </td>
                         )}
                         {showExameFinal && (
                           <td
-                            className={`px-4 py-2 border-r border-gray-100 text-center ${mf_exam.className}`}
+                            className={`px-4 py-2 border-r border-gray-100 dark:border-slate-700/50 text-center ${mf_exam.className}`}
                           >
                             {mf_exam.value}
                           </td>
@@ -595,18 +607,18 @@ export default function ConselhoNotasPage() {
             </div>
 
             {/* Paginação (Shrink-0 para nunca sumir embaixo) */}
-            <div className="bg-gray-50 p-4 border-t flex items-center justify-between shrink-0">
+            <div className="bg-gray-50 dark:bg-slate-900/50 p-4 border-t dark:border-slate-700 flex items-center justify-between shrink-0">
               <button
                 onClick={() => setCurrentIndex((prev) => prev - 1)}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ArrowLeft size={16} /> Anterior
               </button>
 
-              <div className="text-sm font-bold text-gray-600">
+              <div className="text-sm font-bold text-gray-600 dark:text-slate-400">
                 Aluno{" "}
-                <span className="text-[#0d9488] text-lg">
+                <span className="text-[#0d9488] dark:text-teal-400 text-lg">
                   {currentIndex + 1}
                 </span>{" "}
                 de {filteredStudents.length}
@@ -615,7 +627,7 @@ export default function ConselhoNotasPage() {
               <button
                 onClick={() => setCurrentIndex((prev) => prev + 1)}
                 disabled={currentIndex === filteredStudents.length - 1}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Próximo <ArrowRight size={16} />
               </button>
@@ -644,7 +656,7 @@ export default function ConselhoNotasPage() {
           />
           <button
             onClick={() => setModalOpen(false)}
-            className="absolute top-6 right-6 text-white hover:text-red-500 bg-black/50 rounded-full p-2"
+            className="absolute top-6 right-6 text-white hover:text-red-500 bg-black/50 hover:bg-black/80 rounded-full p-2 transition-colors"
           >
             <X size={32} />
           </button>
