@@ -18,6 +18,8 @@ import {
   Paperclip,
   Download,
   X,
+  Sparkles,
+  Loader2, // ✅ Importado o Loader2 para a animação do botão
 } from "lucide-react";
 
 import { useColigada } from "@/context/ColigadaContext";
@@ -71,6 +73,7 @@ export default function MalaDiretaPage() {
   const [origem, setOrigem] = useState<"banco" | "planilha" | null>(null);
   const [disparando, setDisparando] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [gerandoIA, setGerandoIA] = useState(false); // ✅ Estado de loading da IA
 
   const [anexo, setAnexo] = useState<{ nome: string; conteudo: string } | null>(
     null,
@@ -91,6 +94,53 @@ export default function MalaDiretaPage() {
       [{ align: [] }],
       ["clean"],
     ],
+  };
+
+  // ✅ Função que chama o Gemini via Rota da API
+  const handleGerarComIA = async () => {
+    const { value: instrucao } = await Swal.fire({
+      title: "Assistente IA",
+      input: "text",
+      inputLabel: "Ex: Escreva um convite para a reunião de pais",
+      inputPlaceholder: "O que você quer que a IA faça?",
+      showCancelButton: true,
+      confirmButtonText: "Gerar Texto",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#8b5cf6", // Roxo para dar cara de IA
+    });
+
+    if (instrucao) {
+      setGerandoIA(true);
+      try {
+        const res = await fetch("/api/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: instrucao, textoAtual: mensagem }),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          // Substitui o texto do editor pelo que a IA gerou
+          setMensagem(data.text);
+          Swal.fire({
+            title: "Pronto!",
+            text: "Texto gerado com sucesso.",
+            icon: "success",
+            toast: true,
+            position: "top-end",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (err: any) {
+        Swal.fire("Erro na IA", err.message, "error");
+      } finally {
+        setGerandoIA(false);
+      }
+    }
   };
 
   // FUNÇÃO: Inserir tag na posição exata do cursor
@@ -329,21 +379,40 @@ export default function MalaDiretaPage() {
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6">
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 mr-2">
+              {/* ✅ BARRA SUPERIOR DIVIDIDA: TAGS (Esquerda) | IA (Direita) */}
+              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-wrap justify-between items-center gap-4">
+                {/* LADO ESQUERDO: TAGS */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1 mr-2">
                     <Tag size={12} /> Inserir Tag:
                   </span>
                   {tags.map((tag) => (
                     <button
                       key={tag}
                       onClick={() => inserirTagNoCursor(tag)}
-                      className="px-3 py-1 bg-white border border-slate-300 text-blue-600 text-[10px] font-black uppercase rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                      className="px-3 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-blue-600 dark:text-blue-300 text-[10px] font-black uppercase rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                     >
                       {tag}
                     </button>
                   ))}
                 </div>
+
+                {/* ✅ LADO DIREITO: BOTÃO DO GEMINI */}
+                <button
+                  onClick={handleGerarComIA}
+                  disabled={gerandoIA}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {gerandoIA ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin" /> Gerando...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <Sparkles size={14} /> Crie texto com o Gemini IA
+                    </span>
+                  )}
+                </button>
               </div>
 
               <div className="space-y-4 flex-1 flex flex-col">
@@ -419,7 +488,7 @@ export default function MalaDiretaPage() {
             </div>
           )}
 
-          {/* ETAPA 3: REVISÃO FINAL (AJUSTADA CONTRA TRANSBORDAMENTO) */}
+          {/* ETAPA 3: REVISÃO FINAL */}
           {etapa === 3 && (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500 flex flex-col h-full max-w-full">
               <h2 className="text-xl font-bold text-slate-800 uppercase mb-6">
