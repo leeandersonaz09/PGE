@@ -28,60 +28,54 @@ import SelecaoSistema from "./SelecaoSistema";
 // CSS GLOBAL DE BLINDAGEM E CORREÇÃO DE TRANSBORDAMENTO
 const quillStyle = `
   .ql-container {
-    background-color: white !important;
-    color: #1e293b !important;
     font-size: 16px !important;
     border-bottom-left-radius: 12px;
     border-bottom-right-radius: 12px;
   }
-  .dark .ql-container {
-    background-color: #1e293b !important;
-    color: #e2e8f0 !important;
-    border-color: #334155 !important;
-  }
   .ql-editor {
     min-height: 250px !important;
-    color: #1e293b !important;
     word-break: break-word !important;
   }
-  .dark .ql-editor {
-    color: #e2e8f0 !important;
-  }
   .ql-toolbar {
-    background-color: #f8fafc !important;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
-    border-color: #cbd5e1 !important;
-  }
-  .dark .ql-toolbar {
-    background-color: #0f172a !important;
-    border-color: #334155 !important;
-  }
-  .dark .ql-snow .ql-stroke {
-    stroke: #94a3b8;
-  }
-  .dark .ql-snow .ql-picker-label {
-    color: #94a3b8;
-  }
-  .dark .ql-snow .ql-active .ql-stroke {
-    stroke: #e2e8f0;
-  }
-  input, select {
-    background-color: white !important;
-    color: #1e293b !important;
-    border: 1px solid #cbd5e1 !important;
-  }
-  .dark input, .dark select {
-    background-color: #1e293b !important;
-    color: #e2e8f0 !important;
-    border-color: #334155 !important;
-  }
-  input::placeholder {
-    color: #94a3b8 !important;
   }
   .preview-content {
     word-break: break-word !important;
     overflow-wrap: break-word !important;
+  }
+
+  /* Estilos para o tema claro (light mode) */
+  .ql-container {
+    background-color: white !important;
+    color: #1e293b !important;
+  }
+  .ql-editor {
+    color: #1e293b !important;
+  }
+  .ql-toolbar {
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+  }
+  .dark .ql-container {
+    background-color: #1e293b !important;
+    color: #e2e8f0 !important;
+  }
+  .dark .ql-editor {
+    color: #e2e8f0 !important;
+  }
+  .dark .ql-toolbar {
+    background-color: #334155 !important;
+    border-color: #475569 !important;
+  }
+  .dark .ql-snow .ql-stroke {
+    stroke: #e2e8f0;
+  }
+  .dark .ql-snow .ql-picker-label {
+    color: #e2e8f0;
+  }
+  .dark .ql-snow .ql-active .ql-stroke {
+    stroke: #3b82f6;
   }
 `;
 
@@ -89,7 +83,7 @@ const quillStyle = `
 const ReactQuill = dynamic(() => import("react-quill-new"), {
   ssr: false,
   loading: () => (
-    <div className="h-[250px] bg-slate-50 dark:bg-slate-800 animate-pulse rounded-xl" />
+    <div className="h-[250px] bg-slate-50 animate-pulse rounded-xl" />
   ),
 }) as any;
 
@@ -282,8 +276,8 @@ export default function MalaDiretaPage() {
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-2xl font-black text-slate-800 dark:text-slate-200 flex items-center gap-2 uppercase tracking-tight">
-            <Send className="text-blue-600 dark:text-blue-500" /> Mala Direta
+          <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2 uppercase tracking-tight">
+            <Send className="text-blue-600 dark:text-blue-400" /> Mala Direta
           </h1>
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
             Unidade:{" "}
@@ -303,9 +297,9 @@ export default function MalaDiretaPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto mt-10">
                   <button
                     onClick={() => setOrigem("banco")}
-                    className="p-12 rounded-3xl border-2 border-slate-100 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all flex flex-col items-center gap-4 group"
+                    className="p-12 rounded-3xl border-2 border-slate-100 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-slate-800/50 transition-all flex flex-col items-center gap-4 group"
                   >
-                    <div className="p-5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <div className="p-5 rounded-full bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white dark:group-hover:bg-blue-500 transition-colors">
                       <Database size={40} />
                     </div>
                     <h3 className="font-black text-slate-800 dark:text-slate-200 uppercase">
@@ -317,9 +311,9 @@ export default function MalaDiretaPage() {
                   </button>
                   <button
                     onClick={() => setOrigem("planilha")}
-                    className="p-12 rounded-3xl border-2 border-slate-100 dark:border-slate-800 hover:border-green-400 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all flex flex-col items-center gap-4 group"
+                    className="p-12 rounded-3xl border-2 border-slate-100 dark:border-slate-800 hover:border-green-400 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-slate-800/50 transition-all flex flex-col items-center gap-4 group"
                   >
-                    <div className="p-5 rounded-full bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                    <div className="p-5 rounded-full bg-green-50 dark:bg-slate-800 text-green-600 dark:text-green-400 group-hover:bg-green-600 group-hover:text-white dark:group-hover:bg-green-500 transition-colors">
                       <UploadCloud size={40} />
                     </div>
                     <h3 className="font-black text-slate-800 dark:text-slate-200 uppercase">
@@ -354,7 +348,7 @@ export default function MalaDiretaPage() {
                             (window.location.href =
                               "/modelo_mala_direta_PGE.xlsx")
                           }
-                          className="flex items-center gap-2 text-[10px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-xl font-black border border-blue-200 dark:border-blue-800/50 uppercase tracking-widest"
+                          className="flex items-center gap-2 text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-900/50 dark:text-blue-300 px-4 py-2 rounded-xl font-black border border-blue-200 dark:border-blue-800 uppercase tracking-widest"
                         >
                           <Download size={14} /> Baixar Modelo .XLSX
                         </button>
@@ -402,10 +396,10 @@ export default function MalaDiretaPage() {
           {etapa === 2 && (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500 flex flex-col h-full">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 uppercase">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 uppercase">
                   Compor Mensagem
                 </h2>
-                <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-bold rounded-xl text-xs uppercase tracking-tight flex items-center gap-2">
+                <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold rounded-xl text-xs uppercase tracking-tight flex items-center gap-2">
                   <Users size={14} /> {contatos.length} Destinatários
                 </div>
               </div>
@@ -414,8 +408,6 @@ export default function MalaDiretaPage() {
               <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-wrap justify-between items-center gap-4">
                 {/* LADO ESQUERDO: TAGS */}
                 <div className="flex flex-wrap gap-2 items-center">
-              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6">
-                <div className="flex flex-wrap gap-2">
                   <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1 mr-2">
                     <Tag size={12} /> Inserir Tag:
                   </span>
@@ -442,7 +434,7 @@ export default function MalaDiretaPage() {
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">
-                      <Sparkles size={14} /> Crie texto com o Gemini IA
+                      <Sparkles size={14} /> Gemini - Assistente IA 
                     </span>
                   )}
                 </button>
@@ -454,7 +446,7 @@ export default function MalaDiretaPage() {
                   value={assunto}
                   onChange={(e) => setAssunto(e.target.value)}
                   placeholder="Assunto do E-mail"
-                  className="w-full p-4 border border-slate-400 dark:border-slate-600 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 shadow-sm"
+                  className="w-full p-4 border border-slate-400 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-800 shadow-sm"
                 />
                 <div className="flex-1 flex flex-col mb-12 bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm">
                   <ReactQuill
@@ -488,14 +480,14 @@ export default function MalaDiretaPage() {
                         <Paperclip size={16} /> Anexar Arquivo
                       </button>
                     ) : (
-                      <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/50 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest animate-in zoom-in-95">
+                      <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest animate-in zoom-in-95">
                         <Paperclip size={14} />{" "}
                         <span className="max-w-[120px] truncate">
                           {anexo.nome}
                         </span>
                         <button
                           onClick={() => setAnexo(null)}
-                          className="ml-2 p-1 hover:bg-blue-200 dark:hover:bg-blue-700 rounded-full"
+                          className="ml-2 p-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full"
                         >
                           <X size={14} />
                         </button>
@@ -524,19 +516,19 @@ export default function MalaDiretaPage() {
           {/* ETAPA 3: REVISÃO FINAL */}
           {etapa === 3 && (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500 flex flex-col h-full max-w-full">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 uppercase mb-6">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 uppercase mb-6">
                 Revisão Final
               </h2>
-              <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 mb-6 shadow-inner max-w-full overflow-hidden">
+              <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 mb-6 shadow-inner max-w-full overflow-hidden">
                 <div className="mb-4 font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 pb-3 uppercase text-[10px] tracking-widest break-all">
                   Para:{" "}
-                  <span className="text-slate-900 dark:text-slate-200">
+                  <span className="text-slate-900 dark:text-slate-100">
                     {contatos[0]?.email || contatos[0]?.Email}
                   </span>
                 </div>
                 <div className="mb-6 font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 pb-3 uppercase text-[10px] tracking-widest break-words">
                   Assunto:{" "}
-                  <span className="text-slate-900 dark:text-slate-200">
+                  <span className="text-slate-900 dark:text-slate-100">
                     {tags.reduce(
                       (txt, tag) =>
                         txt.replace(
@@ -548,7 +540,7 @@ export default function MalaDiretaPage() {
                   </span>
                 </div>
                 <div
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-8 rounded-2xl text-slate-800 dark:text-slate-200 min-h-[200px] shadow-sm leading-relaxed max-w-full overflow-x-auto break-words ql-editor preview-content"
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-8 rounded-2xl text-slate-800 dark:text-slate-300 min-h-[200px] shadow-sm leading-relaxed max-w-full overflow-x-auto break-words ql-editor preview-content"
                   dangerouslySetInnerHTML={{
                     __html: tags.reduce(
                       (txt, tag) =>
