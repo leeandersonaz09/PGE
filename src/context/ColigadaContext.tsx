@@ -13,6 +13,8 @@ export type Coligada = {
   id: number;
   nome: string;
   sigla: string;
+  cor_hex?: string;
+  logo_url?: string;
 };
 
 type ColigadaContextType = {

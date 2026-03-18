@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, FileBadge, ArrowRight, FileCheck } from "lucide-react";
+// Adicionamos o ClipboardList aos ícones importados
+import {
+  FileText,
+  FileBadge,
+  ArrowRight,
+  FileCheck,
+  ClipboardList,
+} from "lucide-react";
 
 export default function RelatoriosPage() {
   return (
@@ -42,7 +49,7 @@ export default function RelatoriosPage() {
           </div>
         </Link>
 
-        {/* ✅ NOVO CARD: HISTÓRICO CSP - VERSO */}
+        {/* CARD DO HISTÓRICO CSP - VERSO */}
         <Link
           href="/dashboard/relatorios/historico-csp-verso"
           className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 rounded-xl shadow-sm hover:shadow-lg hover:border-indigo-400 dark:hover:border-indigo-500 transition-all group flex flex-col justify-between"
@@ -60,6 +67,32 @@ export default function RelatoriosPage() {
             </p>
           </div>
           <div className="mt-6 flex items-center text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase">
+            Acessar Módulo{" "}
+            <ArrowRight
+              size={14}
+              className="ml-1 group-hover:translate-x-1 transition-transform"
+            />
+          </div>
+        </Link>
+
+        {/* ✅ NOVO CARD: FICHAS DE ACOMPANHAMENTO (SOE / CD) */}
+        <Link
+          href="/dashboard/relatorios/fichas"
+          className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 rounded-xl shadow-sm hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 transition-all group flex flex-col justify-between"
+        >
+          <div>
+            <div className="bg-emerald-50 dark:bg-emerald-900/30 w-12 h-12 rounded-lg flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+              <ClipboardList size={24} />
+            </div>
+            <h2 className="text-lg font-black text-gray-800 dark:text-slate-200 mb-2">
+              Fichas de Acompanhamento
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-slate-400 font-medium line-clamp-2">
+              Geração de fichas de monitoramento disciplinar e educacional (SOE
+              e CD) com foto e dados de filiação.
+            </p>
+          </div>
+          <div className="mt-6 flex items-center text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">
             Acessar Módulo{" "}
             <ArrowRight
               size={14}
