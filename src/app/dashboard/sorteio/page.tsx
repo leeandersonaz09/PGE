@@ -14,9 +14,11 @@ import {
   Settings2,
   Bot,
   Table,
+  Printer,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Swal from "sweetalert2";
+import { useReactToPrint } from "react-to-print";
 
 interface Inscrito {
   timestamp: string;
@@ -45,6 +47,8 @@ export default function SorteioPage() {
   const [vencedores, setVencedores] = useState<Inscrito[]>([]);
   const [instrucoesIA, setInstrucoesIA] = useState("");
 
+  const relatorioRef = useRef<HTMLDivElement>(null);
+
   // Estados Visuais da IA
   const [isProcessandoIA, setIsProcessandoIA] = useState(false);
   const [iaMessage, setIaMessage] = useState("");
@@ -58,6 +62,12 @@ export default function SorteioPage() {
   const [regraUnicoFilho, setRegraUnicoFilho] = useState(true);
   const [regraUnicoResponsavel, setRegraUnicoResponsavel] = useState(true);
   const [separarPorEquipe, setSepararPorEquipe] = useState(true);
+
+  // Função de Impressão do React-to-Print
+  const handlePrint = useReactToPrint({
+    contentRef: relatorioRef,
+    documentTitle: `Resultado_Sorteio_CSP_${new Date().toLocaleDateString("pt-BR").replace(/\//g, "-")}`,
+  });
 
   const processFile = (file: File) => {
     if (!file) return;
@@ -246,7 +256,6 @@ export default function SorteioPage() {
         .replace(/```/g, "")
         .trim();
 
-      // ✅ CORREÇÃO APLICADA AQUI: Substituímos o /s pelo [\s\S]* para manter compatibilidade com TypeScript antigo
       const arrayMatch = textoResposta.match(/\[[\s\S]*\]/);
       if (!arrayMatch)
         throw new Error("A IA não retornou um array de IDs identificável.");
@@ -283,7 +292,6 @@ export default function SorteioPage() {
 
   const baixarCSV = () => {
     if (vencedores.length === 0) return;
-
     const dadosParaExportacao = vencedores.map((v) => ({
       Equipe: v.equipe,
       "Responsável Sorteado": v.nome_responsavel,
@@ -294,13 +302,11 @@ export default function SorteioPage() {
       "E-mail do Aluno": v.email_aluno,
       "Data da Inscrição": v.timestamp,
     }));
-
     const csv = Papa.unparse(dadosParaExportacao);
     const blob = new Blob(["\ufeff" + csv], {
       type: "text/csv;charset=utf-8;",
     });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.setAttribute(
@@ -315,7 +321,6 @@ export default function SorteioPage() {
 
   const abrirNoGoogleSheets = () => {
     if (vencedores.length === 0) return;
-
     const dadosParaExportacao = vencedores.map((v) => ({
       Equipe: v.equipe,
       "Responsável Sorteado": v.nome_responsavel,
@@ -326,9 +331,7 @@ export default function SorteioPage() {
       "E-mail do Aluno": v.email_aluno,
       "Data da Inscrição": v.timestamp,
     }));
-
     const tsv = Papa.unparse(dadosParaExportacao, { delimiter: "\t" });
-
     navigator.clipboard
       .writeText(tsv)
       .then(() => {
@@ -339,9 +342,7 @@ export default function SorteioPage() {
           confirmButtonColor: "#10b981",
           confirmButtonText: "Abrir Google Sheets agora",
         }).then((result) => {
-          if (result.isConfirmed) {
-            window.open("https://sheets.new", "_blank");
-          }
+          if (result.isConfirmed) window.open("https://sheets.new", "_blank");
         });
       })
       .catch(() => {
@@ -351,12 +352,62 @@ export default function SorteioPage() {
       });
   };
 
+  // Cores dinâmicas para a impressão
+  const equipesUnicas = Array.from(
+    new Set(vencedores.map((v) => v.equipe)),
+  ).sort();
+  const getCorEquipe = (eqp: string) => {
+    const e = eqp.toLowerCase();
+    if (e.includes("aura"))
+      return {
+        bg: "bg-purple-100",
+        border: "border-purple-300",
+        text: "text-purple-800",
+      };
+    if (e.includes("forma"))
+      return {
+        bg: "bg-blue-100",
+        border: "border-blue-300",
+        text: "text-blue-800",
+      };
+    if (e.includes("trama"))
+      return {
+        bg: "bg-orange-100",
+        border: "border-orange-300",
+        text: "text-orange-800",
+      };
+    return {
+      bg: "bg-slate-100",
+      border: "border-slate-300",
+      text: "text-slate-800",
+    };
+  };
+
   return (
     <>
       <Toaster position="bottom-right" reverseOrder={false} />
+
+      {/* CSS DE IMPRESSÃO */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @media print {
+          @page { size: A4 portrait; margin: 10mm; }
+          body { 
+            background: white !important; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important;
+          }
+          .no-print { display: none !important; }
+          .print-area { display: block !important; width: 100% !important; }
+        }
+      `,
+        }}
+      />
+
       <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen font-sans">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b dark:border-slate-800 pb-6 gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b dark:border-slate-800 pb-6 gap-4 no-print">
             <div>
               <h1 className="text-3xl font-black text-slate-800 dark:text-white flex items-center gap-3">
                 <Trophy className="text-orange-500" size={36} /> Módulo Sorteio
@@ -399,7 +450,7 @@ export default function SorteioPage() {
             </label>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
             <div className="lg:col-span-5 space-y-6">
               <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800">
                 <h3 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2 border-b dark:border-slate-800 pb-3">
@@ -552,21 +603,29 @@ export default function SorteioPage() {
                       Lista Oficial ({vencedores.length})
                     </h3>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={baixarCSV}
-                        className="flex items-center gap-1.5 text-[9px] font-black text-orange-600 hover:text-orange-700 transition-colors uppercase bg-orange-100 dark:bg-orange-900/30 px-3 py-2 rounded-lg border border-orange-200 dark:border-orange-800/50 shadow-sm"
+                        className="flex items-center gap-1.5 text-[9px] font-black text-slate-600 hover:text-slate-800 transition-colors uppercase bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
                       >
-                        <Download size={12} /> Baixar CSV
+                        <Download size={12} /> CSV
                       </button>
                       <button
                         onClick={abrirNoGoogleSheets}
                         className="flex items-center gap-1.5 text-[9px] font-black text-emerald-700 hover:text-emerald-800 transition-colors uppercase bg-emerald-100 dark:bg-emerald-900/30 px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-800/50 shadow-sm"
                       >
-                        <Table size={12} /> Google Sheets
+                        <Table size={12} /> Sheets
+                      </button>
+                      {/* BOTAO DE IMPRESSAO */}
+                      <button
+                        onClick={handlePrint}
+                        className="flex items-center gap-1.5 text-[9px] font-black text-purple-700 hover:text-purple-800 transition-colors uppercase bg-purple-100 dark:bg-purple-900/30 px-3 py-2 rounded-lg border border-purple-300 dark:border-purple-800/50 shadow-sm"
+                      >
+                        <Printer size={12} /> Imprimir Oficial
                       </button>
                     </div>
                   </div>
+
                   <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                     <table className="w-full text-left">
                       <thead className="bg-white dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
@@ -590,20 +649,14 @@ export default function SorteioPage() {
                           >
                             <td className="p-4">
                               <span
-                                className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase border ${
-                                  v.equipe?.toLowerCase() === "aura"
-                                    ? "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800/50"
-                                    : v.equipe?.toLowerCase() === "forma"
-                                      ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50"
-                                      : "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50"
-                                }`}
+                                className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase border ${getCorEquipe(v.equipe).bg} ${getCorEquipe(v.equipe).text} ${getCorEquipe(v.equipe).border}`}
                               >
-                                {v.equipe || "S/ EQUIPE"}
+                                {v.equipe}
                               </span>
                             </td>
                             <td className="p-4">
                               <div className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tight">
-                                {v.nome_responsavel}
+                                {v.nome_responsavel || "NÃO INFORMADO"}
                               </div>
                               <div className="text-[9px] text-slate-400 font-medium lowercase truncate max-w-[200px]">
                                 {v.email_contato}
@@ -625,6 +678,120 @@ export default function SorteioPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 🖨️ ZONA DE IMPRESSÃO SECRETA (VISTO APENAS NO PAPEL A4) */}
+      {/* ======================================================== */}
+      <div style={{ display: "none" }}>
+        <div
+          ref={relatorioRef}
+          className="print-area bg-white text-slate-900 p-8"
+        >
+          {/* HEADER DO DOCUMENTO */}
+          <div className="border-b-[4px] border-orange-500 pb-4 mb-6 flex justify-between items-end">
+            <img
+              src="/assets/logo-csp.png"
+              alt="Logo CSP"
+              className="h-16 object-contain"
+            />
+            <div className="text-right">
+              <h1 className="text-2xl font-black uppercase text-orange-600 tracking-tight leading-none">
+                Resultado Oficial
+              </h1>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+                Sorteio Auditável de Convites
+              </p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
+                Data de Emissão: {new Date().toLocaleDateString("pt-BR")} às{" "}
+                {new Date().toLocaleTimeString("pt-BR")}
+              </p>
+            </div>
+          </div>
+
+          {/* TABELAS AGRUPADAS POR EQUIPE */}
+          {equipesUnicas.map((equipe) => {
+            const equipeVencedores = vencedores.filter(
+              (v) => v.equipe === equipe,
+            );
+            if (equipeVencedores.length === 0) return null;
+
+            const cores = getCorEquipe(equipe);
+
+            return (
+              <div key={equipe} className="mb-8 print:break-inside-avoid">
+                <h2
+                  className={`text-[12px] font-black uppercase px-4 py-2.5 rounded-t-xl border-b-2 ${cores.bg} ${cores.text} ${cores.border}`}
+                >
+                  Equipe: {equipe}{" "}
+                  <span className="float-right">
+                    {equipeVencedores.length} Sorteados
+                  </span>
+                </h2>
+
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-400 text-[8px] uppercase tracking-widest border-b border-slate-200">
+                      <th className="p-2 w-8 text-center border-l border-slate-100">
+                        #
+                      </th>
+                      <th className="p-2 border-l border-slate-100">
+                        Responsável Autorizado
+                      </th>
+                      <th className="p-2 border-l border-slate-100">
+                        Aluno(a) Vinculado
+                      </th>
+                      <th className="p-2 border-l border-slate-100">
+                        Série/Turma
+                      </th>
+                      <th className="p-2 text-right border-l border-r border-slate-100">
+                        Data/Hora Inscrição
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {equipeVencedores.map((v, idx) => (
+                      <tr
+                        key={idx}
+                        className={
+                          idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                        }
+                      >
+                        <td className="p-2 text-center text-[9px] font-black text-slate-400 border-l border-slate-100">
+                          {idx + 1}
+                        </td>
+                        <td className="p-2 text-[10px] font-black text-slate-800 uppercase border-l border-slate-100">
+                          {v.nome_responsavel || "NÃO INFORMADO"}
+                        </td>
+                        <td className="p-2 text-[9px] font-bold text-slate-600 uppercase border-l border-slate-100">
+                          {v.nome_aluno}
+                        </td>
+                        <td className="p-2 text-[9px] text-slate-500 border-l border-slate-100">
+                          {v.serie} - {v.turma}
+                        </td>
+                        <td className="p-2 text-right text-[8px] text-slate-400 border-l border-r border-slate-100">
+                          {v.timestamp}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+
+          {/* RODAPÉ DO DOCUMENTO */}
+          <div className="mt-10 pt-4 border-t border-slate-200 text-center">
+            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+              Documento gerado automaticamente pelo PGE - Portal de Gestão
+              Escolar | Colégio São Paulo
+            </p>
+            <p className="text-[7px] text-slate-300 uppercase mt-1">
+              Este sorteio foi processado de forma aleatória e auditável
+              garantindo igualdade a todos os inscritos.
+            </p>
           </div>
         </div>
       </div>
