@@ -544,10 +544,13 @@ export default function RelatorioFichasPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[11px] font-black uppercase text-[#E87B35] leading-none">
+                    {/* ✅ NOME COM PROTEÇÃO ANTI-QUEBRA E FONTE DINÂMICA */}
+                    <p
+                      className={`font-black uppercase text-[#E87B35] leading-none whitespace-nowrap ${aluno.nome.length > 32 ? "text-[9px] tracking-tight" : "text-[11px]"}`}
+                    >
                       {aluno.nome}
                     </p>
-                    <p className="text-[9px] font-bold text-slate-800 uppercase leading-none">
+                    <p className="text-[9px] font-bold text-slate-800 uppercase mt-1">
                       RA: {aluno.id} | TURMA: {aluno.turma}
                     </p>
                   </div>
