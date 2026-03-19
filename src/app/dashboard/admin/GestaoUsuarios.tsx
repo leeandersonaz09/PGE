@@ -31,6 +31,7 @@ export default function GestaoUsuarios({ sedes }: { sedes: any[] }) {
     "admin",
     "relatorios",
     "mala_direta",
+    "sorteio",
   ];
 
   useEffect(() => {

@@ -1,0 +1,633 @@
+"use client";
+
+import React, { useState, useMemo, useRef } from "react";
+import Papa from "papaparse";
+import {
+  UploadCloud,
+  Trophy,
+  Users,
+  Sparkles,
+  Download,
+  CheckCircle2,
+  Filter,
+  UserMinus,
+  Settings2,
+  Bot,
+  Table,
+} from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
+import Swal from "sweetalert2";
+
+interface Inscrito {
+  timestamp: string;
+  email_contato: string;
+  email_aluno: string;
+  serie: string;
+  turma: string;
+  nome_aluno: string;
+  equipe: string;
+  nome_responsavel: string;
+}
+
+interface RawCsvData {
+  "Carimbo de data/hora": string;
+  "Endereço de e-mail": string;
+  "E-mail institucional do aluno": string;
+  "Selecione a série do aluno(a)": string;
+  "Selecione a turma": string;
+  "Informe o nome completo do(a) aluno(a)": string;
+  Equipe: string;
+  "Informe o nome completo do(a) responsável que tem interesse em assistir a dança da gincana.": string;
+}
+
+export default function SorteioPage() {
+  const [dados, setDados] = useState<Inscrito[]>([]);
+  const [vencedores, setVencedores] = useState<Inscrito[]>([]);
+  const [instrucoesIA, setInstrucoesIA] = useState("");
+
+  // Estados Visuais da IA
+  const [isProcessandoIA, setIsProcessandoIA] = useState(false);
+  const [iaMessage, setIaMessage] = useState("");
+  const [iaProgress, setIaProgress] = useState(0);
+
+  // Estados Drag and Drop
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Parâmetros do Sorteio Manual
+  const [quota, setQuota] = useState(40);
+  const [regraUnicoFilho, setRegraUnicoFilho] = useState(true);
+  const [regraUnicoResponsavel, setRegraUnicoResponsavel] = useState(true);
+  const [separarPorEquipe, setSepararPorEquipe] = useState(true);
+
+  const processFile = (file: File) => {
+    if (!file) return;
+
+    if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+      return toast.error("Por favor, envie apenas arquivos CSV.");
+    }
+
+    const loadingToast = toast.loading("Analisando planilha...");
+    Papa.parse<RawCsvData>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const formatados = results.data.map((row) => ({
+          timestamp: row["Carimbo de data/hora"],
+          email_contato: row["Endereço de e-mail"],
+          email_aluno: row["E-mail institucional do aluno"],
+          serie: row["Selecione a série do aluno(a)"],
+          turma: row["Selecione a turma"],
+          nome_aluno: row["Informe o nome completo do(a) aluno(a)"],
+          equipe: row["Equipe"]?.trim() || "S/ EQUIPE",
+          nome_responsavel:
+            row[
+              "Informe o nome completo do(a) responsável que tem interesse em assistir a dança da gincana."
+            ] || "",
+        }));
+        setDados(formatados);
+        toast.success(
+          `${formatados.length} inscrições carregadas com sucesso!`,
+          { id: loadingToast },
+        );
+      },
+      error: () => {
+        toast.error("Erro ao ler o arquivo CSV.", { id: loadingToast });
+      },
+    });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const realizarSorteioManual = () => {
+    if (dados.length === 0)
+      return toast.error("Nenhum dado carregado para o sorteio.");
+
+    const sorteioToast = toast.loading(
+      "Aplicando regras e realizando sorteio...",
+    );
+    let baseSorteio = [...dados];
+
+    if (regraUnicoFilho) {
+      baseSorteio = Array.from(
+        new Map(baseSorteio.map((item) => [item.email_aluno, item])).values(),
+      );
+    }
+
+    if (regraUnicoResponsavel) {
+      baseSorteio = Array.from(
+        new Map(
+          baseSorteio.map((item) => [
+            item.nome_responsavel.trim().toLowerCase(),
+            item,
+          ]),
+        ).values(),
+      );
+    }
+
+    let sorteadosGeral: Inscrito[] = [];
+
+    if (separarPorEquipe) {
+      const equipes = Array.from(new Set(baseSorteio.map((i) => i.equipe)));
+      equipes.forEach((equipeNome) => {
+        const candidatosEquipe = baseSorteio.filter(
+          (i) => i.equipe === equipeNome,
+        );
+        const shuffled = [...candidatosEquipe];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j =
+            window.crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        sorteadosGeral = [...sorteadosGeral, ...shuffled.slice(0, quota)];
+      });
+    } else {
+      const shuffled = [...baseSorteio];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j =
+          window.crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      sorteadosGeral = shuffled.slice(0, quota * 3);
+    }
+
+    setVencedores(sorteadosGeral);
+    toast.success("Sorteio validado e concluído com sucesso!", {
+      id: sorteioToast,
+    });
+  };
+
+  const realizarSorteioComIA = async () => {
+    if (dados.length === 0) return toast.error("Carregue a planilha primeiro.");
+    if (!instrucoesIA.trim())
+      return toast.error("Digite as instruções para a IA.");
+
+    setIsProcessandoIA(true);
+    setIaProgress(10);
+    setIaMessage("Iniciando motor cognitivo do Gemini...");
+
+    const frasesRaciocinio = [
+      "Interpretando as regras customizadas do edital...",
+      "Processando lista e identificando as equipes...",
+      "Aplicando filtros de deduplicação e dependentes...",
+      "Cruzando informações de famílias e alunos...",
+      "Calculando probabilidades...",
+      "Executando algoritmo de sorteio imparcial...",
+      "Formatando a matriz de vencedores...",
+    ];
+
+    let passoAtual = 0;
+    const animacaoProgresso = setInterval(() => {
+      if (passoAtual < frasesRaciocinio.length) {
+        setIaMessage(frasesRaciocinio[passoAtual]);
+        setIaProgress((prev) => Math.min(prev + 12, 85));
+        passoAtual++;
+      }
+    }, 1800);
+
+    try {
+      const dadosOtimizados = dados.map((d, index) => ({
+        id: index,
+        aluno: d.nome_aluno,
+        resp: d.nome_responsavel,
+        eqp: d.equipe,
+      }));
+
+      const promptText = `Você é um sistema rigoroso de sorteio imparcial.
+      REGRAS DO SORTEIO: "${instrucoesIA}"
+      LISTA DE INSCRITOS: ${JSON.stringify(dadosOtimizados)}
+      IMPORTANTE: Você DEVE retornar EXATAMENTE UM ARRAY JSON contendo APENAS os números de 'id' dos vencedores. 
+      Exemplo de resposta esperada: [2, 14, 25, 44]`;
+
+      const response = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: promptText }),
+      });
+
+      if (!response.ok)
+        throw new Error("Falha na comunicação com o endpoint da IA.");
+
+      clearInterval(animacaoProgresso);
+      setIaProgress(95);
+      setIaMessage("Validando os resultados do sorteio...");
+
+      const responseData = await response.json();
+      let textoResposta =
+        responseData.text ||
+        responseData.resposta ||
+        responseData.message ||
+        responseData.result ||
+        responseData;
+
+      if (typeof textoResposta !== "string")
+        textoResposta = JSON.stringify(textoResposta);
+      textoResposta = textoResposta
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+
+      // ✅ CORREÇÃO APLICADA AQUI: Substituímos o /s pelo [\s\S]* para manter compatibilidade com TypeScript antigo
+      const arrayMatch = textoResposta.match(/\[[\s\S]*\]/);
+      if (!arrayMatch)
+        throw new Error("A IA não retornou um array de IDs identificável.");
+
+      const vencedoresIds = JSON.parse(arrayMatch[0]);
+
+      if (Array.isArray(vencedoresIds) && vencedoresIds.length > 0) {
+        const vencedoresIA = dados.filter((_, idx) =>
+          vencedoresIds.includes(idx),
+        );
+        setVencedores(vencedoresIA);
+
+        setIaProgress(100);
+        setIaMessage("Sorteio finalizado com sucesso!");
+        setTimeout(() => setIsProcessandoIA(false), 1500);
+
+        toast.success(
+          `Sorteio Inteligente Concluído! ${vencedoresIA.length} selecionados.`,
+        );
+      } else {
+        throw new Error("Nenhum vencedor retornado pelas regras.");
+      }
+    } catch (error) {
+      console.error(error);
+      clearInterval(animacaoProgresso);
+      setIaProgress(100);
+      setIaMessage(
+        "Erro no processamento. Verifique as regras e tente novamente.",
+      );
+      toast.error("Ocorreu um erro ao processar a lógica da IA.");
+      setTimeout(() => setIsProcessandoIA(false), 2000);
+    }
+  };
+
+  const baixarCSV = () => {
+    if (vencedores.length === 0) return;
+
+    const dadosParaExportacao = vencedores.map((v) => ({
+      Equipe: v.equipe,
+      "Responsável Sorteado": v.nome_responsavel,
+      "E-mail de Contato": v.email_contato,
+      "Nome do Aluno": v.nome_aluno,
+      Série: v.serie,
+      Turma: v.turma,
+      "E-mail do Aluno": v.email_aluno,
+      "Data da Inscrição": v.timestamp,
+    }));
+
+    const csv = Papa.unparse(dadosParaExportacao);
+    const blob = new Blob(["\ufeff" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `Sorteio_Vencedores_${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Download do CSV iniciado!");
+  };
+
+  const abrirNoGoogleSheets = () => {
+    if (vencedores.length === 0) return;
+
+    const dadosParaExportacao = vencedores.map((v) => ({
+      Equipe: v.equipe,
+      "Responsável Sorteado": v.nome_responsavel,
+      "E-mail de Contato": v.email_contato,
+      "Nome do Aluno": v.nome_aluno,
+      Série: v.serie,
+      Turma: v.turma,
+      "E-mail do Aluno": v.email_aluno,
+      "Data da Inscrição": v.timestamp,
+    }));
+
+    const tsv = Papa.unparse(dadosParaExportacao, { delimiter: "\t" });
+
+    navigator.clipboard
+      .writeText(tsv)
+      .then(() => {
+        Swal.fire({
+          title: "Copiado para Área de Transferência!",
+          html: "Os dados foram preparados.<br/><br/>Vamos abrir uma nova planilha no <b>Google Sheets</b>. Basta clicar na primeira célula e dar <b>Ctrl + V</b> (Colar).",
+          icon: "success",
+          confirmButtonColor: "#10b981",
+          confirmButtonText: "Abrir Google Sheets agora",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            window.open("https://sheets.new", "_blank");
+          }
+        });
+      })
+      .catch(() => {
+        toast.error(
+          "Não foi possível copiar os dados. Use o botão Baixar CSV.",
+        );
+      });
+  };
+
+  return (
+    <>
+      <Toaster position="bottom-right" reverseOrder={false} />
+      <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-screen font-sans">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b dark:border-slate-800 pb-6 gap-4">
+            <div>
+              <h1 className="text-3xl font-black text-slate-800 dark:text-white flex items-center gap-3">
+                <Trophy className="text-orange-500" size={36} /> Módulo Sorteio
+                Pro
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400 uppercase text-[10px] font-bold tracking-widest mt-1">
+                Motor Criptográfico e Raciocínio por IA
+              </p>
+            </div>
+
+            <label
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`cursor-pointer border-2 border-dashed p-4 rounded-2xl flex items-center gap-3 transition-all duration-200 group shadow-sm ${
+                isDragging
+                  ? "bg-orange-50 dark:bg-orange-900/20 border-orange-500 scale-105"
+                  : "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 hover:border-orange-500"
+              }`}
+            >
+              <UploadCloud
+                className={`${isDragging ? "text-orange-500" : "text-slate-400"} group-hover:text-orange-500 transition-colors`}
+              />
+              <div className="text-left">
+                <p
+                  className={`text-xs font-black uppercase transition-colors ${isDragging ? "text-orange-600 dark:text-orange-400" : "text-slate-800 dark:text-white"}`}
+                >
+                  {isDragging ? "Solte o arquivo aqui!" : "Carregar Inscrições"}
+                </p>
+                <p className="text-[9px] text-slate-400 font-bold">
+                  Arquivo CSV do Forms
+                </p>
+              </div>
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-5 space-y-6">
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800">
+                <h3 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2 border-b dark:border-slate-800 pb-3">
+                  <Settings2 size={16} className="text-blue-500" /> Parâmetros
+                  Avançados
+                </h3>
+
+                <div className="space-y-5">
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase">
+                        Vagas por Equipe
+                      </p>
+                      <p className="text-[9px] text-slate-500 font-medium">
+                        Quantos convites sortear por grupo
+                      </p>
+                    </div>
+                    <input
+                      type="number"
+                      value={quota}
+                      onChange={(e) => setQuota(Number(e.target.value))}
+                      className="w-20 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 font-black text-center text-blue-600 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {[
+                    {
+                      label: "Isolar Sorteio por Equipes",
+                      desc: "Sorteia o limite de vagas dentro de cada equipe separadamente.",
+                      state: separarPorEquipe,
+                      set: setSepararPorEquipe,
+                      icon: <Users size={14} />,
+                    },
+                    {
+                      label: "Apenas 1 Inscrição por Aluno",
+                      desc: "Ignora duplicatas caso o mesmo aluno envie o form duas vezes.",
+                      state: regraUnicoFilho,
+                      set: setRegraUnicoFilho,
+                      icon: <Filter size={14} />,
+                    },
+                    {
+                      label: "Apenas 1 Inscrição por Família",
+                      desc: "Se os pais tiverem 2 filhos, concorre apenas 1 vez.",
+                      state: regraUnicoResponsavel,
+                      set: setRegraUnicoResponsavel,
+                      icon: <UserMinus size={14} />,
+                    },
+                  ].map((filtro, i) => (
+                    <label
+                      key={i}
+                      className="flex items-start gap-3 cursor-pointer group"
+                    >
+                      <div className="mt-0.5">
+                        <input
+                          type="checkbox"
+                          checked={filtro.state}
+                          onChange={(e) => filtro.set(e.target.checked)}
+                          className="w-5 h-5 rounded border-slate-300 text-orange-500 focus:ring-orange-500 dark:bg-slate-800 dark:border-slate-600 cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase flex items-center gap-1.5 group-hover:text-orange-500 transition-colors">
+                          {filtro.icon} {filtro.label}
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-medium leading-tight mt-0.5">
+                          {filtro.desc}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+
+                  <button
+                    onClick={realizarSorteioManual}
+                    disabled={dados.length === 0 || isProcessandoIA}
+                    className="w-full bg-slate-900 hover:bg-black dark:bg-slate-800 dark:hover:bg-slate-700 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-all shadow-md mt-4 disabled:opacity-50"
+                  >
+                    Executar Sorteio Padrão
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7 space-y-6">
+              <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-6 rounded-[2rem] shadow-xl text-white relative overflow-hidden">
+                {isProcessandoIA && (
+                  <div className="absolute inset-0 bg-white/5 animate-pulse z-0 pointer-events-none"></div>
+                )}
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-xs font-black uppercase text-indigo-100 flex items-center gap-2">
+                      <Sparkles size={16} className="text-yellow-300" />{" "}
+                      Delegação Lógica via IA (Gemini)
+                    </h3>
+                    <span className="bg-white/20 text-[9px] font-bold px-2 py-0.5 rounded-full">
+                      BETA
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-indigo-100 mb-3 font-medium">
+                    Use a IA se o edital tiver regras muito específicas.
+                  </p>
+
+                  <textarea
+                    placeholder="Descreva as regras customizadas para o Gemini processar o sorteio..."
+                    className="w-full bg-black/20 border border-white/20 rounded-xl p-4 text-xs placeholder:text-white/40 outline-none focus:ring-2 ring-white/40 h-24 resize-none mb-4 font-medium"
+                    value={instrucoesIA}
+                    onChange={(e) => setInstrucoesIA(e.target.value)}
+                    disabled={isProcessandoIA}
+                  />
+
+                  {isProcessandoIA ? (
+                    <div className="bg-black/30 p-4 rounded-xl border border-white/10 animate-in fade-in duration-300">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-100 uppercase tracking-widest">
+                          <Bot
+                            size={14}
+                            className="text-yellow-300 animate-bounce"
+                          />
+                          {iaMessage}
+                        </div>
+                        <span className="text-[10px] font-black text-yellow-300">
+                          {iaProgress}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-black/50 rounded-full h-2 overflow-hidden border border-white/5">
+                        <div
+                          className="bg-gradient-to-r from-yellow-500 to-yellow-300 h-full rounded-full transition-all duration-700 ease-out relative"
+                          style={{ width: `${iaProgress}%` }}
+                        >
+                          <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={realizarSorteioComIA}
+                      disabled={dados.length === 0}
+                      className="w-full bg-white text-indigo-700 py-3.5 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-50 transition-all shadow-lg disabled:opacity-50"
+                    >
+                      Sortear usando Lógica da IA
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {vencedores.length > 0 && (
+                <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm animate-in slide-in-from-bottom-4">
+                  <div className="p-5 bg-slate-50 dark:bg-slate-800/50 border-b dark:border-slate-800 flex justify-between items-center">
+                    <h3 className="text-[11px] font-black text-slate-800 dark:text-white uppercase flex items-center gap-2">
+                      <CheckCircle2 className="text-emerald-500" size={16} />{" "}
+                      Lista Oficial ({vencedores.length})
+                    </h3>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={baixarCSV}
+                        className="flex items-center gap-1.5 text-[9px] font-black text-orange-600 hover:text-orange-700 transition-colors uppercase bg-orange-100 dark:bg-orange-900/30 px-3 py-2 rounded-lg border border-orange-200 dark:border-orange-800/50 shadow-sm"
+                      >
+                        <Download size={12} /> Baixar CSV
+                      </button>
+                      <button
+                        onClick={abrirNoGoogleSheets}
+                        className="flex items-center gap-1.5 text-[9px] font-black text-emerald-700 hover:text-emerald-800 transition-colors uppercase bg-emerald-100 dark:bg-emerald-900/30 px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-800/50 shadow-sm"
+                      >
+                        <Table size={12} /> Google Sheets
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                      <thead className="bg-white dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
+                        <tr className="text-[9px] font-black text-slate-400 uppercase">
+                          <th className="p-4 border-b dark:border-slate-800">
+                            Equipe
+                          </th>
+                          <th className="p-4 border-b dark:border-slate-800">
+                            Responsável Autorizado
+                          </th>
+                          <th className="p-4 border-b dark:border-slate-800">
+                            Aluno Vínculo
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y dark:divide-slate-800">
+                        {vencedores.map((v, i) => (
+                          <tr
+                            key={i}
+                            className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+                          >
+                            <td className="p-4">
+                              <span
+                                className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase border ${
+                                  v.equipe?.toLowerCase() === "aura"
+                                    ? "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800/50"
+                                    : v.equipe?.toLowerCase() === "forma"
+                                      ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50"
+                                      : "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50"
+                                }`}
+                              >
+                                {v.equipe || "S/ EQUIPE"}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tight">
+                                {v.nome_responsavel}
+                              </div>
+                              <div className="text-[9px] text-slate-400 font-medium lowercase truncate max-w-[200px]">
+                                {v.email_contato}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase">
+                                {v.nome_aluno}
+                              </div>
+                              <div className="text-[9px] text-slate-500">
+                                {v.serie} - {v.turma}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
