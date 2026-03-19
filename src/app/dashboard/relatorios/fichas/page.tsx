@@ -195,6 +195,7 @@ export default function RelatorioFichasPage() {
               onChange={(e) => setSetor(e.target.value)}
               className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-[#E87B35]"
             >
+              <option value="FICHA DE ACOMPANHAMENTO PEDAGÓGICO">FICHA</option>
               <option value="SERVIÇO DE ORIENTAÇÃO EDUCACIONAL">SOE</option>
               <option value="COORDENAÇÃO DE DISCIPLINA">CD</option>
             </select>
