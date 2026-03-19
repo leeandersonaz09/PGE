@@ -225,11 +225,10 @@ export default function SorteioPage() {
     setIaMessage("Iniciando motor cognitivo do Gemini...");
 
     const frasesRaciocinio = [
-      "Interpretando as regras customizadas do edital...",
-      "Processando lista e identificando as equipes...",
-      "Aplicando filtros de deduplicação e dependentes...",
-      "Calculando probabilidades e executando algoritmo...",
-      "Formatando a matriz de vencedores e gerando relatório...",
+      "Interpretando as regras do edital...",
+      "Gerando algoritmo matemático de filtragem...",
+      "Otimizando código para processamento local...",
+      "Executando motor criptográfico na memória...",
     ];
 
     let passoAtual = 0;
@@ -239,71 +238,74 @@ export default function SorteioPage() {
         setIaProgress((prev) => Math.min(prev + 12, 85));
         passoAtual++;
       }
-    }, 2000);
+    }, 1200);
 
     try {
+      // Otimizamos para mandar o modelo das colunas para a IA saber como trabalhar
       const dadosOtimizados = dados.map((d, index) => ({
         id: index,
         aluno: d.nome_aluno,
         resp: d.nome_responsavel,
         eqp: d.equipe,
+        serie: d.serie,
+        email: d.email_aluno,
       }));
 
-      // ✅ O PROMPT AGORA EXIGE UMA EXPLICAÇÃO DA IA
-      const promptText = `Você é um sistema rigoroso de sorteio educacional.
-      REGRAS SOLICITADAS: "${instrucoesIA}"
-      LISTA DE INSCRITOS: ${JSON.stringify(dadosOtimizados)}
+      // 🔥 O PROMPT DA LÓGICA INVERTIDA
+      const promptText = `Você é um engenheiro de software especialista em JavaScript.
+      Eu tenho um array chamado 'dados' rodando no navegador do cliente. Cada objeto do array tem essa estrutura: { id: number, aluno: string, resp: string, eqp: string, serie: string, email: string }.
       
-      Aja como o motor de sorteio. Filtre os inscritos de acordo com as regras solicitadas, embaralhe-os de forma justa e selecione os vencedores.
+      O usuário pediu a seguinte regra para o SORTEIO: "${instrucoesIA}"
+      A cota padrão é de ${quota} vagas.
       
-      IMPORTANTE: Você DEVE retornar EXATAMENTE UM OBJETO JSON com duas chaves:
-      1. "relatorio": Uma frase de no máximo 2 linhas explicando exatamente quais regras você aplicou e quem você desclassificou/filtrou antes de sortear.
-      2. "vencedoresIds": Um array com os números de 'id' dos vencedores.
+      SUA MISSÃO: Escreva APENAS O CORPO de uma função JavaScript que filtre o array 'dados', embaralhe-os (sorteio aleatório) e RETORNE UM ARRAY com os 'id's sorteados.
       
-      EXEMPLO DE RESPOSTA ESPERADA:
+      Responda EXATAMENTE neste formato JSON e nada mais:
       {
-        "relatorio": "Filtrei 5 inscrições duplicadas de responsáveis e sorteei 10 vagas justas para a equipe Aura conforme solicitado.",
-        "vencedoresIds": [2, 14, 25, 44]
+        "relatorio": "String explicando brevemente a regra aplicada",
+        "codigo": "String com o javascript seguro. Ex: const f = dados.filter(d => d.eqp === 'Aura'); return f.sort(()=>Math.random()-0.5).slice(0, 10).map(d => d.id);"
       }`;
 
+      // Isso vai ser ultra rápido, nunca dará Timeout no Netlify!
       const response = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: promptText }),
       });
 
-      if (!response.ok)
-        throw new Error("Falha na comunicação com o endpoint da IA.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro do servidor: ${errorText.substring(0, 50)}`);
+      }
 
       clearInterval(animacaoProgresso);
-      setIaProgress(95);
-      setIaMessage("Extraindo relatório da IA...");
+      setIaProgress(90);
+      setIaMessage("Aplicando algoritmo gerado...");
 
       const responseData = await response.json();
       let textoResposta =
-        responseData.text ||
-        responseData.resposta ||
-        responseData.message ||
-        responseData.result ||
-        responseData;
+        responseData.text || responseData.resposta || responseData;
 
       if (typeof textoResposta !== "string")
         textoResposta = JSON.stringify(textoResposta);
       textoResposta = textoResposta
         .replace(/```json/gi, "")
+        .replace(/```javascript/gi, "")
+        .replace(/```js/gi, "")
         .replace(/```/g, "")
         .trim();
 
-      // ✅ BUSCANDO O OBJETO JSON COMPLETO NO TEXTO
       const jsonMatch = textoResposta.match(/\{[\s\S]*\}/);
       if (!jsonMatch)
-        throw new Error("A IA não retornou o formato JSON esperado.");
+        throw new Error("A IA não retornou o algoritmo no formato esperado.");
 
       const resultadoIA = JSON.parse(jsonMatch[0]);
-      const vencedoresIds = resultadoIA.vencedoresIds;
-      const relatorioIA =
-        resultadoIA.relatorio ||
-        "Sorteio processado conforme suas regras, sem observações adicionais.";
+      const codigoDaIA = resultadoIA.codigo;
+      const relatorioIA = resultadoIA.relatorio;
+
+      // 🔥 A VERDADEIRA MÁGICA: O NAVEGADOR EXECUTA O CÓDIGO DA IA LOCALMENTE
+      const motorSorteio = new Function("dados", codigoDaIA);
+      const vencedoresIds = motorSorteio(dadosOtimizados);
 
       if (Array.isArray(vencedoresIds) && vencedoresIds.length > 0) {
         const vencedoresIA = dados.filter((_, idx) =>
@@ -315,25 +317,24 @@ export default function SorteioPage() {
         setIaMessage("Sorteio finalizado com sucesso!");
         setTimeout(() => setIsProcessandoIA(false), 1500);
 
-        // ✅ EXIBE O RELATÓRIO DO GEMINI NA TELA PARA VOCÊ LER
         Swal.fire({
-          title: "Relatório da IA 🤖",
+          title: "Sorteio Processado! 🤖",
           text: relatorioIA,
-          icon: "info",
-          confirmButtonColor: "#4f46e5", // Cor indigo para combinar com a IA
+          icon: "success",
+          confirmButtonColor: "#4f46e5",
           confirmButtonText: "Ver Resultado",
         });
       } else {
-        throw new Error("Nenhum vencedor retornado pelas regras.");
+        throw new Error(
+          "O algoritmo rodou, mas nenhum vencedor atendeu aos critérios exatos.",
+        );
       }
     } catch (error) {
       console.error(error);
       clearInterval(animacaoProgresso);
       setIaProgress(100);
-      setIaMessage(
-        "Erro no processamento. Verifique as regras e tente novamente.",
-      );
-      toast.error("Ocorreu um erro ao processar a lógica da IA.");
+      setIaMessage("Regra muito complexa. Simplifique o texto.");
+      toast.error("Erro na compilação da regra da IA.");
       setTimeout(() => setIsProcessandoIA(false), 2000);
     }
   };
