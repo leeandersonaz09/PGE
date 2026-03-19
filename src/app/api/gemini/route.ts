@@ -1,3 +1,5 @@
+// Adicione esta linha no topo do arquivo
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -7,7 +9,10 @@ export async function POST(req: Request) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ error: "Chave da API não configurada" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Chave da API não configurada" },
+        { status: 500 },
+      );
     }
 
     // Inicializa o Gemini
@@ -33,6 +38,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, text: textoGerado });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
