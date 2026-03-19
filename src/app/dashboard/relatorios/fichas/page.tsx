@@ -391,7 +391,7 @@ export default function RelatorioFichasPage() {
                     <div className="text-[10px] uppercase">
                       <b>TURMA:</b> {aluno.turma}
                     </div>
-                    <div className="col-span-2 text-[10px] uppercase">
+                    <div className="text-[10px] uppercase">
                       <b>CURSO:</b> {aluno.Curso}
                     </div>
                   </div>
