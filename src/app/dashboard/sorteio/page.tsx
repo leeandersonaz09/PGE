@@ -42,6 +42,42 @@ interface RawCsvData {
   "Informe o nome completo do(a) responsável que tem interesse em assistir a dança da gincana.": string;
 }
 
+// Helper: Gera linha para escrita manual se o dado for vazio
+const manualLine = (val: string, label: string) => {
+  const isEmpty = !val || val.trim() === "" || val === "-" || val === "---";
+
+  const getFontSize = (text: string) => {
+    if (text.length > 40) return "text-[7px]";
+    if (text.length > 30) return "text-[8px]";
+    return "text-[9.5px]";
+  };
+
+  return (
+    <div className="flex items-center gap-1 w-full py-0.5 min-h-[18px]">
+      <span className="font-black text-[8px] text-slate-500 whitespace-nowrap uppercase">
+        {label}:
+      </span>
+      {isEmpty ? (
+        <span className="flex-1 border-b border-slate-300 h-3"></span>
+      ) : (
+        <span
+          className={`text-slate-900 font-bold uppercase whitespace-nowrap overflow-hidden leading-tight flex-1 ${getFontSize(val)}`}
+        >
+          {val}
+        </span>
+      )}
+    </div>
+  );
+};
+
+const fmtTel = (v: string) => {
+  if (!v || v.trim() === "" || v === "-" || v === "---") return "";
+  const n = v.replace(/\D/g, "");
+  if (n.length === 11) return n.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  if (n.length === 10) return n.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+  return v;
+};
+
 export default function SorteioPage() {
   const [dados, setDados] = useState<Inscrito[]>([]);
   const [vencedores, setVencedores] = useState<Inscrito[]>([]);
@@ -49,21 +85,16 @@ export default function SorteioPage() {
 
   const relatorioRef = useRef<HTMLDivElement>(null);
 
-  // Estados Visuais da IA
   const [isProcessandoIA, setIsProcessandoIA] = useState(false);
   const [iaMessage, setIaMessage] = useState("");
   const [iaProgress, setIaProgress] = useState(0);
-
-  // Estados Drag and Drop
   const [isDragging, setIsDragging] = useState(false);
 
-  // Parâmetros do Sorteio Manual
   const [quota, setQuota] = useState(40);
   const [regraUnicoFilho, setRegraUnicoFilho] = useState(true);
   const [regraUnicoResponsavel, setRegraUnicoResponsavel] = useState(true);
   const [separarPorEquipe, setSepararPorEquipe] = useState(true);
 
-  // Função de Impressão do React-to-Print
   const handlePrint = useReactToPrint({
     contentRef: relatorioRef,
     documentTitle: `Resultado_Sorteio_CSP_${new Date().toLocaleDateString("pt-BR").replace(/\//g, "-")}`,
@@ -71,7 +102,6 @@ export default function SorteioPage() {
 
   const processFile = (file: File) => {
     if (!file) return;
-
     if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
       return toast.error("Por favor, envie apenas arquivos CSV.");
     }
@@ -100,9 +130,8 @@ export default function SorteioPage() {
           { id: loadingToast },
         );
       },
-      error: () => {
-        toast.error("Erro ao ler o arquivo CSV.", { id: loadingToast });
-      },
+      error: () =>
+        toast.error("Erro ao ler o arquivo CSV.", { id: loadingToast }),
     });
   };
 
@@ -199,10 +228,8 @@ export default function SorteioPage() {
       "Interpretando as regras customizadas do edital...",
       "Processando lista e identificando as equipes...",
       "Aplicando filtros de deduplicação e dependentes...",
-      "Cruzando informações de famílias e alunos...",
-      "Calculando probabilidades...",
-      "Executando algoritmo de sorteio imparcial...",
-      "Formatando a matriz de vencedores...",
+      "Calculando probabilidades e executando algoritmo...",
+      "Formatando a matriz de vencedores e gerando relatório...",
     ];
 
     let passoAtual = 0;
@@ -212,7 +239,7 @@ export default function SorteioPage() {
         setIaProgress((prev) => Math.min(prev + 12, 85));
         passoAtual++;
       }
-    }, 1800);
+    }, 2000);
 
     try {
       const dadosOtimizados = dados.map((d, index) => ({
@@ -222,11 +249,22 @@ export default function SorteioPage() {
         eqp: d.equipe,
       }));
 
-      const promptText = `Você é um sistema rigoroso de sorteio imparcial.
-      REGRAS DO SORTEIO: "${instrucoesIA}"
+      // ✅ O PROMPT AGORA EXIGE UMA EXPLICAÇÃO DA IA
+      const promptText = `Você é um sistema rigoroso de sorteio educacional.
+      REGRAS SOLICITADAS: "${instrucoesIA}"
       LISTA DE INSCRITOS: ${JSON.stringify(dadosOtimizados)}
-      IMPORTANTE: Você DEVE retornar EXATAMENTE UM ARRAY JSON contendo APENAS os números de 'id' dos vencedores. 
-      Exemplo de resposta esperada: [2, 14, 25, 44]`;
+      
+      Aja como o motor de sorteio. Filtre os inscritos de acordo com as regras solicitadas, embaralhe-os de forma justa e selecione os vencedores.
+      
+      IMPORTANTE: Você DEVE retornar EXATAMENTE UM OBJETO JSON com duas chaves:
+      1. "relatorio": Uma frase de no máximo 2 linhas explicando exatamente quais regras você aplicou e quem você desclassificou/filtrou antes de sortear.
+      2. "vencedoresIds": Um array com os números de 'id' dos vencedores.
+      
+      EXEMPLO DE RESPOSTA ESPERADA:
+      {
+        "relatorio": "Filtrei 5 inscrições duplicadas de responsáveis e sorteei 10 vagas justas para a equipe Aura conforme solicitado.",
+        "vencedoresIds": [2, 14, 25, 44]
+      }`;
 
       const response = await fetch("/api/gemini", {
         method: "POST",
@@ -239,7 +277,7 @@ export default function SorteioPage() {
 
       clearInterval(animacaoProgresso);
       setIaProgress(95);
-      setIaMessage("Validando os resultados do sorteio...");
+      setIaMessage("Extraindo relatório da IA...");
 
       const responseData = await response.json();
       let textoResposta =
@@ -256,11 +294,16 @@ export default function SorteioPage() {
         .replace(/```/g, "")
         .trim();
 
-      const arrayMatch = textoResposta.match(/\[[\s\S]*\]/);
-      if (!arrayMatch)
-        throw new Error("A IA não retornou um array de IDs identificável.");
+      // ✅ BUSCANDO O OBJETO JSON COMPLETO NO TEXTO
+      const jsonMatch = textoResposta.match(/\{[\s\S]*\}/);
+      if (!jsonMatch)
+        throw new Error("A IA não retornou o formato JSON esperado.");
 
-      const vencedoresIds = JSON.parse(arrayMatch[0]);
+      const resultadoIA = JSON.parse(jsonMatch[0]);
+      const vencedoresIds = resultadoIA.vencedoresIds;
+      const relatorioIA =
+        resultadoIA.relatorio ||
+        "Sorteio processado conforme suas regras, sem observações adicionais.";
 
       if (Array.isArray(vencedoresIds) && vencedoresIds.length > 0) {
         const vencedoresIA = dados.filter((_, idx) =>
@@ -272,9 +315,14 @@ export default function SorteioPage() {
         setIaMessage("Sorteio finalizado com sucesso!");
         setTimeout(() => setIsProcessandoIA(false), 1500);
 
-        toast.success(
-          `Sorteio Inteligente Concluído! ${vencedoresIA.length} selecionados.`,
-        );
+        // ✅ EXIBE O RELATÓRIO DO GEMINI NA TELA PARA VOCÊ LER
+        Swal.fire({
+          title: "Relatório da IA 🤖",
+          text: relatorioIA,
+          icon: "info",
+          confirmButtonColor: "#4f46e5", // Cor indigo para combinar com a IA
+          confirmButtonText: "Ver Resultado",
+        });
       } else {
         throw new Error("Nenhum vencedor retornado pelas regras.");
       }
@@ -345,14 +393,13 @@ export default function SorteioPage() {
           if (result.isConfirmed) window.open("https://sheets.new", "_blank");
         });
       })
-      .catch(() => {
+      .catch(() =>
         toast.error(
           "Não foi possível copiar os dados. Use o botão Baixar CSV.",
-        );
-      });
+        ),
+      );
   };
 
-  // Cores dinâmicas para a impressão
   const equipesUnicas = Array.from(
     new Set(vencedores.map((v) => v.equipe)),
   ).sort();
@@ -386,18 +433,12 @@ export default function SorteioPage() {
   return (
     <>
       <Toaster position="bottom-right" reverseOrder={false} />
-
-      {/* CSS DE IMPRESSÃO */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
         @media print {
           @page { size: A4 portrait; margin: 10mm; }
-          body { 
-            background: white !important; 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important;
-          }
+          body { background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .no-print { display: none !important; }
           .print-area { display: block !important; width: 100% !important; }
         }
@@ -417,7 +458,6 @@ export default function SorteioPage() {
                 Motor Criptográfico e Raciocínio por IA
               </p>
             </div>
-
             <label
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -457,7 +497,6 @@ export default function SorteioPage() {
                   <Settings2 size={16} className="text-blue-500" /> Parâmetros
                   Avançados
                 </h3>
-
                 <div className="space-y-5">
                   <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                     <div>
@@ -479,21 +518,21 @@ export default function SorteioPage() {
                   {[
                     {
                       label: "Isolar Sorteio por Equipes",
-                      desc: "Sorteia o limite de vagas dentro de cada equipe separadamente.",
+                      desc: "Sorteia o limite de vagas dentro de cada equipe.",
                       state: separarPorEquipe,
                       set: setSepararPorEquipe,
                       icon: <Users size={14} />,
                     },
                     {
                       label: "Apenas 1 Inscrição por Aluno",
-                      desc: "Ignora duplicatas caso o mesmo aluno envie o form duas vezes.",
+                      desc: "Ignora duplicatas se o aluno enviar 2x.",
                       state: regraUnicoFilho,
                       set: setRegraUnicoFilho,
                       icon: <Filter size={14} />,
                     },
                     {
                       label: "Apenas 1 Inscrição por Família",
-                      desc: "Se os pais tiverem 2 filhos, concorre apenas 1 vez.",
+                      desc: "Se tiver 2 filhos na equipe, concorre apenas 1 vez.",
                       state: regraUnicoResponsavel,
                       set: setRegraUnicoResponsavel,
                       icon: <UserMinus size={14} />,
@@ -549,11 +588,13 @@ export default function SorteioPage() {
                     </span>
                   </div>
                   <p className="text-[10px] text-indigo-100 mb-3 font-medium">
-                    Use a IA se o edital tiver regras muito específicas.
+                    Descreva regras complexas (ex: "Remova quem se inscreveu
+                    depois das 10h e sorteie 2 da Equipe Trama"). A IA
+                    processará e explicará as ações.
                   </p>
 
                   <textarea
-                    placeholder="Descreva as regras customizadas para o Gemini processar o sorteio..."
+                    placeholder="Descreva as regras customizadas..."
                     className="w-full bg-black/20 border border-white/20 rounded-xl p-4 text-xs placeholder:text-white/40 outline-none focus:ring-2 ring-white/40 h-24 resize-none mb-4 font-medium"
                     value={instrucoesIA}
                     onChange={(e) => setInstrucoesIA(e.target.value)}
@@ -567,7 +608,7 @@ export default function SorteioPage() {
                           <Bot
                             size={14}
                             className="text-yellow-300 animate-bounce"
-                          />
+                          />{" "}
                           {iaMessage}
                         </div>
                         <span className="text-[10px] font-black text-yellow-300">
@@ -579,7 +620,7 @@ export default function SorteioPage() {
                           className="bg-gradient-to-r from-yellow-500 to-yellow-300 h-full rounded-full transition-all duration-700 ease-out relative"
                           style={{ width: `${iaProgress}%` }}
                         >
-                          <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
+                          <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]"></div>
                         </div>
                       </div>
                     </div>
@@ -616,7 +657,6 @@ export default function SorteioPage() {
                       >
                         <Table size={12} /> Sheets
                       </button>
-                      {/* BOTAO DE IMPRESSAO */}
                       <button
                         onClick={handlePrint}
                         className="flex items-center gap-1.5 text-[9px] font-black text-purple-700 hover:text-purple-800 transition-colors uppercase bg-purple-100 dark:bg-purple-900/30 px-3 py-2 rounded-lg border border-purple-300 dark:border-purple-800/50 shadow-sm"
@@ -682,15 +722,12 @@ export default function SorteioPage() {
         </div>
       </div>
 
-      {/* ======================================================== */}
-      {/* 🖨️ ZONA DE IMPRESSÃO SECRETA (VISTO APENAS NO PAPEL A4) */}
-      {/* ======================================================== */}
+      {/* ZONA DE IMPRESSÃO SECRETA */}
       <div style={{ display: "none" }}>
         <div
           ref={relatorioRef}
           className="print-area bg-white text-slate-900 p-8"
         >
-          {/* HEADER DO DOCUMENTO */}
           <div className="border-b-[4px] border-orange-500 pb-4 mb-6 flex justify-between items-end">
             <img
               src="/assets/logo-csp.png"
@@ -711,13 +748,11 @@ export default function SorteioPage() {
             </div>
           </div>
 
-          {/* TABELAS AGRUPADAS POR EQUIPE */}
           {equipesUnicas.map((equipe) => {
             const equipeVencedores = vencedores.filter(
               (v) => v.equipe === equipe,
             );
             if (equipeVencedores.length === 0) return null;
-
             const cores = getCorEquipe(equipe);
 
             return (
@@ -730,7 +765,6 @@ export default function SorteioPage() {
                     {equipeVencedores.length} Sorteados
                   </span>
                 </h2>
-
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-400 text-[8px] uppercase tracking-widest border-b border-slate-200">
@@ -782,7 +816,6 @@ export default function SorteioPage() {
             );
           })}
 
-          {/* RODAPÉ DO DOCUMENTO */}
           <div className="mt-10 pt-4 border-t border-slate-200 text-center">
             <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">
               Documento gerado automaticamente pelo PGE - Portal de Gestão
