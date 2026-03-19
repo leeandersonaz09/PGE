@@ -20,6 +20,7 @@ import {
   MailCheckIcon,
   TrendingUp,
   LayoutGrid,
+  Trophy, // ✅ Adicionado ícone para o Sorteio
 } from "lucide-react";
 import {
   BarChart as ReBarChart,
@@ -97,6 +98,13 @@ const modulosConfig = [
     cor: "bg-blue-600",
   },
   {
+    id_modulo: "sorteio", // ✅ NOVO MÓDULO
+    nome: "Sorteio Pro",
+    icon: <Trophy size={32} />,
+    rota: "/dashboard/sorteio",
+    cor: "bg-orange-500",
+  },
+  {
     id_modulo: "admin",
     nome: "Administração",
     icon: <ShieldCheck size={32} />,
@@ -137,14 +145,12 @@ export default function DashboardPage() {
     async function carregarInteligencia() {
       if (!coligadaAtual || !mounted) return;
 
-      // ✅ RESET DE ESTADOS: Limpa os dados da sede anterior antes de carregar a nova
       setLoadingDados(true);
       setDadosSeries([]);
       setDadosSegmentos([]);
       setDadosEnfermaria([]);
 
       try {
-        // 1. KPIs Reais da Unidade Selecionada
         const [resAlunos, resEquip, resLocacoes, resRepouso] =
           await Promise.all([
             supabase
@@ -172,7 +178,6 @@ export default function DashboardPage() {
           atendimentos: resRepouso.count || 0,
         });
 
-        // 2. BUSCA DE DADOS FILTRADOS (Somente o que precisamos para os gráficos)
         const { data: alunos } = await supabase
           .from("alunos")
           .select("serie, turma, Curso")
@@ -191,8 +196,6 @@ export default function DashboardPage() {
             const numSerie = parseInt(String(a.serie).replace(/\D/g, "")) || 0;
             let label = "";
 
-            // ✅ CLASSIFICAÇÃO POR CURSO (EFI, EFII, EM)
-            // Se o banco indicar EM, entra no segmento Médio obrigatoriamente
             if (cursoStr === "EM") {
               em++;
               label = numSerie ? `${numSerie}ª Série` : "Ensino Médio";
@@ -209,7 +212,6 @@ export default function DashboardPage() {
             }
           });
 
-          // Ordenação Inteligente
           const ordemPrioridade = [
             "1º Ano",
             "2º Ano",
@@ -236,7 +238,6 @@ export default function DashboardPage() {
 
           setDadosSeries(formatado);
 
-          // ✅ FILTRO DE SEGMENTOS: Só envia para o gráfico o que tiver valor > 0
           const segmentosExistentes = [
             { name: "Ensino Fundamental I", value: f1 },
             { name: "Ensino Fundamental II", value: f2 },
@@ -246,7 +247,6 @@ export default function DashboardPage() {
           setDadosSegmentos(segmentosExistentes);
         }
 
-        // 3. Histórico Enfermaria (Restrito à sede_id)
         const seteDias = new Date();
         seteDias.setDate(seteDias.getDate() - 6);
         const { data: atendimentos } = await supabase
@@ -281,7 +281,7 @@ export default function DashboardPage() {
     }
 
     carregarInteligencia();
-  }, [coligadaAtual, mounted]); // ✅ Escuta a mudança de sede em tempo real
+  }, [coligadaAtual, mounted]);
 
   if (!mounted) return null;
 
@@ -321,20 +321,20 @@ export default function DashboardPage() {
   const modulosVisiveis = modulosConfig.filter((m) =>
     modulosPermitidos.includes(m.id_modulo),
   );
+
   const nomeUser = user?.user_metadata?.full_name?.split(" ")[0] || "Usuário";
-  // ✅ Pegando a URL da foto do usuário vinda do Google
   const fotoUrl =
     user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
     <div className="p-6 sm:p-10 min-h-full bg-white dark:bg-slate-900 space-y-10 animate-in fade-in duration-500 overflow-x-hidden">
-      {/* HEADER COM FOTO DO USUÁRIO */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="flex items-center gap-4">
           {fotoUrl ? (
             <img
               src={fotoUrl}
-              alt="Avatar do Usuário"
+              alt="Avatar"
               className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-white dark:border-slate-800 shadow-md object-cover"
               referrerPolicy="no-referrer"
             />
@@ -366,7 +366,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI CARDS */}
+      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {[
           { label: "Total Alunos", val: kpis.alunos, c: "text-blue-600" },
@@ -380,11 +380,7 @@ export default function DashboardPage() {
             val: kpis.equipamentos,
             c: "text-amber-600",
           },
-          {
-            label: "Locações Registradas",
-            val: kpis.locacoes,
-            c: "text-indigo-600",
-          },
+          { label: "Locações", val: kpis.locacoes, c: "text-indigo-600" },
         ].map((k, i) => (
           <div
             key={i}
@@ -400,7 +396,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* MÓDULOS DE ACESSO */}
+      {/* MÓDULOS */}
       <div className="pt-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-x-4 gap-y-12">
           {modulosVisiveis.map((mod) => (
@@ -424,7 +420,6 @@ export default function DashboardPage() {
 
       {/* GRÁFICOS */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-10 border-t border-slate-200 dark:border-slate-800">
-        {/* Gráfico de Barras */}
         <div className="xl:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <h3 className="text-xs font-bold text-slate-500 uppercase mb-6">
             Distribuição por Séries
@@ -481,7 +476,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Gráfico de Pizza */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
           <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">
             Alunos por Segmento
@@ -522,7 +516,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Gráfico de Área (Enfermaria) */}
         <div className="xl:col-span-3 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm mt-4">
           <h3 className="text-xs font-bold text-slate-500 uppercase mb-6">
             Atendimentos da Enfermaria (Últimos 7 Dias)
