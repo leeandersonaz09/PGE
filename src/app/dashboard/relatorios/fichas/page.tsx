@@ -389,12 +389,6 @@ export default function RelatorioFichasPage() {
                       <b>RA:</b> {aluno.id}
                     </div>
                     <div className="text-[10px] uppercase">
-                      <b>TURNO:</b> {aluno.Turno || "________________"}
-                    </div>
-                    <div className="text-[10px] uppercase">
-                      <b>SÉRIE:</b> {aluno.serie}º Ano
-                    </div>
-                    <div className="text-[10px] uppercase">
                       <b>TURMA:</b> {aluno.turma}
                     </div>
                     <div className="col-span-2 text-[10px] uppercase">
