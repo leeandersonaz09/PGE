@@ -550,7 +550,9 @@ export default function RelatorioFichasPage() {
                     >
                       {aluno.nome}
                     </p>
-                    <p className="text-[9px] font-bold text-slate-800 uppercase mt-1">
+                    <p
+                      className={`font-bold text-slate-800 uppercase mt-1 whitespace-nowrap tracking-tight ${aluno.turma?.length > 12 ? "text-[8px]" : "text-[9px]"}`}
+                    >
                       RA: {aluno.id} | TURMA: {aluno.turma}
                     </p>
                   </div>
