@@ -361,9 +361,6 @@ export default function RelatorioFichasPage() {
                     >
                       {setor}
                     </h1>
-                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] mt-1">
-                      Colégio São Paulo
-                    </p>
                   </div>
                 </div>
               </div>
