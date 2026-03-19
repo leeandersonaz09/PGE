@@ -749,7 +749,7 @@ export default function SorteioPage() {
             </div>
           </div>
 
-          {equipesUnicas.map((equipe) => {
+          {equipesUnicas.map((equipe, idx) => {
             const equipeVencedores = vencedores.filter(
               (v) => v.equipe === equipe,
             );
@@ -757,7 +757,10 @@ export default function SorteioPage() {
             const cores = getCorEquipe(equipe);
 
             return (
-              <div key={equipe} className="mb-8 print:break-inside-avoid">
+              <div
+                key={equipe}
+                className={`mb-8 ${idx !== 0 ? "print:break-before-page" : ""}`}
+              >
                 <h2
                   className={`text-[12px] font-black uppercase px-4 py-2.5 rounded-t-xl border-b-2 ${cores.bg} ${cores.text} ${cores.border}`}
                 >
