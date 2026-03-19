@@ -518,7 +518,7 @@ export default function RelatorioFichasPage() {
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div
                     key={i}
-                    style={{ borderBottom: "1px solid #ccc", height: "33px" }}
+                    style={{ borderBottom: "1px solid black", height: "33px" }}
                   ></div>
                 ))}
               </div>
@@ -556,7 +556,10 @@ export default function RelatorioFichasPage() {
                   {Array.from({ length: 28 }).map((_, i) => (
                     <div
                       key={i}
-                      style={{ borderBottom: "1px solid #ccc", height: "33px" }}
+                      style={{
+                        borderBottom: "1px solid black",
+                        height: "33px",
+                      }}
                     ></div>
                   ))}
                 </div>
