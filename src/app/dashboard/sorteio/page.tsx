@@ -42,42 +42,6 @@ interface RawCsvData {
   "Informe o nome completo do(a) responsável que tem interesse em assistir a dança da gincana.": string;
 }
 
-// Helper: Gera linha para escrita manual se o dado for vazio
-const manualLine = (val: string, label: string) => {
-  const isEmpty = !val || val.trim() === "" || val === "-" || val === "---";
-
-  const getFontSize = (text: string) => {
-    if (text.length > 40) return "text-[7px]";
-    if (text.length > 30) return "text-[8px]";
-    return "text-[9.5px]";
-  };
-
-  return (
-    <div className="flex items-center gap-1 w-full py-0.5 min-h-[18px]">
-      <span className="font-black text-[8px] text-slate-500 whitespace-nowrap uppercase">
-        {label}:
-      </span>
-      {isEmpty ? (
-        <span className="flex-1 border-b border-slate-300 h-3"></span>
-      ) : (
-        <span
-          className={`text-slate-900 font-bold uppercase whitespace-nowrap overflow-hidden leading-tight flex-1 ${getFontSize(val)}`}
-        >
-          {val}
-        </span>
-      )}
-    </div>
-  );
-};
-
-const fmtTel = (v: string) => {
-  if (!v || v.trim() === "" || v === "-" || v === "---") return "";
-  const n = v.replace(/\D/g, "");
-  if (n.length === 11) return n.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  if (n.length === 10) return n.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
-  return v;
-};
-
 export default function SorteioPage() {
   const [dados, setDados] = useState<Inscrito[]>([]);
   const [vencedores, setVencedores] = useState<Inscrito[]>([]);
@@ -241,7 +205,6 @@ export default function SorteioPage() {
     }, 1200);
 
     try {
-      // Otimizamos para mandar o modelo das colunas para a IA saber como trabalhar
       const dadosOtimizados = dados.map((d, index) => ({
         id: index,
         aluno: d.nome_aluno,
@@ -251,7 +214,6 @@ export default function SorteioPage() {
         email: d.email_aluno,
       }));
 
-      // 🔥 O PROMPT DA LÓGICA INVERTIDA
       const promptText = `Você é um engenheiro de software especialista em JavaScript.
       Eu tenho um array chamado 'dados' rodando no navegador do cliente. Cada objeto do array tem essa estrutura: { id: number, aluno: string, resp: string, eqp: string, serie: string, email: string }.
       
@@ -266,7 +228,6 @@ export default function SorteioPage() {
         "codigo": "String com o javascript seguro. Ex: const f = dados.filter(d => d.eqp === 'Aura'); return f.sort(()=>Math.random()-0.5).slice(0, 10).map(d => d.id);"
       }`;
 
-      // Isso vai ser ultra rápido, nunca dará Timeout no Netlify!
       const response = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -299,11 +260,10 @@ export default function SorteioPage() {
       if (!jsonMatch)
         throw new Error("A IA não retornou o algoritmo no formato esperado.");
 
-      const resultadoIA = JSON.parse(jsonMatch[0]);
+      const resultadoIA = JSON.parse(jsonMatch);
       const codigoDaIA = resultadoIA.codigo;
       const relatorioIA = resultadoIA.relatorio;
 
-      // 🔥 A VERDADEIRA MÁGICA: O NAVEGADOR EXECUTA O CÓDIGO DA IA LOCALMENTE
       const motorSorteio = new Function("dados", codigoDaIA);
       const vencedoresIds = motorSorteio(dadosOtimizados);
 
@@ -360,7 +320,7 @@ export default function SorteioPage() {
     link.href = url;
     link.setAttribute(
       "download",
-      `Sorteio_Vencedores_${new Date().toISOString().split("T")[0]}.csv`,
+      `Sorteio_Vencedores_${new Date().toISOString().split("T")}.csv`,
     );
     document.body.appendChild(link);
     link.click();
@@ -404,30 +364,31 @@ export default function SorteioPage() {
   const equipesUnicas = Array.from(
     new Set(vencedores.map((v) => v.equipe)),
   ).sort();
+
   const getCorEquipe = (eqp: string) => {
     const e = eqp.toLowerCase();
     if (e.includes("aura"))
       return {
-        bg: "bg-purple-100",
-        border: "border-purple-300",
-        text: "text-purple-800",
+        bg: "bg-purple-100 print:bg-purple-200",
+        border: "border-purple-300 print:border-purple-500",
+        text: "text-purple-800 print:text-purple-900",
       };
     if (e.includes("forma"))
       return {
-        bg: "bg-blue-100",
-        border: "border-blue-300",
-        text: "text-blue-800",
+        bg: "bg-blue-100 print:bg-blue-200",
+        border: "border-blue-300 print:border-blue-500",
+        text: "text-blue-800 print:text-blue-900",
       };
     if (e.includes("trama"))
       return {
-        bg: "bg-orange-100",
-        border: "border-orange-300",
-        text: "text-orange-800",
+        bg: "bg-orange-100 print:bg-orange-200",
+        border: "border-orange-300 print:border-orange-500",
+        text: "text-orange-800 print:text-orange-900",
       };
     return {
-      bg: "bg-slate-100",
-      border: "border-slate-300",
-      text: "text-slate-800",
+      bg: "bg-slate-100 print:bg-slate-200",
+      border: "border-slate-300 print:border-slate-500",
+      text: "text-slate-800 print:text-black",
     };
   };
 
@@ -438,10 +399,40 @@ export default function SorteioPage() {
         dangerouslySetInnerHTML={{
           __html: `
         @media print {
-          @page { size: A4 portrait; margin: 10mm; }
-          body { background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          @page { size: A4 portrait; margin: 12mm 10mm; }
+          body { 
+            background: white !important; 
+          }
           .no-print { display: none !important; }
           .print-area { display: block !important; width: 100% !important; }
+          
+          /* 🔥 FORÇA CORES ESCURAS E VIVAS NA IMPRESSÃO */
+          .print-area * {
+            color-adjust: exact !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          
+          /* Escurece os textos que antes eram clarinhos */
+          .print-area .text-slate-400, 
+          .print-area .text-slate-500,
+          .print-area .text-slate-600 { 
+            color: #0f172a !important; /* Quase Preto */
+            font-weight: 800 !important;
+          }
+          
+          /* Escurece as bordas das tabelas */
+          .print-area table th, 
+          .print-area table td { 
+            border-color: #94a3b8 !important; /* Slate-400 (Mais forte) */
+          }
+          
+          /* O truque do cabeçalho repetitivo */
+          thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
+          
+          /* Evita que um aluno seja cortado ao meio na quebra de página */
+          tr { page-break-inside: avoid; }
         }
       `,
         }}
@@ -723,113 +714,133 @@ export default function SorteioPage() {
         </div>
       </div>
 
-      {/* ZONA DE IMPRESSÃO SECRETA */}
+      {/* ✅ ZONA DE IMPRESSÃO SECRETA E OTIMIZADA */}
       <div style={{ display: "none" }}>
-        <div
-          ref={relatorioRef}
-          className="print-area bg-white text-slate-900 p-8"
-        >
-          <div className="border-b-[4px] border-orange-500 pb-4 mb-6 flex justify-between items-end">
-            <img
-              src="/assets/logo-csp.png"
-              alt="Logo CSP"
-              className="h-16 object-contain"
-            />
-            <div className="text-right">
-              <h1 className="text-2xl font-black uppercase text-orange-600 tracking-tight leading-none">
-                Resultado Oficial
-              </h1>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-2">
-                Sorteio Auditável de Convites
-              </p>
-              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
-                Data de Emissão: {new Date().toLocaleDateString("pt-BR")} às{" "}
-                {new Date().toLocaleTimeString("pt-BR")}
-              </p>
-            </div>
-          </div>
+        <div ref={relatorioRef} className="print-area bg-white text-slate-900">
+          {/* A Tabela Mestra que engloba tudo */}
+          <table className="w-full border-collapse">
+            {/* O cabeçalho repetitivo mágico do HTML */}
+            <thead>
+              <tr>
+                <td>
+                  <div className="border-b-[4px] border-orange-500 pb-4 mb-6 flex justify-between items-end">
+                    <img
+                      src="/assets/logo-csp.png"
+                      alt="Logo CSP"
+                      className="h-16 object-contain"
+                    />
+                    <div className="text-right">
+                      <h1 className="text-2xl font-black uppercase text-orange-600 tracking-tight leading-none print:text-orange-600">
+                        Resultado Oficial
+                      </h1>
+                      <p className="text-[11px] font-bold text-slate-700 uppercase tracking-widest mt-2">
+                        Sorteio Auditável de Convites
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-600 uppercase mt-1">
+                        Data de Emissão:{" "}
+                        {new Date().toLocaleDateString("pt-BR")} às{" "}
+                        {new Date().toLocaleTimeString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </thead>
 
-          {equipesUnicas.map((equipe, idx) => {
-            const equipeVencedores = vencedores.filter(
-              (v) => v.equipe === equipe,
-            );
-            if (equipeVencedores.length === 0) return null;
-            const cores = getCorEquipe(equipe);
+            {/* O conteúdo principal das equipes */}
+            <tbody>
+              <tr>
+                <td>
+                  {equipesUnicas.map((equipe, idx) => {
+                    const equipeVencedores = vencedores.filter(
+                      (v) => v.equipe === equipe,
+                    );
+                    if (equipeVencedores.length === 0) return null;
+                    const cores = getCorEquipe(equipe);
 
-            return (
-              <div
-                key={equipe}
-                className={`mb-8 ${idx !== 0 ? "print:break-before-page" : ""}`}
-              >
-                <h2
-                  className={`text-[12px] font-black uppercase px-4 py-2.5 rounded-t-xl border-b-2 ${cores.bg} ${cores.text} ${cores.border}`}
-                >
-                  Equipe: {equipe}{" "}
-                  <span className="float-right">
-                    {equipeVencedores.length} Sorteados
-                  </span>
-                </h2>
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-400 text-[8px] uppercase tracking-widest border-b border-slate-200">
-                      <th className="p-2 w-8 text-center border-l border-slate-100">
-                        #
-                      </th>
-                      <th className="p-2 border-l border-slate-100">
-                        Responsável Autorizado
-                      </th>
-                      <th className="p-2 border-l border-slate-100">
-                        Aluno(a) Vinculado
-                      </th>
-                      <th className="p-2 border-l border-slate-100">
-                        Série/Turma
-                      </th>
-                      <th className="p-2 text-right border-l border-r border-slate-100">
-                        Data/Hora Inscrição
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {equipeVencedores.map((v, idx) => (
-                      <tr
-                        key={idx}
-                        className={
-                          idx % 2 === 0 ? "bg-white" : "bg-slate-50/50"
-                        }
+                    return (
+                      <div
+                        key={equipe}
+                        className={`mb-8 ${idx !== 0 ? "print:break-before-page" : ""}`}
                       >
-                        <td className="p-2 text-center text-[9px] font-black text-slate-400 border-l border-slate-100">
-                          {idx + 1}
-                        </td>
-                        <td className="p-2 text-[10px] font-black text-slate-800 uppercase border-l border-slate-100">
-                          {v.nome_responsavel || "NÃO INFORMADO"}
-                        </td>
-                        <td className="p-2 text-[9px] font-bold text-slate-600 uppercase border-l border-slate-100">
-                          {v.nome_aluno}
-                        </td>
-                        <td className="p-2 text-[9px] text-slate-500 border-l border-slate-100">
-                          {v.serie} - {v.turma}
-                        </td>
-                        <td className="p-2 text-right text-[8px] text-slate-400 border-l border-r border-slate-100">
-                          {v.timestamp}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })}
+                        <h2
+                          className={`text-[12px] font-black uppercase px-4 py-2.5 rounded-t-xl border-b-2 ${cores.bg} ${cores.text} ${cores.border}`}
+                        >
+                          Equipe: {equipe}{" "}
+                          <span className="float-right">
+                            {equipeVencedores.length} Sorteados
+                          </span>
+                        </h2>
+                        <table className="w-full text-left border-collapse border border-slate-300">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-700 text-[9px] uppercase tracking-widest border-b-2 border-slate-300">
+                              <th className="p-2 w-8 text-center border-r border-slate-300">
+                                #
+                              </th>
+                              <th className="p-2 border-r border-slate-300">
+                                Responsável Autorizado
+                              </th>
+                              <th className="p-2 border-r border-slate-300">
+                                Aluno(a) Vinculado
+                              </th>
+                              <th className="p-2 border-r border-slate-300">
+                                Série/Turma
+                              </th>
+                              <th className="p-2 text-right">Data/Hora</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-300">
+                            {equipeVencedores.map((v, index) => (
+                              <tr
+                                key={index}
+                                className={
+                                  index % 2 === 0 ? "bg-white" : "bg-slate-50"
+                                }
+                              >
+                                <td className="p-2 text-center text-[10px] font-black text-slate-500 border-r border-slate-300">
+                                  {index + 1}
+                                </td>
+                                <td className="p-2 text-[10px] font-black text-slate-900 uppercase border-r border-slate-300">
+                                  {v.nome_responsavel || "NÃO INFORMADO"}
+                                </td>
+                                <td className="p-2 text-[10px] font-bold text-slate-800 uppercase border-r border-slate-300">
+                                  {v.nome_aluno}
+                                </td>
+                                <td className="p-2 text-[10px] text-slate-700 border-r border-slate-300">
+                                  {v.serie} - {v.turma}
+                                </td>
+                                <td className="p-2 text-right text-[9px] text-slate-600">
+                                  {v.timestamp}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </td>
+              </tr>
+            </tbody>
 
-          <div className="mt-10 pt-4 border-t border-slate-200 text-center">
-            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">
-              Documento gerado automaticamente pelo PGE - Portal de Gestão
-              Escolar | Colégio São Paulo
-            </p>
-            <p className="text-[7px] text-slate-300 uppercase mt-1">
-              Este sorteio foi processado de forma aleatória e auditável
-              garantindo igualdade a todos os inscritos.
-            </p>
-          </div>
+            {/* O Rodapé repetitivo caso queira uma assinatura por página */}
+            <tfoot>
+              <tr>
+                <td>
+                  <div className="mt-6 pt-4 border-t-2 border-slate-300 text-center">
+                    <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">
+                      Documento gerado automaticamente pelo PGE - Portal de
+                      Gestão Escolar | Colégio São Paulo
+                    </p>
+                    <p className="text-[7px] text-slate-500 uppercase mt-1 font-semibold">
+                      Este sorteio foi processado de forma aleatória e
+                      auditável, garantindo igualdade a todos os inscritos.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
     </>
