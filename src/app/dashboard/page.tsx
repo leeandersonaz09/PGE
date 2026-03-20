@@ -150,7 +150,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function carregarInteligencia() {
-      if (!coligadaAtual || !mounted) return;
+      if (!mounted) return;
+      if (!coligadaAtual) {
+        setLoadingDados(false);
+        return;
+      }
+      setLoadingDados(true);
 
       setLoadingDados(true);
       setDadosSeries([]);
@@ -292,11 +297,11 @@ export default function DashboardPage() {
 
   if (!mounted) return null;
 
-  if (loadingColigadas || (loadingDados && !coligadaAtual)) {
+  if (loadingColigadas) {
     return (
       <div className="flex items-center justify-center h-full text-blue-600 dark:text-blue-400 font-bold italic">
-        <Loader2 className="animate-spin mr-2" size={24} /> Sincronizando Dados
-        Reais...
+        <Loader2 className="animate-spin mr-2" size={24} /> Carregando seu
+        perfil...
       </div>
     );
   }
@@ -325,6 +330,14 @@ export default function DashboardPage() {
     );
   }
 
+  if (loadingDados) {
+    return (
+      <div className="flex items-center justify-center h-full text-blue-600 dark:text-blue-400 font-bold italic">
+        <Loader2 className="animate-spin mr-2" size={24} /> Sincronizando Dados
+        Reais...
+      </div>
+    );
+  }
   const modulosVisiveis = modulosConfig.filter((m) =>
     modulosPermitidos.includes(m.id_modulo),
   );
