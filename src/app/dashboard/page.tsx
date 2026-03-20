@@ -56,6 +56,13 @@ const modulosConfig = [
     cor: "bg-[#4db6ac]",
   },
   {
+    id_modulo: "ocorrencias", // ✅ MÓDULO DE OCORRÊNCIAS ADICIONADO AQUI
+    nome: "Ocorrências",
+    icon: <FileText size={32} />,
+    rota: "/dashboard/ocorrencias",
+    cor: "bg-[#f43f5e]", // Cor rosa/vermelha para combinar com a sua aba
+  },
+  {
     id_modulo: "historico",
     nome: "Histórico Atendimentos",
     icon: <ClipboardList size={32} />,
