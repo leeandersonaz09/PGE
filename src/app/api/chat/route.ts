@@ -1,33 +1,64 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-// ✅ AGORA SIM! Importando do jeito que o PGE trabalha:
 import { supabase } from "@/lib/supabase";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+type ChatMessage = {
+  role: "user" | "assistant" | "model";
+  content: string;
+};
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { messages } = body;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json(
-        { error: "Mensagens inválidas." },
-        { status: 400 },
-      );
-    }
+function getUserDisplayName(user: any): string | null {
+  return (
+    user?.user_metadata?.full_name?.trim?.() ||
+    user?.user_metadata?.name?.trim?.() ||
+    user?.user_metadata?.nome?.trim?.() ||
+    user?.email?.split("@")?.[0]?.trim?.() ||
+    null
+  );
+}
 
-    const userMessage = messages[messages.length - 1].content;
+function normalizeMessages(messages: unknown): ChatMessage[] {
+  if (!Array.isArray(messages)) return [];
 
-    // Tenta pegar o usuário logado para o log de auditoria
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  return messages
+    .filter(
+      (m): m is ChatMessage =>
+        !!m &&
+        typeof m === "object" &&
+        "role" in m &&
+        "content" in m &&
+        typeof (m as any).content === "string" &&
+        (m as any).content.trim().length > 0,
+    )
+    .map((m) => ({
+      role: m.role === "assistant" || m.role === "model" ? "assistant" : "user",
+      content: m.content.trim(),
+    }));
+}
 
-    // ========================================================================
-    // 🔥 CONTEXTO ESPECIALISTA DO PGE
-    // ========================================================================
-    const pgeSystemPrompt = `
+function buildSystemPrompt(userName: string | null) {
+  const treatmentRule = userName
+    ? `
+NOME DO USUÁRIO ATUAL
+- O usuário atual se chama: ${userName}
+- Sempre se dirija ao usuário pelo nome "${userName}" de forma natural, educada e profissional.
+- Use o nome de forma distribuída, sem exagero.
+- Dê preferência para começar respostas com algo como:
+  - "${userName}, isso é feito no módulo..."
+  - "Certo, ${userName}. Para fazer isso..."
+  - "${userName}, o caminho correto é..."
+- Nunca chame o usuário de "cliente", "pessoa", "querido", "amigo" ou termos genéricos quando o nome estiver disponível.
+`
+    : `
+NOME DO USUÁRIO ATUAL
+- O nome do usuário não está disponível.
+- Não invente nome.
+- Use tratamento neutro, profissional e cordial.
+`;
+
+  return `
 Você é o "CPD-Bot", assistente virtual oficial e especialista do Portal PGE (Portal de Gestão Escolar) do Colégio São Paulo.
 
 Sua função é atuar como um HELP DESK SÊNIOR do sistema:
@@ -37,6 +68,8 @@ Sua função é atuar como um HELP DESK SÊNIOR do sistema:
 - esclarecer regras de funcionamento dos módulos;
 - responder com base no comportamento real do portal;
 - nunca inventar alunos, dados financeiros, usuários, permissões ou resultados.
+
+${treatmentRule}
 
 IDENTIDADE DE ATENDIMENTO
 - Fale em português do Brasil.
@@ -63,6 +96,15 @@ REGRAS GERAIS DE ATENDIMENTO
 8. Se a dúvida envolver dados sensíveis, não invente resposta; oriente o usuário a verificar no módulo correto.
 9. Nunca invente nomes de alunos, sorteados, usuários, sedes ou registros.
 10. Se o usuário citar apenas a rota, traduza isso para o nome amigável do módulo.
+11. Quando houver nome do usuário disponível, use esse nome naturalmente na resposta.
+12. Ao explicar caminhos, priorize este formato:
+   - nome do módulo
+   - submenu/aba
+   - ação/botão
+13. Sempre que possível, responda em 3 partes:
+   - o que é
+   - onde fica
+   - como fazer
 
 MAPA FUNCIONAL DO SISTEMA
 
@@ -250,14 +292,6 @@ REGRAS DE AUDITORIA
 - Em perguntas sobre rastreabilidade, informe que há uma área de Auditoria e Logs com eventos recentes do sistema.
 - Em perguntas sobre ações administrativas, sugira verificar os registros de auditoria.
 
-ESTILO DE RESPOSTA
-- Sempre que possível, responda assim:
-  1. o que é
-  2. onde fica
-  3. como fazer
-- Exemplo de formato:
-  "Isso é feito no módulo Sorteio. Primeiro carregue a lista de inscritos, depois defina a quota e, por fim, escolha entre o sorteio manual ou a lógica via IA."
-
 EXEMPLOS DE TRADUÇÃO DE LINGUAGEM
 - Se o usuário disser: “/dashboard/sorteio”
   responda: “Isso fica no módulo Sorteio.”
@@ -282,39 +316,144 @@ Seu papel é fazer o usuário entender rapidamente:
 - qual botão ou ação usar;
 - qual é o fluxo correto dentro do PGE.
 `.trim();
+}
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+function formatGeminiError(error: any): { message: string; status: number } {
+  const rawMessage =
+    error?.message || error?.toString?.() || "Erro interno do servidor.";
+
+  if (
+    rawMessage.includes("429") ||
+    rawMessage.toLowerCase().includes("quota exceeded") ||
+    rawMessage.toLowerCase().includes("too many requests")
+  ) {
+    return {
+      message:
+        "O assistente está temporariamente indisponível por limite de uso da API de IA. Aguarde alguns instantes e tente novamente.",
+      status: 429,
+    };
+  }
+
+  if (
+    rawMessage.toLowerCase().includes("api key") ||
+    rawMessage.toLowerCase().includes("permission denied") ||
+    rawMessage.toLowerCase().includes("unauthorized")
+  ) {
+    return {
+      message:
+        "A configuração da API de IA está inválida ou sem permissão. Verifique a variável GEMINI_API_KEY.",
+      status: 500,
+    };
+  }
+
+  return {
+    message: rawMessage,
+    status: 500,
+  };
+}
+
+export async function POST(req: Request) {
+  try {
+    if (!GEMINI_API_KEY) {
+      return NextResponse.json(
+        {
+          error: "A variável de ambiente GEMINI_API_KEY não está configurada.",
+        },
+        { status: 500 },
+      );
+    }
+
+    const body = await req.json();
+    const normalizedMessages = normalizeMessages(body?.messages);
+
+    if (normalizedMessages.length === 0) {
+      return NextResponse.json(
+        { error: "Mensagens inválidas." },
+        { status: 400 },
+      );
+    }
+
+    const lastMessage = normalizedMessages[normalizedMessages.length - 1];
+    const userMessage = lastMessage?.content;
+
+    if (!userMessage) {
+      return NextResponse.json(
+        { error: "A última mensagem do usuário está vazia." },
+        { status: 400 },
+      );
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const userName = getUserDisplayName(user);
+    const pgeSystemPrompt = buildSystemPrompt(userName);
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+    });
+
+    const previousMessages = normalizedMessages.slice(0, -1).slice(-12);
 
     const chat = model.startChat({
       history: [
-        { role: "user", parts: [{ text: pgeSystemPrompt }] },
+        {
+          role: "user",
+          parts: [{ text: pgeSystemPrompt }],
+        },
         {
           role: "model",
           parts: [
             {
-              text: "Entendido. Sou o CPD-Bot, pronto para guiar os usuários pelo Portal PGE.",
+              text: userName
+                ? `Entendido. Sou o CPD-Bot, helpdesk oficial do Portal PGE, e vou atender ${userName} de forma clara, profissional e sempre usando o nome do usuário naturalmente nas respostas.`
+                : "Entendido. Sou o CPD-Bot, helpdesk oficial do Portal PGE, e vou orientar o usuário de forma clara, profissional e objetiva.",
             },
           ],
         },
-        ...messages.map((m: any) => ({
+        ...previousMessages.map((m) => ({
           role: m.role === "user" ? "user" : "model",
           parts: [{ text: m.content }],
         })),
       ],
-      generationConfig: { maxOutputTokens: 1024, temperature: 0.2 },
+      generationConfig: {
+        maxOutputTokens: 1400,
+        temperature: 0.15,
+        topP: 0.9,
+      },
     });
 
     const result = await chat.sendMessage(userMessage);
-    const responseText = result.response.text();
+    let responseText = result.response.text()?.trim() || "";
 
-    // ✅ LOG DE AUDITORIA NO SUPABASE
-    // Se você já tiver a tabela 'logs_auditoria' criada no banco, isso vai salvar a conversa!
+    if (!responseText) {
+      responseText = userName
+        ? `${userName}, não consegui gerar uma resposta agora. Tente novamente.`
+        : "Não consegui gerar uma resposta agora. Tente novamente.";
+    }
+
+    // Reforço final: se houver nome e a IA não usar, prefixa de forma natural.
+    if (userName) {
+      const normalizedResponse = responseText.toLowerCase();
+      const normalizedUserName = userName.toLowerCase();
+
+      if (!normalizedResponse.includes(normalizedUserName)) {
+        responseText = `${userName}, ${responseText
+          .charAt(0)
+          .toLowerCase()}${responseText.slice(1)}`;
+      }
+    }
+
     if (user) {
       try {
+        const detalhes = `Pergunta: ${userMessage.slice(0, 1000)} | Resposta: ${responseText.slice(0, 1000)}`;
+
         await supabase.from("logs_auditoria").insert({
-          usuario_nome: user.email || "Usuário PGE",
+          usuario_nome: userName || user.email || "Usuário PGE",
           acao: "Consulta CPD-Bot",
-          detalhes: `Pergunta: ${userMessage} | Assistente respondeu com sucesso.`,
+          detalhes,
         });
       } catch (logError) {
         console.error(
@@ -327,9 +466,12 @@ Seu papel é fazer o usuário entender rapidamente:
     return NextResponse.json({ text: responseText });
   } catch (error: any) {
     console.error("Erro no chat da IA:", error);
+
+    const formattedError = formatGeminiError(error);
+
     return NextResponse.json(
-      { error: error.message || "Erro interno do servidor." },
-      { status: 500 },
+      { error: formattedError.message },
+      { status: formattedError.status },
     );
   }
 }
