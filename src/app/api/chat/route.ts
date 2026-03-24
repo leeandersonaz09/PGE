@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       REGRAS: Seja direto. Use o nome exato dos botões. Não invente dados de alunos, apenas oriente como usar a ferramenta. Responda em português do Brasil de forma profissional e amigável.
     `.trim();
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const chat = model.startChat({
       history: [
