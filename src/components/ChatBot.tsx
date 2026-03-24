@@ -9,8 +9,7 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
-// Importa o cliente do Supabase do seu PGE
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 
 interface Message {
   id: string;
@@ -18,48 +17,45 @@ interface Message {
   content: string;
 }
 
+function getNameParts(user: any) {
+  const fullName =
+    user?.user_metadata?.full_name?.trim?.() ||
+    user?.user_metadata?.name?.trim?.() ||
+    user?.user_metadata?.nome?.trim?.() ||
+    user?.email?.split("@")?.[0]?.trim?.() ||
+    "";
+
+  const firstName = fullName ? fullName.split(/\s+/)[0] : "";
+  const displayName = firstName || fullName || "Colega";
+
+  return {
+    fullName,
+    firstName,
+    displayName,
+  };
+}
+
 export function ChatBot() {
+  const { user } = useAuth();
+
   const [isOpen, setIsOpen] = useState(false);
-  const [nomeUsuario, setNomeUsuario] = useState("Colega");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 1. Busca o usuário logado no Supabase para personalizar a saudação
+  const { fullName, firstName, displayName } = getNameParts(user);
+
   useEffect(() => {
-    async function carregarUsuario() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      let nome = "Colega";
+    setMessages([
+      {
+        id: "initial",
+        role: "assistant",
+        content: `Olá, **${displayName}**! 👋 \n\nSou o **CPD-Bot**, assistente especialista do Portal PGE. Como posso te ajudar hoje? Posso te explicar onde achar menus ou pra que serve cada botão!`,
+      },
+    ]);
+  }, [displayName]);
 
-      if (user) {
-        // Tenta pegar o nome do metadata ou extrai o início do e-mail
-        const rawName =
-          user.user_metadata?.full_name ||
-          user.user_metadata?.nome ||
-          user.email?.split("@") ||
-          "Colega";
-        // Deixa a primeira letra maiúscula
-        nome = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-      }
-
-      setNomeUsuario(nome);
-
-      // Define a mensagem inicial com o nome da pessoa!
-      setMessages([
-        {
-          id: "initial",
-          role: "assistant",
-          content: `Olá, **${nome}**! 👋 \n\nSou o **CPD-Bot**, assistente especialista do Portal PGE. Como posso te ajudar hoje? Posso te explicar onde achar menus ou pra que serve cada botão!`,
-        },
-      ]);
-    }
-    carregarUsuario();
-  }, []);
-
-  // 2. Rola o chat para baixo automaticamente
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -73,7 +69,9 @@ export function ChatBot() {
       content: textToSend,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+
+    setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
 
@@ -81,7 +79,14 @@ export function ChatBot() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({
+          messages: updatedMessages,
+          userProfile: {
+            fullName,
+            firstName,
+            displayName,
+          },
+        }),
       });
 
       const data = await response.json();
@@ -119,10 +124,8 @@ export function ChatBot() {
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end no-print">
-      {/* Balão do Chat com animação suave de Zoom e Fade */}
       {isOpen && (
         <div className="bg-white dark:bg-slate-900 w-[380px] h-[520px] rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom-6 zoom-in-95 duration-300">
-          {/* Header Elegante (Gradiente PGE) */}
           <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-4 flex justify-between items-center text-white shadow-md z-10">
             <div className="flex items-center gap-3">
               <div className="bg-white/20 p-2.5 rounded-full backdrop-blur-sm border border-white/30">
@@ -149,14 +152,12 @@ export function ChatBot() {
             </button>
           </div>
 
-          {/* Área de Mensagens */}
           <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-slate-50 dark:bg-slate-950 custom-scrollbar">
             {messages.map((m) => (
               <div
                 key={m.id}
                 className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
-                {/* Avatar do usuário vs Robô ao lado das mensagens */}
                 {m.role === "assistant" && (
                   <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center mr-2 mt-1 flex-shrink-0">
                     <Bot size={14} className="text-orange-600" />
@@ -186,7 +187,6 @@ export function ChatBot() {
               </div>
             ))}
 
-            {/* Animação de Carregando (Digitando...) */}
             {isLoading && (
               <div className="flex justify-start items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
@@ -208,9 +208,7 @@ export function ChatBot() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Área de Input & Menus Rápidos */}
           <div className="p-4 bg-white dark:bg-slate-900 border-t dark:border-slate-800">
-            {/* Menus Rápidos (Ocultos se houver conversa rolando) */}
             {messages.length === 1 && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {suggestedQuestions.map((q) => (
@@ -225,7 +223,6 @@ export function ChatBot() {
               </div>
             )}
 
-            {/* Barra de Digitação */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -253,7 +250,6 @@ export function ChatBot() {
         </div>
       )}
 
-      {/* Botão Flutuante (Animação estilo Resolve TI) */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 active:scale-90 group relative ${
@@ -268,7 +264,6 @@ export function ChatBot() {
           <MessageCircle size={26} className="group-hover:animate-pulse" />
         )}
 
-        {/* Bolinha Pulsante de "Online" */}
         {!isOpen && (
           <span className="absolute -top-1 -right-1 flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
