@@ -5,6 +5,8 @@ import { ColigadaProvider } from "@/context/ColigadaContext";
 import Header from "@/components/layout/Header";
 import TabsBar from "@/components/layout/TabsBar";
 import { useState, useEffect } from "react";
+// ✅ 1. Importando o nosso assistente PGE criado no passo anterior
+import { ChatBot } from "@/components/ChatBot";
 
 export default function DashboardLayout({
   children,
@@ -38,6 +40,9 @@ export default function DashboardLayout({
         {/* O 'main' nunca mais será desmontado se o loading piscar */}
         <main className="flex-1 overflow-auto bg-white dark:bg-slate-900 relative">
           {children}
+
+          {/* ✅ 2. O ChatBot é injetado aqui! Como ele é 'fixed' e 'z-50', ele flutua em todas as páginas */}
+          <ChatBot />
         </main>
       </div>
     </ColigadaProvider>
