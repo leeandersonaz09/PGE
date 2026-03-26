@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Papa from "papaparse";
 import {
   UploadCloud,
@@ -16,10 +16,16 @@ import {
   Table,
   Printer,
   ShieldCheck,
+  History,
+  Save,
+  AlertTriangle,
+  RefreshCcw,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Swal from "sweetalert2";
 import { useReactToPrint } from "react-to-print";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 interface Inscrito {
   timestamp: string;
@@ -34,167 +40,622 @@ interface Inscrito {
 
 interface RespostaIA {
   relatorio?: string;
-  codigo?: string;
+  ids?: number[];
 }
 
+interface SorteioElegivel {
+  id: number;
+  aluno: string;
+  responsavel: string;
+  eqp: string;
+  serie: string;
+  turma: string;
+  email: string;
+  contato: string;
+  timestamp: string;
+}
+
+interface AuditoriaItem {
+  tipo:
+    | "csv"
+    | "duplicidade_aluno"
+    | "possivel_duplicidade"
+    | "manual"
+    | "ia"
+    | "fallback"
+    | "persistencia";
+  titulo: string;
+  descricao: string;
+  total?: number;
+  detalhes?: string[];
+}
+
+interface SorteioPersistidoPayload {
+  id?: string;
+  metodo: "manual" | "ia" | "ia_fallback";
+  seed: string;
+  quota: number;
+  separarPorEquipe: boolean;
+  instrucoesIA: string;
+  arquivoOrigem: string;
+  totalInscricoes: number;
+  totalElegiveis: number;
+  totalVencedores: number;
+  relatorioHtml: string;
+  vencedores: Inscrito[];
+  auditoria: AuditoriaItem[];
+  csvHeaders: string[];
+}
+
+const HEADER_TIMESTAMP = "Carimbo de data/hora";
+const HEADER_EMAIL_CONTATO = "Endereço de e-mail";
+const HEADER_EMAIL_ALUNO = "E-mail institucional do aluno";
+const HEADER_SERIE = "Selecione a série do aluno(a)";
+const HEADER_TURMA = "Selecione a turma";
+const HEADER_NOME_ALUNO = "Informe o nome completo do(a) aluno(a)";
+const HEADER_EQUIPE = "Equipe";
+const HEADER_RESPONSAVEL =
+  "Informe o nome completo do(a) responsável que tem interesse em assistir a dança da gincana.";
+
+const REQUIRED_HEADERS = [
+  HEADER_TIMESTAMP,
+  HEADER_EMAIL_CONTATO,
+  HEADER_EMAIL_ALUNO,
+  HEADER_SERIE,
+  HEADER_TURMA,
+  HEADER_NOME_ALUNO,
+  HEADER_EQUIPE,
+  HEADER_RESPONSAVEL,
+];
+
+const normalizarTexto = (valor: unknown, fallback = "") => {
+  return typeof valor === "string" ? valor.trim() : fallback;
+};
+
+const normalizarComparacao = (valor: unknown) => {
+  return normalizarTexto(valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+};
+
+const apenasLetrasNumeros = (valor: unknown) =>
+  normalizarComparacao(valor)
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const similarityDice = (a: string, b: string) => {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const bigrams = (s: string) => {
+    const txt = ` ${s} `;
+    const grams: string[] = [];
+    for (let i = 0; i < txt.length - 1; i++) grams.push(txt.slice(i, i + 2));
+    return grams;
+  };
+  const a2 = bigrams(a);
+  const b2 = bigrams(b);
+  if (a2.length === 0 || b2.length === 0) return 0;
+  const map = new Map<string, number>();
+  a2.forEach((g) => map.set(g, (map.get(g) || 0) + 1));
+  let intersection = 0;
+  b2.forEach((g) => {
+    const count = map.get(g) || 0;
+    if (count > 0) {
+      map.set(g, count - 1);
+      intersection++;
+    }
+  });
+  return (2 * intersection) / (a2.length + b2.length);
+};
+
+const hashString = (input: string) => {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+};
+
+const createSeededRandom = (seed: number) => {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let x = Math.imul(t ^ (t >>> 15), t | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const shuffleComSeed = <T,>(array: T[], seed: string) => {
+  const arr = [...array];
+  if (arr.length <= 1) return arr;
+  const numericSeed = parseInt(hashString(seed), 16) || 1;
+  const random = createSeededRandom(numericSeed);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
+const gerarSeed = () => {
+  const arr = new Uint32Array(2);
+  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+    window.crypto.getRandomValues(arr);
+  } else {
+    arr[0] = Math.floor(Math.random() * 0xffffffff);
+    arr[1] = Math.floor(Math.random() * 0xffffffff);
+  }
+  return `${Date.now()}-${arr[0]}-${arr[1]}`;
+};
+
+const timestampParaNumero = (valor: string, fallbackIndex: number) => {
+  const bruto = normalizarTexto(valor);
+  if (!bruto) return Number.MAX_SAFE_INTEGER - fallbackIndex;
+
+  const tentativaDireta = Date.parse(bruto);
+  if (!Number.isNaN(tentativaDireta)) return tentativaDireta;
+
+  const match = bruto.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (match) {
+    const [, dd, mm, yyyy, hh = "0", mi = "0", ss = "0"] = match;
+    const ano = yyyy.length === 2 ? `20${yyyy}` : yyyy;
+    const iso = `${ano}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}T${hh.padStart(2, "0")}:${mi.padStart(2, "0")}:${ss.padStart(2, "0")}`;
+    const tentativaBr = Date.parse(iso);
+    if (!Number.isNaN(tentativaBr)) return tentativaBr;
+  }
+
+  return Number.MAX_SAFE_INTEGER - fallbackIndex;
+};
+
+const chaveAluno = (
+  item: Pick<Inscrito, "nome_aluno" | "email_aluno" | "serie" | "turma">,
+) => {
+  const nome = apenasLetrasNumeros(item.nome_aluno);
+  const email = normalizarComparacao(item.email_aluno);
+  const serie = apenasLetrasNumeros(item.serie);
+  const turma = apenasLetrasNumeros(item.turma);
+
+  if (nome && email) return `${nome}::${email}`;
+  if (nome && serie && turma) return `${nome}::${serie}::${turma}`;
+  return nome || email || `${serie}::${turma}`;
+};
+
+const construirBaseElegivel = (origem: Inscrito[]) => {
+  const comMeta = origem
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const ta = timestampParaNumero(a.item.timestamp, a.index);
+      const tb = timestampParaNumero(b.item.timestamp, b.index);
+      if (ta !== tb) return ta - tb;
+      return a.index - b.index;
+    });
+
+  const alunosJaSelecionados = new Set<string>();
+  const elegiveis: Array<Inscrito & { __originalIndex: number }> = [];
+  const removidosDuplicidadeAluno: Array<
+    Inscrito & { __originalIndex: number; venceuIndex: number }
+  > = [];
+
+  comMeta.forEach(({ item, index }) => {
+    const alunoKey = chaveAluno(item);
+    if (!alunoKey) return;
+
+    if (alunosJaSelecionados.has(alunoKey)) {
+      const vencedor = elegiveis.find((e) => chaveAluno(e) === alunoKey);
+      removidosDuplicidadeAluno.push({
+        ...item,
+        __originalIndex: index,
+        venceuIndex: vencedor?.__originalIndex ?? -1,
+      });
+      return;
+    }
+
+    alunosJaSelecionados.add(alunoKey);
+    elegiveis.push({ ...item, __originalIndex: index });
+  });
+
+  return { elegiveis, removidosDuplicidadeAluno };
+};
+
+const detectarPossiveisDuplicidades = (origem: Inscrito[]) => {
+  const saida: string[] = [];
+  const vistos = new Set<string>();
+  for (let i = 0; i < origem.length; i++) {
+    for (let j = i + 1; j < origem.length; j++) {
+      const a = origem[i];
+      const b = origem[j];
+      const emailA = normalizarComparacao(a.email_aluno);
+      const emailB = normalizarComparacao(b.email_aluno);
+      if (emailA && emailB && emailA === emailB) continue;
+      const nomeA = apenasLetrasNumeros(a.nome_aluno);
+      const nomeB = apenasLetrasNumeros(b.nome_aluno);
+      const serieA = apenasLetrasNumeros(a.serie);
+      const serieB = apenasLetrasNumeros(b.serie);
+      const turmaA = apenasLetrasNumeros(a.turma);
+      const turmaB = apenasLetrasNumeros(b.turma);
+      if (!nomeA || !nomeB || serieA !== serieB || turmaA !== turmaB) continue;
+      const score = similarityDice(nomeA, nomeB);
+      if (score >= 0.94 && nomeA !== nomeB) {
+        const key = `${nomeA}::${nomeB}::${serieA}::${turmaA}`;
+        if (!vistos.has(key)) {
+          vistos.add(key);
+          saida.push(
+            `${a.nome_aluno} ↔ ${b.nome_aluno} (${a.serie}/${a.turma})`,
+          );
+        }
+      }
+    }
+  }
+  return saida.slice(0, 15);
+};
+
+const montarRegistrosElegiveisIA = (origem: Inscrito[]): SorteioElegivel[] => {
+  const { elegiveis } = construirBaseElegivel(origem);
+  return elegiveis.map((item) => ({
+    id: item.__originalIndex,
+    aluno: item.nome_aluno,
+    responsavel: item.nome_responsavel,
+    eqp: item.equipe,
+    serie: item.serie,
+    turma: item.turma,
+    email: item.email_aluno,
+    contato: item.email_contato,
+    timestamp: item.timestamp,
+  }));
+};
+
+const extrairJsonDaResposta = (raw: unknown): RespostaIA => {
+  let texto = "";
+
+  if (typeof raw === "string") {
+    texto = raw.trim();
+  } else if (raw && typeof raw === "object") {
+    texto = JSON.stringify(raw);
+  } else {
+    throw new Error("Resposta da IA vazia ou inválida.");
+  }
+
+  texto = texto
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  try {
+    return JSON.parse(texto) as RespostaIA;
+  } catch {
+    const inicio = texto.indexOf("{");
+    const fim = texto.lastIndexOf("}");
+    if (inicio === -1 || fim === -1 || fim <= inicio) {
+      throw new Error("A IA não retornou um JSON válido.");
+    }
+    return JSON.parse(texto.slice(inicio, fim + 1)) as RespostaIA;
+  }
+};
+
+const formatarMensagemErroIA = (status: number, data: any) => {
+  const rawMessage =
+    data?.error || data?.message || "Falha interna ao consultar a IA.";
+  const message = String(rawMessage);
+  const lower = message.toLowerCase();
+
+  if (
+    status === 429 ||
+    lower.includes("quota") ||
+    lower.includes("too many requests") ||
+    lower.includes("rate limit") ||
+    lower.includes("exceeded your current quota")
+  ) {
+    const retryMatch =
+      message.match(/retry in\s+([\d.]+)s/i) ||
+      message.match(/"retryDelay":"(\d+)s"/i);
+    if (retryMatch?.[1]) {
+      const segundos = Math.ceil(Number(retryMatch[1]));
+      if (!Number.isNaN(segundos) && segundos > 0) {
+        return `Limite da API Gemini atingido. Aguarde cerca de ${segundos} segundos e tente novamente.`;
+      }
+    }
+    return "Limite da API Gemini atingido. Aguarde cerca de 1 minuto e tente novamente.";
+  }
+
+  if (lower.includes("abort") || lower.includes("timeout")) {
+    return "A consulta ao Gemini demorou demais e foi interrompida.";
+  }
+
+  return message;
+};
+
+const aplicarFiltroLocal = (
+  baseElegivelIA: SorteioElegivel[],
+  instrucoesIA: string,
+  quota: number,
+  separarPorEquipe: boolean,
+) => {
+  const regra = normalizarComparacao(instrucoesIA);
+  let filtrados = [...baseElegivelIA];
+
+  const equipes = ["hora", "tumba", "texas", "aura", "forma", "trama"];
+  const equipesCitadas = equipes.filter((eq) => regra.includes(eq));
+  if (equipesCitadas.length > 0) {
+    filtrados = filtrados.filter((item) =>
+      equipesCitadas.some((eq) => normalizarComparacao(item.eqp).includes(eq)),
+    );
+  }
+
+  const seriesCitadas = Array.from(
+    regra.matchAll(/(\d{1,2})\s*[ºo°]?\s*ano/g),
+  ).map((m) => m[1]);
+  if (seriesCitadas.length > 0) {
+    filtrados = filtrados.filter((item) =>
+      seriesCitadas.some((serie) =>
+        normalizarComparacao(item.serie).includes(serie),
+      ),
+    );
+  }
+
+  const turmasCitadas = Array.from(regra.matchAll(/turma\s+([a-z0-9]+)/gi)).map(
+    (m) => normalizarComparacao(m[1]),
+  );
+  if (turmasCitadas.length > 0) {
+    filtrados = filtrados.filter((item) =>
+      turmasCitadas.some((turma) =>
+        normalizarComparacao(item.turma).includes(turma),
+      ),
+    );
+  }
+
+  const matchesQtd = regra.match(
+    /(\d{1,3})\s+(?:alunos|aluno|pessoas|pessoa|responsaveis|responsáveis)/,
+  );
+  const qtdSolicitada = matchesQtd ? Number(matchesQtd[1]) : undefined;
+
+  return {
+    filtrados,
+    quotaEfetiva: separarPorEquipe ? quota : qtdSolicitada || quota * 3,
+    relatorio: `<p>Falha na IA. Foi aplicado um filtro local conservador sobre a base elegível.</p><p>Regra interpretada: <strong>${instrucoesIA || "Sem filtro textual"}</strong>.</p><p>Encontrados <strong>${filtrados.length}</strong> candidatos elegíveis antes do sorteio.</p>`,
+  };
+};
+
+const headersValidos = (headers: string[]) => {
+  const missing = REQUIRED_HEADERS.filter(
+    (header) => !headers.includes(header),
+  );
+  return { ok: missing.length === 0, missing };
+};
+
 export default function SorteioPage() {
-  const [dados, setDados] = useState<Inscrito[]>([]);
-  const [vencedores, setVencedores] = useState<Inscrito[]>([]);
-  const [instrucoesIA, setInstrucoesIA] = useState("");
+  const router = useRouter();
   const relatorioRef = useRef<HTMLDivElement>(null);
   const ultimaExecucaoIARef = useRef(0);
 
+  const [dados, setDados] = useState<Inscrito[]>([]);
+  const [vencedores, setVencedores] = useState<Inscrito[]>([]);
+  const [instrucoesIA, setInstrucoesIA] = useState("");
   const [isProcessandoIA, setIsProcessandoIA] = useState(false);
   const [iaMessage, setIaMessage] = useState("");
   const [iaProgress, setIaProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-
   const [quota, setQuota] = useState(40);
   const [regraUnicoFilho, setRegraUnicoFilho] = useState(true);
   const [regraUnicoResponsavel, setRegraUnicoResponsavel] = useState(true);
   const [separarPorEquipe, setSepararPorEquipe] = useState(true);
+  const [auditoria, setAuditoria] = useState<AuditoriaItem[]>([]);
+  const [seedAtual, setSeedAtual] = useState("");
+  const [metodoAtual, setMetodoAtual] = useState<
+    "manual" | "ia" | "ia_fallback" | null
+  >(null);
+  const [relatorioUltimoSorteio, setRelatorioUltimoSorteio] = useState(
+    "<p>Sorteio executado com sucesso.</p>",
+  );
+  const [arquivoOrigem, setArquivoOrigem] = useState("");
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [isSalvando, setIsSalvando] = useState(false);
+  const [historicoSalvoId, setHistoricoSalvoId] = useState<string | null>(null);
 
-  // ==========================================
-  // 🔐 MOTOR CRIPTOGRÁFICO
-  // ==========================================
+  const baseElegivelMemo = useMemo(() => construirBaseElegivel(dados), [dados]);
+  const totalElegiveis = baseElegivelMemo.elegiveis.length;
 
-  const getSecureRandom = (max: number) => {
-    if (!Number.isInteger(max) || max <= 0) {
-      throw new Error("Valor máximo inválido para geração aleatória.");
-    }
+  useEffect(() => {
+    if (dados.length === 0) return;
 
-    const array = new Uint32Array(1);
-    let randomValue: number;
-
-    do {
-      window.crypto.getRandomValues(array);
-      randomValue = array[0];
-    } while (randomValue >= Math.floor(0xffffffff / max) * max);
-
-    return randomValue % max;
-  };
-
-  const shuffleFisherYates = <T,>(array: T[]) => {
-    const arr = [...array];
-
-    if (arr.length <= 1) return arr;
-
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = getSecureRandom(i + 1);
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-
-    return arr;
-  };
-
-  // ==========================================
-  // 🛡️ SEGURANÇA E TRATAMENTO DA IA
-  // ==========================================
-
-  const validarCodigoIA = (codigo: unknown) => {
-    if (typeof codigo !== "string" || !codigo.trim()) return false;
-
-    const proibidos = [
-      "fetch",
-      "window",
-      "document",
-      "localstorage",
-      "sessionstorage",
-      "indexeddb",
-      "cookie",
-      "xmlhttprequest",
-      "eval",
-      "import(",
-      "require(",
-      "globalthis",
-      "postmessage",
-      "websocket",
-      "navigator.",
-      "location.",
-      "history.",
+    const possiveisDuplicidades = detectarPossiveisDuplicidades(dados);
+    const novosLogs: AuditoriaItem[] = [
+      {
+        tipo: "csv",
+        titulo: "Arquivo validado",
+        descricao: `${dados.length} inscrições carregadas a partir do CSV ${arquivoOrigem || "sem nome"}.`,
+        total: dados.length,
+      },
+      {
+        tipo: "duplicidade_aluno",
+        titulo: "Regra da primeira inscrição aplicada",
+        descricao: `${baseElegivelMemo.removidosDuplicidadeAluno.length} inscrição(ões) foram removidas por duplicidade de aluno; a primeira inscrição foi preservada.`,
+        total: baseElegivelMemo.removidosDuplicidadeAluno.length,
+        detalhes: baseElegivelMemo.removidosDuplicidadeAluno
+          .slice(0, 12)
+          .map(
+            (item) =>
+              `${item.nome_aluno} | ${item.serie}/${item.turma} | removido em favor do índice ${item.venceuIndex}`,
+          ),
+      },
     ];
 
-    const codeLower = codigo.toLowerCase();
-    return !proibidos.some((termo) => codeLower.includes(termo.toLowerCase()));
-  };
-
-  const extrairJsonDaResposta = (raw: unknown): RespostaIA => {
-    let texto = "";
-
-    if (typeof raw === "string") {
-      texto = raw.trim();
-    } else if (raw && typeof raw === "object") {
-      texto = JSON.stringify(raw);
-    } else {
-      throw new Error("Resposta da IA vazia ou inválida.");
+    if (possiveisDuplicidades.length > 0) {
+      novosLogs.push({
+        tipo: "possivel_duplicidade",
+        titulo: "Possíveis duplicidades por nome semelhante",
+        descricao:
+          "Nenhum registro foi removido por fuzzy match. Estes casos são apenas alertas para auditoria humana.",
+        total: possiveisDuplicidades.length,
+        detalhes: possiveisDuplicidades,
+      });
     }
 
-    texto = texto
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
+    setAuditoria(novosLogs);
+  }, [arquivoOrigem, baseElegivelMemo, dados]);
 
+  const persistirResultado = async (payload: SorteioPersistidoPayload) => {
+    if (!supabase) {
+      toast.error("Supabase não configurado no ambiente do navegador.");
+      return null;
+    }
+
+    setIsSalvando(true);
     try {
-      return JSON.parse(texto) as RespostaIA;
-    } catch {
-      // tenta abaixo
-    }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const inicio = texto.indexOf("{");
-    const fim = texto.lastIndexOf("}");
-
-    if (inicio === -1 || fim === -1 || fim <= inicio) {
-      throw new Error("A IA não retornou um JSON válido.");
-    }
-
-    const trechoJson = texto.slice(inicio, fim + 1);
-
-    try {
-      return JSON.parse(trechoJson) as RespostaIA;
-    } catch {
-      throw new Error("A IA retornou um JSON malformado.");
-    }
-  };
-
-  const normalizarTexto = (valor: unknown, fallback = "") => {
-    return typeof valor === "string" ? valor.trim() : fallback;
-  };
-
-  const formatarMensagemErroIA = (status: number, data: any) => {
-    const rawMessage =
-      data?.error || data?.message || "Falha interna ao consultar a IA.";
-
-    const message = String(rawMessage);
-    const lower = message.toLowerCase();
-
-    if (
-      status === 429 ||
-      lower.includes("quota") ||
-      lower.includes("too many requests") ||
-      lower.includes("rate limit") ||
-      lower.includes("exceeded your current quota")
-    ) {
-      const retryMatch =
-        message.match(/retry in\s+([\d.]+)s/i) ||
-        message.match(/"retryDelay":"(\d+)s"/i);
-
-      if (retryMatch?.[1]) {
-        const segundos = Math.ceil(Number(retryMatch[1]));
-        if (!Number.isNaN(segundos) && segundos > 0) {
-          return `Limite da API Gemini atingido. Aguarde cerca de ${segundos} segundos e tente novamente.`;
-        }
+      let usuarioNome = "Usuário não identificado";
+      if (user?.id) {
+        const { data: usuarioTabela } = await supabase
+          .from("usuarios")
+          .select("nome")
+          .eq("id", user.id)
+          .maybeSingle();
+        usuarioNome = usuarioTabela?.nome || user.email || usuarioNome;
       }
 
-      return "Limite da API Gemini atingido. Aguarde cerca de 1 minuto e tente novamente.";
-    }
+      const insertPayload = {
+        metodo: payload.metodo,
+        seed: payload.seed,
+        quota: payload.quota,
+        separar_por_equipe: payload.separarPorEquipe,
+        instrucoes_ia: payload.instrucoesIA || null,
+        arquivo_origem: payload.arquivoOrigem || null,
+        total_inscricoes: payload.totalInscricoes,
+        total_elegiveis: payload.totalElegiveis,
+        total_vencedores: payload.totalVencedores,
+        relatorio_html: payload.relatorioHtml,
+        vencedores: payload.vencedores,
+        auditoria: payload.auditoria,
+        csv_headers: payload.csvHeaders,
+        user_id: user?.id || null,
+        usuario_nome: usuarioNome,
+      };
 
-    return message;
+      const { data, error } = await supabase
+        .from("sorteios_historico")
+        .insert(insertPayload)
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      setHistoricoSalvoId(data?.id || null);
+      setAuditoria((prev) => [
+        ...prev,
+        {
+          tipo: "persistencia",
+          titulo: "Resultado salvo no histórico",
+          descricao: `Sorteio persistido no Supabase com ID ${data?.id || "(sem retorno)"}.`,
+          total: payload.totalVencedores,
+        },
+      ]);
+
+      toast.success("Resultado salvo no histórico do Supabase!");
+      return data?.id || null;
+    } catch (error: any) {
+      toast.error(error?.message || "Falha ao salvar histórico do sorteio.");
+      return null;
+    } finally {
+      setIsSalvando(false);
+    }
   };
 
-  // ==========================================
-  // 📂 FUNÇÕES DE EXPORTAÇÃO
-  // ==========================================
+  const salvarResultadoAtual = async () => {
+    if (vencedores.length === 0 || !metodoAtual || !seedAtual) {
+      return toast.error("Nenhum resultado pronto para salvar.");
+    }
+
+    await persistirResultado({
+      metodo: metodoAtual,
+      seed: seedAtual,
+      quota,
+      separarPorEquipe,
+      instrucoesIA,
+      arquivoOrigem,
+      totalInscricoes: dados.length,
+      totalElegiveis,
+      totalVencedores: vencedores.length,
+      relatorioHtml: relatorioUltimoSorteio,
+      vencedores,
+      auditoria,
+      csvHeaders,
+    });
+  };
+
+  const concluirSorteio = async ({
+    selecionados,
+    metodo,
+    seed,
+    relatorio,
+    auditoriaExtra = [],
+    exibirAlerta = true,
+    tituloAlerta = "Sorteio Realizado (v3) 🛡️",
+    icone = "success" as "success" | "info",
+  }: {
+    selecionados: Inscrito[];
+    metodo: "manual" | "ia" | "ia_fallback";
+    seed: string;
+    relatorio: string;
+    auditoriaExtra?: AuditoriaItem[];
+    exibirAlerta?: boolean;
+    tituloAlerta?: string;
+    icone?: "success" | "info";
+  }) => {
+    setVencedores(selecionados);
+    setMetodoAtual(metodo);
+    setSeedAtual(seed);
+    setRelatorioUltimoSorteio(relatorio);
+
+    const auditoriaCompleta = [
+      ...auditoria.filter(
+        (item) =>
+          item.tipo !== "manual" &&
+          item.tipo !== "ia" &&
+          item.tipo !== "fallback" &&
+          item.tipo !== "persistencia",
+      ),
+      ...auditoriaExtra,
+    ];
+    setAuditoria(auditoriaCompleta);
+
+    const savedId = await persistirResultado({
+      metodo,
+      seed,
+      quota,
+      separarPorEquipe,
+      instrucoesIA,
+      arquivoOrigem,
+      totalInscricoes: dados.length,
+      totalElegiveis,
+      totalVencedores: selecionados.length,
+      relatorioHtml: relatorio,
+      vencedores: selecionados,
+      auditoria: auditoriaCompleta,
+      csvHeaders,
+    });
+
+    if (savedId) setHistoricoSalvoId(savedId);
+
+    if (exibirAlerta) {
+      await Swal.fire({
+        title: tituloAlerta,
+        html: relatorio,
+        icon: icone,
+        confirmButtonColor: "#4f46e5",
+      });
+    }
+  };
 
   const baixarCSV = () => {
     if (vencedores.length === 0) return;
@@ -208,13 +669,14 @@ export default function SorteioPage() {
       Turma: v.turma,
       "E-mail do Aluno": v.email_aluno,
       "Data da Inscrição": v.timestamp,
+      Seed: seedAtual,
+      Método: metodoAtual || "-",
     }));
 
     const csv = Papa.unparse(dadosParaExportacao);
     const blob = new Blob(["\ufeff" + csv], {
       type: "text/csv;charset=utf-8;",
     });
-
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -222,12 +684,10 @@ export default function SorteioPage() {
       "download",
       `Sorteio_CSP_${new Date().toISOString().split("T")[0]}.csv`,
     );
-
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-
     toast.success("Download do CSV iniciado!");
   };
 
@@ -243,10 +703,11 @@ export default function SorteioPage() {
       Turma: v.turma,
       "E-mail do Aluno": v.email_aluno,
       "Data da Inscrição": v.timestamp,
+      Seed: seedAtual,
+      Método: metodoAtual || "-",
     }));
 
     const tsv = Papa.unparse(dadosParaExportacao, { delimiter: "\t" });
-
     navigator.clipboard
       .writeText(tsv)
       .then(() => {
@@ -267,14 +728,10 @@ export default function SorteioPage() {
       });
   };
 
-  // ==========================================
-  // 📂 PROCESSAMENTO DE ARQUIVOS
-  // ==========================================
-
   const processFile = (file: File) => {
     if (!file) return;
-
     const loadingToast = toast.loading("Processando banco de dados...");
+    setArquivoOrigem(file.name);
 
     Papa.parse(file, {
       header: true,
@@ -282,27 +739,29 @@ export default function SorteioPage() {
       complete: (results: Papa.ParseResult<Record<string, string>>) => {
         try {
           const linhas = Array.isArray(results.data) ? results.data : [];
+          const headers = (results.meta.fields || []).map((item) =>
+            String(item),
+          );
+          setCsvHeaders(headers);
+          const validacao = headersValidos(headers);
+
+          if (!validacao.ok) {
+            throw new Error(
+              `CSV inválido. Colunas ausentes: ${validacao.missing.join(", ")}`,
+            );
+          }
 
           const formatados: Inscrito[] = linhas
             .map((row) => ({
-              timestamp: normalizarTexto(row["Carimbo de data/hora"]),
-              email_contato: normalizarTexto(row["Endereço de e-mail"]),
-              email_aluno: normalizarTexto(
-                row["E-mail institucional do aluno"],
-              ),
-              serie: normalizarTexto(row["Selecione a série do aluno(a)"]),
-              turma: normalizarTexto(row["Selecione a turma"]),
-              nome_aluno: normalizarTexto(
-                row["Informe o nome completo do(a) aluno(a)"],
-              ),
+              timestamp: normalizarTexto(row[HEADER_TIMESTAMP]),
+              email_contato: normalizarTexto(row[HEADER_EMAIL_CONTATO]),
+              email_aluno: normalizarTexto(row[HEADER_EMAIL_ALUNO]),
+              serie: normalizarTexto(row[HEADER_SERIE]),
+              turma: normalizarTexto(row[HEADER_TURMA]),
+              nome_aluno: normalizarTexto(row[HEADER_NOME_ALUNO]),
               equipe:
-                normalizarTexto(row["Equipe"], "S/ EQUIPE") || "S/ EQUIPE",
-              nome_responsavel:
-                normalizarTexto(
-                  row[
-                    "Informe o nome completo do(a) responsável que tem interesse em assistir a dança da gincana."
-                  ],
-                ) || "",
+                normalizarTexto(row[HEADER_EQUIPE], "S/ EQUIPE") || "S/ EQUIPE",
+              nome_responsavel: normalizarTexto(row[HEADER_RESPONSAVEL]) || "",
             }))
             .filter(
               (item) =>
@@ -312,14 +771,26 @@ export default function SorteioPage() {
                 item.email_contato,
             );
 
+          if (formatados.length === 0) {
+            throw new Error(
+              "O CSV foi lido, mas nenhuma inscrição válida foi encontrada.",
+            );
+          }
+
           setDados(formatados);
           setVencedores([]);
+          setHistoricoSalvoId(null);
+          setMetodoAtual(null);
+          setSeedAtual("");
+          setRelatorioUltimoSorteio("<p>Aguardando sorteio.</p>");
 
           toast.success(`${formatados.length} inscrições carregadas!`, {
             id: loadingToast,
           });
-        } catch {
-          toast.error("Falha ao processar o CSV.", { id: loadingToast });
+        } catch (error: any) {
+          toast.error(error?.message || "Falha ao processar o CSV.", {
+            id: loadingToast,
+          });
         }
       },
       error: () => {
@@ -331,68 +802,66 @@ export default function SorteioPage() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
-
     e.target.value = "";
   };
 
   const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     setIsDragging(false);
-
     const file = e.dataTransfer.files?.[0];
     if (file) processFile(file);
   };
 
-  // ==========================================
-  // 🎲 SORTEIO MANUAL
-  // ==========================================
-
-  const realizarSorteioManual = () => {
-    if (dados.length === 0) {
-      return toast.error("Nenhuma inscrição.");
+  const sortearComSeed = (
+    base: Array<Inscrito & { __originalIndex: number }>,
+    seed: string,
+    quotaParam: number,
+    separar: boolean,
+  ) => {
+    let sorteados: typeof base = [];
+    if (separar) {
+      const equipes = Array.from(new Set(base.map((i) => i.equipe)));
+      equipes.forEach((eq) => {
+        const candidatos = base.filter((i) => i.equipe === eq);
+        sorteados = [
+          ...sorteados,
+          ...shuffleComSeed(candidatos, `${seed}::${eq}`).slice(0, quotaParam),
+        ];
+      });
+    } else {
+      sorteados = shuffleComSeed(base, seed).slice(0, quotaParam * 3);
     }
+    return sorteados.map(({ __originalIndex, ...item }) => item);
+  };
+
+  const realizarSorteioManual = async () => {
+    if (dados.length === 0) return toast.error("Nenhuma inscrição.");
 
     const sorteioToast = toast.loading("Sorteando...");
-
     try {
-      let base = [...dados];
+      let base = [...baseElegivelMemo.elegiveis];
+      if (regraUnicoFilho) base = [...base];
+      if (regraUnicoResponsavel) base = [...base];
 
-      if (regraUnicoFilho) {
-        base = Array.from(
-          new Map(
-            base.map((i) => [normalizarTexto(i.email_aluno).toLowerCase(), i]),
-          ).values(),
-        );
-      }
+      const seed = gerarSeed();
+      const sorteados = sortearComSeed(base, seed, quota, separarPorEquipe);
+      const relatorio = `<p>Sorteio manual executado com seed <strong>${seed}</strong>.</p><p>Total de inscrições: <strong>${dados.length}</strong>. Base elegível após saneamento: <strong>${base.length}</strong>. Sorteados finais: <strong>${sorteados.length}</strong>.</p>`;
 
-      if (regraUnicoResponsavel) {
-        base = Array.from(
-          new Map(
-            base.map((i) => [
-              normalizarTexto(i.nome_responsavel).toLowerCase(),
-              i,
-            ]),
-          ).values(),
-        );
-      }
+      await concluirSorteio({
+        selecionados: sorteados,
+        metodo: "manual",
+        seed,
+        relatorio,
+        auditoriaExtra: [
+          {
+            tipo: "manual",
+            titulo: "Sorteio manual executado",
+            descricao: `Método Fisher-Yates com seed reproduzível ${seed}.`,
+            total: sorteados.length,
+          },
+        ],
+      });
 
-      let sorteados: Inscrito[] = [];
-
-      if (separarPorEquipe) {
-        const equipes = Array.from(new Set(base.map((i) => i.equipe)));
-
-        equipes.forEach((eq) => {
-          const candidatos = base.filter((i) => i.equipe === eq);
-          sorteados = [
-            ...sorteados,
-            ...shuffleFisherYates(candidatos).slice(0, quota),
-          ];
-        });
-      } else {
-        sorteados = shuffleFisherYates(base).slice(0, quota * 3);
-      }
-
-      setVencedores(sorteados);
       toast.success("Sorteio concluído!", { id: sorteioToast });
     } catch (error: any) {
       toast.error(error?.message || "Erro ao realizar sorteio manual.", {
@@ -401,13 +870,63 @@ export default function SorteioPage() {
     }
   };
 
-  // ==========================================
-  // 🤖 SORTEIO COM IA
-  // ==========================================
+  const consultarGeminiComRetry = async (body: Record<string, unknown>) => {
+    let ultimoErro: any = null;
+    for (let tentativa = 1; tentativa <= 2; tentativa++) {
+      const controller = new AbortController();
+
+      const timeout = window.setTimeout(() => {
+        controller.abort(new Error("Timeout da requisição Gemini"));
+      }, 85000);
+
+      try {
+        const response = await fetch("/api/sorteio-ia", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+
+        window.clearTimeout(timeout);
+
+        if (!response.ok) {
+          const texto = await response.text().catch(() => "");
+          throw new Error(
+            `Erro na API Gemini (${response.status}): ${texto || "sem detalhes"}`,
+          );
+        }
+
+        const data = await response.json();
+
+        return data;
+      } catch (error: any) {
+        window.clearTimeout(timeout);
+
+        const foiAbortado =
+          error?.name === "AbortError" || controller.signal.aborted;
+
+        if (foiAbortado) {
+          if (tentativa < 2) continue;
+
+          throw new Error(
+            "A IA demorou demais para responder. Tente novamente.",
+          );
+        }
+
+        if (tentativa < 2) continue;
+
+        throw error;
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    }
+    throw ultimoErro;
+  };
 
   const realizarSorteioComIA = async () => {
     if (isProcessandoIA) return;
-
     if (dados.length === 0 || !instrucoesIA.trim()) {
       return toast.error("Dados ou regras ausentes.");
     }
@@ -420,17 +939,17 @@ export default function SorteioPage() {
 
     setIsProcessandoIA(true);
     setIaProgress(10);
-    setIaMessage("Iniciando motor cognitivo do Gemini...");
+    setIaMessage("Preparando base elegível auditável...");
 
     const frasesRaciocinio = [
-      "Interpretando as regras do edital...",
-      "Gerando algoritmo matemático de filtragem...",
-      "Otimizando código para processamento local...",
-      "Executando motor criptográfico na memória...",
+      "Aplicando regra da primeira inscrição por aluno...",
+      "Removendo duplicidades indevidas antes da IA...",
+      "Enviando apenas a base elegível para interpretação...",
+      "Validando retorno estruturado do Gemini...",
     ];
 
+    const baseElegivelIA = montarRegistrosElegiveisIA(dados);
     let passoAtual = 0;
-
     const animacaoProgresso = window.setInterval(() => {
       if (passoAtual < frasesRaciocinio.length) {
         setIaMessage(frasesRaciocinio[passoAtual]);
@@ -441,155 +960,183 @@ export default function SorteioPage() {
 
     try {
       const promptText = `
-Aja como um engenheiro de software especialista em JavaScript.
+Você vai interpretar uma regra de sorteio e selecionar IDs já elegíveis.
 
-REGRAS DO USUÁRIO:
+REGRA DO USUÁRIO:
 ${instrucoesIA}
 
-COTA:
+REGRAS FIXAS JÁ APLICADAS PELO SISTEMA ANTES DE CHEGAR A VOCÊ:
+- cada aluno aparece no máximo uma vez
+- quando houve inscrição duplicada para o mesmo aluno, somente a primeira inscrição foi mantida
+- responsável repetido para alunos diferentes é permitido
+- comparação deve ser tolerante a maiúsculas/minúsculas e acentos
+
+COTA MÁXIMA POR EQUIPE:
 ${quota}
 
-DADOS:
-O array "dados" contém objetos no formato:
-{id: number, aluno: string, eqp: string, email: string}
+MODO PADRÃO:
+- separar por equipe: ${separarPorEquipe ? "sim" : "não"}
+- equipes esperadas no arquivo atual: Hora, Tumba e Texas
 
 TAREFA:
-Retorne APENAS um JSON válido, sem markdown, sem crases e sem texto antes ou depois, exatamente neste formato:
-{"relatorio":"<p>...</p>","codigo":"..."}
+1. Leia a REGRA DO USUÁRIO.
+2. Selecione somente IDs existentes no array recebido.
+3. Respeite o limite máximo de ${quota} por equipe quando o modo separar por equipe estiver ativo.
+4. Se a regra do usuário não restringir, você pode considerar todos os registros elegíveis.
+5. Se não houver candidatos válidos, retorne ids: [] e explique no relatório.
 
-REGRAS DO CAMPO "codigo":
-- Deve ser apenas o corpo de uma função JavaScript que recebe "dados"
-- Não pode usar fetch, window, document, localStorage, sessionStorage, indexedDB, eval, import, require, cookies ou acesso externo
-- Não pode depender de variáveis fora de "dados"
-- Deve processar somente o array "dados"
-- Deve obrigatoriamente terminar com: return [ids];
-- Deve retornar um array de números inteiros correspondentes aos IDs sorteados
+FORMATO DE RESPOSTA OBRIGATÓRIO:
+Retorne APENAS JSON válido, sem markdown, sem comentários, sem crases, exatamente com estas chaves:
+{"relatorio":"<p>...</p>","ids":[1,2,3]}
+`.trim();
 
-REGRAS DO CAMPO "relatorio":
-- Deve ser HTML simples
-- Resuma a lógica aplicada no sorteio
-- Não inclua scripts
-
-IMPORTANTE:
-- O JSON precisa conter exatamente as chaves "relatorio" e "codigo"
-- O campo "codigo" deve ser string válida
-- Não envolva a resposta em bloco \`\`\`json
-      `.trim();
-
-      const response = await fetch("/api/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: promptText }),
+      const data = await consultarGeminiComRetry({
+        prompt: promptText,
+        registros: baseElegivelIA,
+        quota,
+        separarPorEquipe,
       });
-
-      let data: any = null;
-
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error("A API retornou uma resposta inválida.");
-      }
-
-      if (!response.ok) {
-        throw new Error(formatarMensagemErroIA(response.status, data));
-      }
 
       window.clearInterval(animacaoProgresso);
       setIaProgress(85);
-      setIaMessage("Algoritmo recebido! Validando segurança...");
+      setIaMessage("Conferindo IDs retornados pelo Gemini...");
 
-      const bruto = data?.text ?? data?.resposta ?? data;
-      const resIA = extrairJsonDaResposta(bruto);
-
-      const codigo = resIA?.codigo;
+      const resIA: RespostaIA = {
+        relatorio:
+          typeof data?.relatorio === "string" ? data.relatorio : undefined,
+        ids: Array.isArray(data?.ids) ? data.ids : undefined,
+      };
       const relatorio =
-        typeof resIA?.relatorio === "string" && resIA.relatorio.trim()
+        typeof resIA.relatorio === "string" && resIA.relatorio.trim()
           ? resIA.relatorio
           : "<p>Sorteio executado com sucesso.</p>";
 
-      if (typeof codigo !== "string" || !codigo.trim()) {
-        throw new Error("A IA não retornou o campo 'codigo' corretamente.");
+      if (!Array.isArray(resIA.ids)) {
+        throw new Error("A IA não retornou o campo 'ids' corretamente.");
       }
 
-      if (!validarCodigoIA(codigo)) {
-        throw new Error("Código bloqueado por segurança.");
-      }
-
-      setIaProgress(95);
-      setIaMessage("Aplicando sorteio seguro...");
-
-      let motor: (
-        dadosParam: Array<{
-          id: number;
-          aluno: string;
-          eqp: string;
-          email: string;
-        }>,
-      ) => unknown;
-
-      try {
-        motor = new Function(
-          "dados",
-          `"use strict";\n${codigo}`,
-        ) as typeof motor;
-      } catch {
-        throw new Error("A IA retornou um código com erro de sintaxe.");
-      }
-
-      let idsRetornados: unknown;
-
-      try {
-        idsRetornados = motor(
-          dados.map((d, i) => ({
-            id: i,
-            aluno: d.nome_aluno,
-            eqp: d.equipe,
-            email: d.email_aluno,
-          })),
-        );
-      } catch (err: any) {
-        throw new Error(
-          err?.message || "Erro ao executar a lógica gerada pela IA.",
-        );
-      }
-
-      if (!Array.isArray(idsRetornados)) {
-        throw new Error("A IA não retornou uma lista de IDs.");
-      }
-
+      const idsElegiveis = new Set(baseElegivelIA.map((item) => item.id));
       const idsValidos = Array.from(
         new Set(
-          idsRetornados
+          resIA.ids
             .map((id) => Number(id))
             .filter((id) => Number.isInteger(id))
-            .filter((id) => id >= 0 && id < dados.length),
+            .filter((id) => idsElegiveis.has(id)),
         ),
       );
 
-      if (idsValidos.length === 0) {
-        throw new Error("A IA retornou IDs inválidos ou vazios.");
+      const selecionados = dados.filter((_, i) => idsValidos.includes(i));
+
+      if (separarPorEquipe) {
+        const excessoPorEquipe = Array.from(
+          selecionados.reduce<Map<string, number>>((acc, item) => {
+            acc.set(item.equipe, (acc.get(item.equipe) || 0) + 1);
+            return acc;
+          }, new Map()),
+        ).find(([, total]) => total > quota);
+
+        if (excessoPorEquipe) {
+          throw new Error(
+            `A IA excedeu o limite da equipe ${excessoPorEquipe[0]} (máximo ${quota}).`,
+          );
+        }
       }
 
-      setVencedores(dados.filter((_, i) => idsValidos.includes(i)));
+      const seed = gerarSeed();
+      if (selecionados.length === 0) {
+        await concluirSorteio({
+          selecionados: [],
+          metodo: "ia",
+          seed,
+          relatorio,
+          auditoriaExtra: [
+            {
+              tipo: "ia",
+              titulo: "IA não encontrou candidatos",
+              descricao:
+                "O Gemini retornou zero IDs válidos para a regra informada.",
+              total: 0,
+            },
+          ],
+          tituloAlerta: "Nenhum candidato encontrado",
+          icone: "info",
+        });
+      } else {
+        await concluirSorteio({
+          selecionados,
+          metodo: "ia",
+          seed,
+          relatorio,
+          auditoriaExtra: [
+            {
+              tipo: "ia",
+              titulo: "Sorteio via Gemini executado",
+              descricao: `Gemini retornou ${selecionados.length} IDs válidos sobre a base elegível de ${baseElegivelIA.length} registros.`,
+              total: selecionados.length,
+            },
+          ],
+        });
+      }
+
       setIaProgress(100);
       setIaMessage("Sorteio finalizado com sucesso!");
-
-      window.setTimeout(() => {
-        setIsProcessandoIA(false);
-        setIaProgress(0);
-        setIaMessage("");
-      }, 1200);
-
-      Swal.fire({
-        title: "Sorteio Realizado (v2) 🛡️",
-        html: relatorio,
-        icon: "success",
-        confirmButtonColor: "#4f46e5",
-      });
     } catch (error: any) {
       console.error(error);
       window.clearInterval(animacaoProgresso);
-      toast.error(error?.message || "Erro na IA.");
+
+      try {
+        setIaProgress(90);
+        setIaMessage("IA indisponível. Aplicando fallback local...");
+        const { filtrados, quotaEfetiva, relatorio } = aplicarFiltroLocal(
+          baseElegivelIA,
+          instrucoesIA,
+          quota,
+          separarPorEquipe,
+        );
+
+        const baseFallback = filtrados
+          .map((item) => {
+            const original = dados[item.id];
+            return { ...original, __originalIndex: item.id };
+          })
+          .filter(Boolean) as Array<Inscrito & { __originalIndex: number }>;
+
+        const seed = gerarSeed();
+        const sorteados = separarPorEquipe
+          ? sortearComSeed(baseFallback, seed, quota, true)
+          : sortearComSeed(
+              baseFallback,
+              seed,
+              Math.max(1, Math.ceil(quotaEfetiva / 3)),
+              false,
+            );
+
+        await concluirSorteio({
+          selecionados: sorteados,
+          metodo: "ia_fallback",
+          seed,
+          relatorio,
+          auditoriaExtra: [
+            {
+              tipo: "fallback",
+              titulo: "Fallback local acionado",
+              descricao:
+                error?.message ||
+                "A integração com IA falhou; o sistema usou o motor local conservador.",
+              total: sorteados.length,
+            },
+          ],
+          tituloAlerta: "Fallback local aplicado",
+          icone: "info",
+        });
+
+        toast.success(
+          "IA indisponível. O sistema concluiu o sorteio com fallback local.",
+        );
+      } catch (fallbackError: any) {
+        toast.error(fallbackError?.message || error?.message || "Erro na IA.");
+      }
+    } finally {
       setIsProcessandoIA(false);
       setIaProgress(0);
       setIaMessage("");
@@ -598,36 +1145,32 @@ IMPORTANTE:
 
   const handlePrint = useReactToPrint({
     contentRef: relatorioRef,
-    documentTitle: "Resultado_Oficial_CSP_v2",
+    documentTitle: "Resultado_Oficial_CSP_v3",
   });
 
   const getCorEquipe = (eqp: string) => {
     const e = normalizarTexto(eqp, "S/ EQUIPE").toLowerCase();
-
-    if (e.includes("aura")) {
+    if (e.includes("hora") || e.includes("aura")) {
       return {
         bg: "bg-purple-100 print:bg-purple-200",
         border: "border-purple-300 print:border-purple-500",
         text: "text-purple-800 print:text-purple-900",
       };
     }
-
-    if (e.includes("forma")) {
+    if (e.includes("tumba") || e.includes("forma")) {
       return {
         bg: "bg-blue-100 print:bg-blue-200",
         border: "border-blue-300 print:border-blue-500",
         text: "text-blue-800 print:text-blue-900",
       };
     }
-
-    if (e.includes("trama")) {
+    if (e.includes("texas") || e.includes("trama")) {
       return {
         bg: "bg-orange-100 print:bg-orange-200",
         border: "border-orange-300 print:border-orange-500",
         text: "text-orange-800 print:text-orange-900",
       };
     }
-
     return {
       bg: "bg-slate-100 print:bg-slate-200",
       border: "border-slate-300 print:border-slate-500",
@@ -668,7 +1211,7 @@ IMPORTANTE:
               <h1 className="text-3xl font-black text-slate-800 dark:text-white flex items-center gap-3">
                 <Trophy className="text-orange-500" size={36} /> Sorteio Pro{" "}
                 <span className="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-                  v2
+                  v3
                 </span>
               </h1>
               <p className="text-slate-500 dark:text-slate-400 uppercase text-[10px] font-bold tracking-widest mt-1 flex items-center gap-2">
@@ -677,35 +1220,44 @@ IMPORTANTE:
               </p>
             </div>
 
-            <label
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              className={`cursor-pointer border-2 border-dashed p-4 rounded-2xl flex items-center gap-3 transition-all ${isDragging ? "bg-orange-50 border-orange-500 scale-105" : "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 hover:border-orange-500 shadow-sm"}`}
-            >
-              <UploadCloud
-                className={`${isDragging ? "text-orange-500" : "text-slate-400"}`}
-              />
-              <div className="text-left">
-                <p
-                  className={`text-xs font-black uppercase ${isDragging ? "text-orange-600" : "text-slate-800 dark:text-white"}`}
-                >
-                  Carregar Inscrições
-                </p>
-                <p className="text-[9px] text-slate-400 font-bold uppercase">
-                  CSV do Google Forms
-                </p>
-              </div>
-              <input
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-            </label>
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={() => router.push("/dashboard/sorteio/historico")}
+                className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm"
+              >
+                <History size={14} /> Histórico de Sorteios
+              </button>
+
+              <label
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={`cursor-pointer border-2 border-dashed p-4 rounded-2xl flex items-center gap-3 transition-all ${isDragging ? "bg-orange-50 border-orange-500 scale-105" : "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 hover:border-orange-500 shadow-sm"}`}
+              >
+                <UploadCloud
+                  className={`${isDragging ? "text-orange-500" : "text-slate-400"}`}
+                />
+                <div className="text-left">
+                  <p
+                    className={`text-xs font-black uppercase ${isDragging ? "text-orange-600" : "text-slate-800 dark:text-white"}`}
+                  >
+                    Carregar Inscrições
+                  </p>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase">
+                    CSV do Google Forms
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+              </label>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
@@ -724,7 +1276,16 @@ IMPORTANTE:
                     <input
                       type="number"
                       value={quota}
-                      onChange={(e) => setQuota(Number(e.target.value))}
+                      min={1}
+                      max={40}
+                      onChange={(e) =>
+                        setQuota(
+                          Math.min(
+                            40,
+                            Math.max(1, Number(e.target.value) || 1),
+                          ),
+                        )
+                      }
                       className="w-20 bg-white dark:bg-slate-950 border border-slate-300 rounded-lg p-2 font-black text-center text-blue-600 outline-none"
                     />
                   </div>
@@ -774,6 +1335,84 @@ IMPORTANTE:
                   </button>
                 </div>
               </div>
+
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800">
+                <h3 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2 border-b dark:border-slate-800 pb-3">
+                  <AlertTriangle size={16} className="text-amber-500" />{" "}
+                  Auditoria Técnica
+                </h3>
+
+                <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-800/50">
+                      <div className="text-[9px] uppercase font-black text-slate-500">
+                        Inscrições
+                      </div>
+                      <div className="text-xl font-black text-slate-900 dark:text-white">
+                        {dados.length}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-800/50">
+                      <div className="text-[9px] uppercase font-black text-slate-500">
+                        Elegíveis
+                      </div>
+                      <div className="text-xl font-black text-slate-900 dark:text-white">
+                        {totalElegiveis}
+                      </div>
+                    </div>
+                  </div>
+
+                  {seedAtual && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3">
+                      <div className="text-[9px] uppercase font-black text-emerald-600">
+                        Seed reproduzível
+                      </div>
+                      <div className="text-[11px] font-black break-all text-emerald-900 dark:text-emerald-200">
+                        {seedAtual}
+                      </div>
+                    </div>
+                  )}
+
+                  {auditoria.length === 0 ? (
+                    <div className="text-[11px] text-slate-500">
+                      Carregue um CSV para iniciar a auditoria automática.
+                    </div>
+                  ) : (
+                    auditoria.map((item, idx) => (
+                      <div
+                        key={`${item.titulo}-${idx}`}
+                        className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-[10px] uppercase font-black text-slate-800 dark:text-white">
+                            {item.titulo}
+                          </div>
+                          {typeof item.total === "number" && (
+                            <span className="text-[9px] font-black uppercase text-slate-500">
+                              {item.total}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+                          {item.descricao}
+                        </p>
+                        {item.detalhes && item.detalhes.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {item.detalhes.slice(0, 6).map((det, i) => (
+                              <div
+                                key={i}
+                                className="text-[10px] text-slate-500 dark:text-slate-400"
+                              >
+                                • {det}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="lg:col-span-7 space-y-6">
@@ -784,7 +1423,7 @@ IMPORTANTE:
                 </h3>
 
                 <textarea
-                  placeholder="Ex: Sorteie 10 alunos do 9º ano..."
+                  placeholder="Ex: Sorteie 10 alunos do 9º ano da equipe Hora..."
                   className="w-full bg-black/20 border border-white/20 rounded-xl p-4 text-xs h-24 resize-none mb-4 outline-none focus:ring-2 ring-white/40"
                   value={instrucoesIA}
                   onChange={(e) => setInstrucoesIA(e.target.value)}
@@ -822,13 +1461,26 @@ IMPORTANTE:
 
               {vencedores.length > 0 && (
                 <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-                  <div className="p-5 bg-slate-50 dark:bg-slate-800/50 border-b flex justify-between items-center">
+                  <div className="p-5 bg-slate-50 dark:bg-slate-800/50 border-b flex justify-between items-center gap-3 flex-wrap">
                     <h3 className="text-[11px] font-black uppercase flex items-center gap-2">
                       <CheckCircle2 className="text-emerald-500" size={16} />{" "}
                       Vencedores ({vencedores.length})
                     </h3>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={salvarResultadoAtual}
+                        disabled={isSalvando || vencedores.length === 0}
+                        className="flex items-center gap-1.5 text-[9px] font-black text-indigo-700 uppercase bg-indigo-100 px-3 py-2 rounded-lg border border-indigo-300 shadow-sm disabled:opacity-50"
+                      >
+                        {isSalvando ? (
+                          <RefreshCcw size={12} className="animate-spin" />
+                        ) : (
+                          <Save size={12} />
+                        )}{" "}
+                        Salvar
+                      </button>
+
                       <button
                         onClick={baixarCSV}
                         className="flex items-center gap-1.5 text-[9px] font-black text-slate-600 hover:text-slate-800 transition-colors uppercase bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
@@ -850,6 +1502,14 @@ IMPORTANTE:
                         <Printer size={12} /> Imprimir PDF Oficial
                       </button>
                     </div>
+                  </div>
+
+                  <div className="px-5 py-3 bg-amber-50 border-b border-amber-200 text-[10px] font-bold uppercase tracking-widest text-amber-800 flex flex-wrap gap-4">
+                    <span>Método: {metodoAtual || "-"}</span>
+                    <span>Seed: {seedAtual || "-"}</span>
+                    {historicoSalvoId && (
+                      <span>Histórico: {historicoSalvoId}</span>
+                    )}
                   </div>
 
                   <div className="max-h-[300px] overflow-y-auto">
@@ -920,6 +1580,11 @@ IMPORTANTE:
                       <p className="text-[9px] font-bold text-slate-600 uppercase mt-1">
                         Emissão: {new Date().toLocaleString()}
                       </p>
+                      {seedAtual && (
+                        <p className="text-[9px] font-bold text-slate-600 uppercase mt-1">
+                          Seed: {seedAtual}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -933,11 +1598,8 @@ IMPORTANTE:
                     const equipeVencedores = vencedores.filter(
                       (v) => v.equipe === equipe,
                     );
-
                     if (equipeVencedores.length === 0) return null;
-
                     const cores = getCorEquipe(equipe);
-
                     return (
                       <div
                         key={equipe}
