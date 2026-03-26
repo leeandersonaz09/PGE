@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     // Inicializa o Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
 
     // Monta a instrução para o Gemini
     const instrucaoCompleta = `
