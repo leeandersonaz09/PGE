@@ -28,21 +28,14 @@ const registrosBase = [
 ];
 
 const obsPadrao = `A partir do ano letivo de 1987 a média mínima para aprovação passou a ser 6.0 (seis) da 1ª à 4ª série do ensino fundamental e, a partir de 1998 até a 8ª série, conforme alterações do regimento deste colégio.
-
 A média mínima para aprovação da 1ª à 3ª série do ensino médio é 5.0 (cinco).
-
 Arte, Música, Educação Física e Informática são conteúdos cuja avaliação não tem finalidade de verificação de aprendizagem, para fins de promoção da 1ª à 4ª série do ensino fundamental.
-
 Conforme nova alteração no regimento deste Colégio a partir do ano de 2008 a nota mínima para aprovação passou a ser 6.0 (seis) da 1ª série do ensino fundamental à 3ª série do ensino médio.
-
 A partir do ano letivo de 2010, em cumprimento a Lei 11.274/2006, foi implantado no Colégio São Paulo o ensino fundamental de 9(nove) anos, alterando a nomenclatura do ensino fundamental, anteriormente de 1ª à 8ª série, para do 1° ao 9° ano.
-
 A partir do ano letivo de 2015, a disciplina Arte passou a ter finalidade de verificação de aprendizagem, para fins de promoção do 1º ao 5º Ano do Ensino Fundamental.
-
 Inglês do 1º ao 5º ano do Ensino Fundamental não tem finalidade de verificação de aprendizagem, para fins de promoção.
 
 Do Centro Educacional Vitória - Régia:
-
 * A disciplina Ética/Empreendedorismo não é avaliada para efeito de promoção.
 * Educação Religiosa, estão inseridas nas disciplinas Filosofia, Artes e História.
 * Os conteúdos referentes à História e Cultura Afro-Brasileira estão sendo ministrados no âmbito de todo o currículo escolar, em especial nas áreas de Arte, História, Geografia e Língua Portuguesa cumprindo o que determina a lei 10.639/2003.
@@ -553,7 +546,7 @@ export default function HistoricoVersoPage() {
             style={{ fontFamily: "Verdana, sans-serif" }}
           >
             {/* CÓDIGO DE SEGURANÇA (Envolvido em uma div com margem embaixo 'mb-4') */}
-            <div className="mb-4">
+            <div className="mb-1">
               <span
                 className="font-bold text-[10px]"
                 style={{ fontFamily: '"Times New Roman", Times, serif' }}
