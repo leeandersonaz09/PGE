@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { ReactNode } from "react";
 import { useColigada } from "@/context/ColigadaContext";
 
 interface ModuleLinkProps {
   id_modulo: string;
   nome: string;
-  icon: JSX.Element;
+  icon: ReactNode;
   rota: string;
   cor: string;
 }

@@ -1,6 +1,6 @@
 import {
   ResponsiveContainer,
-  ReBarChart,
+  BarChart,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -25,7 +25,7 @@ export function SerieBarChart({ data }: SerieBarChartProps) {
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <ReBarChart
+        <BarChart
           data={data}
           margin={{ top: 20, right: 10, left: -20, bottom: 0 }}
         >
@@ -70,7 +70,7 @@ export function SerieBarChart({ data }: SerieBarChartProps) {
               offset={8}
             />
           </Bar>
-        </ReBarChart>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

@@ -11,6 +11,8 @@
     <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase" alt="Supabase" />
     <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql" alt="PostgreSQL" />
     <img src="https://img.shields.io/badge/Gemini_AI-8E44AD?style=for-the-badge&logo=google-gemini&logoColor=white" alt="Gemini AI" />
+    <img src="https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright" alt="Playwright" />
+    <img src="https://img.shields.io/badge/Jest-C21325?style=for-the-badge&logo=jest" alt="Jest" />
   </p>
 </div>
 
@@ -18,9 +20,9 @@
 
 ## 📖 Visão Geral
 
-O **PGE** foi idealizado e desenvolvido para centralizar, modernizar e blindar as operações diárias de um grande ecossistema educacional. A aplicação resolve o problema de fragmentação de dados ao integrar o acompanhamento acadêmico, o fluxo de enfermaria, a gestão de ocorrências, reservas de equipamentos e disparo de comunicados — com assistência nativa de **Inteligência Artificial** — em uma única interface escalável.
+O **PGE** foi idealizado para centralizar, modernizar e blindar as operações diárias de um ecossistema educacional de grande porte. A aplicação interliga o acompanhamento acadêmico, fluxos hospitalares de enfermaria, reservas de infraestrutura, além do disparo de comunicações externas apoiado nativamente por **Inteligência Artificial**.
 
-O sistema foi construído sob uma arquitetura **Multi-Tenant (Múltiplas Sedes)**, o que significa que uma única instância da aplicação atende diversas unidades físicas (Coligadas), garantindo que os usuários vejam apenas os dados pertencentes às sedes para as quais têm permissão explícita.
+Construído sob uma lógica **Multi-Tenant**, o PGE atende com folga inúmeras sedes (unidades físicas) numa única instância. Essa engenharia é somada agora a um gerenciamento de Cache de Última Geração (Stale-While-Revalidate), entregando não somente segurança (via RLS), mas uma interação instantânea e livre de travamentos (*zero-loading lock*).
 
 ---
 
@@ -423,17 +425,21 @@ O projeto possui um arquivo `netlify.toml` na raiz, o que automatiza grande part
 - **Build command:** `npm run build`
 - **Publish directory:** `.next`
 
-**Passo 5:** Clique no botão **"Add environment variables"** (Adicionar variáveis de ambiente). É **obrigatório** inserir as chaves para o sistema em produção funcionar:
-- Chave 1: `NEXT_PUBLIC_SUPABASE_URL` 
-- Chave 2: `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- Chave 3: `SUPABASE_SERVICE_ROLE_KEY`
-- Chave 4: `EMAIL_USER`
-- Chave 5: `EMAIL_PASS`
-- Chave 6: `GEMINI_API_KEY`
+**Passo 5:** Clique no botão **"Add environment variables"** (Adicionar variáveis de ambiente). 
+
+> [!IMPORTANT]
+> É **estritamente obrigatório** inserir as chaves abaixo para o sistema em produção funcionar:
+> - `NEXT_PUBLIC_SUPABASE_URL` 
+> - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+> - `SUPABASE_SERVICE_ROLE_KEY` (Para a IA e ações Auth Admin Server-Side)
+> - `EMAIL_USER` (E-mail SMTP do Nodemailer)
+> - `EMAIL_PASS` (Senha de Aplicativo SMTP)
+> - `GEMINI_API_KEY` (Sua chave do Google AI Studio)
 
 **Passo 6:** Clique em **"Deploy site"**.
 
-*(Dica: A Netlify fornecerá uma URL provisória como `nome-aleatorio.netlify.app`. Você pode ir em "Site configuration" > "Domain management" para alterar esse nome para algo como `pge-suaescola.netlify.app`)*.
+> [!TIP]
+> A Netlify fornecerá uma URL provisória como `nome-aleatorio.netlify.app`. Acesse "Site configuration" > "Domain management" no Dashboard e modifique para um endereço limpo como `pge-suaescola.netlify.app`.
 
 ---
 
