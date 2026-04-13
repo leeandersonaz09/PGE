@@ -74,13 +74,33 @@ export default function RelatorioFichasPage() {
   const carregarAlunos = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("alunos")
-        .select("*")
-        .eq("sede_id", coligadaAtual?.id)
-        .order("nome", { ascending: true });
-      if (error) throw error;
-      setTodosAlunosSede(data || []);
+      let todos: any[] = [];
+      let fetchMore = true;
+      let from = 0;
+      const step = 999; // Traz de 1000 em 1000 (índices 0 a 999)
+
+      while (fetchMore) {
+        const { data, error } = await supabase
+          .from("alunos")
+          .select("*")
+          .eq("sede_id", coligadaAtual?.id)
+          .order("nome", { ascending: true })
+          .range(from, from + step);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          todos = [...todos, ...data];
+          from += step + 1;
+        }
+
+        // Se veio menos de 1000, é porque acabaram os registros
+        if (!data || data.length <= step) {
+          fetchMore = false;
+        }
+      }
+
+      setTodosAlunosSede(todos);
     } catch (err: any) {
       console.error(err.message);
     } finally {
@@ -94,42 +114,47 @@ export default function RelatorioFichasPage() {
     );
   };
 
+  // Função auxiliar para remover acentos
+  const removerAcentos = (texto: string) => {
+    return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  };
+
   const alunosFiltrados = useMemo(() => {
     return todosAlunosSede.filter((aluno) => {
-      const matchCurso = filtroCurso ? aluno.Curso === filtroCurso : true;
+      const matchCurso = filtroCurso
+        ? String(aluno.Curso || "").trim() === filtroCurso
+        : true;
       const matchSerie = filtroSerie
-        ? String(aluno.serie) === filtroSerie
+        ? String(aluno.serie || "").trim() === filtroSerie
         : true;
       const matchTurma = filtroTurma
-        ? String(aluno.turma) === filtroTurma
+        ? String(aluno.turma || "").trim().toUpperCase() === filtroTurma
         : true;
-      const matchNome = aluno.nome
-        .toLowerCase()
-        .includes(buscaNome.toLowerCase());
+      const matchNome = removerAcentos(aluno.nome || "").includes(removerAcentos(buscaNome));
       return matchCurso && matchSerie && matchTurma && matchNome;
     });
   }, [todosAlunosSede, filtroCurso, filtroSerie, filtroTurma, buscaNome]);
 
   const cursosDisponiveis = useMemo(
     () =>
-      Array.from(new Set(todosAlunosSede.map((a) => a.Curso)))
+      Array.from(new Set(todosAlunosSede.map((a) => String(a.Curso || "").trim())))
         .filter(Boolean)
         .sort(),
     [todosAlunosSede],
   );
   const seriesDisponiveis = useMemo(() => {
     const filtrados = filtroCurso
-      ? todosAlunosSede.filter((a) => a.Curso === filtroCurso)
+      ? todosAlunosSede.filter((a) => String(a.Curso || "").trim() === filtroCurso)
       : todosAlunosSede;
-    return Array.from(new Set(filtrados.map((a) => String(a.serie))))
+    return Array.from(new Set(filtrados.map((a) => String(a.serie || "").trim())))
       .filter(Boolean)
-      .sort();
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [todosAlunosSede, filtroCurso]);
   const turmasDisponiveis = useMemo(() => {
     const filtrados = filtroSerie
-      ? todosAlunosSede.filter((a) => String(a.serie) === filtroSerie)
+      ? todosAlunosSede.filter((a) => String(a.serie || "").trim() === filtroSerie)
       : todosAlunosSede;
-    return Array.from(new Set(filtrados.map((a) => String(a.turma))))
+    return Array.from(new Set(filtrados.map((a) => String(a.turma || "").trim().toUpperCase())))
       .filter(Boolean)
       .sort();
   }, [todosAlunosSede, filtroSerie]);

@@ -72,7 +72,12 @@ O sistema foi construído sob uma arquitetura **Multi-Tenant (Múltiplas Sedes)*
 
 ### 🖨️ Central de Relatórios (Pixel-Perfect)
 - Geração de "Históricos Escolares" (Frente e Verso) complexos.
+- Filtros Avançados Agnósticos a Acentos e Case-Insensitive (para garantir localização precisa independente da digitação humana).
+- Otimização de Paginação de Alta Carga: Algoritmo de "Range Indexing" que ignora nativamente as travas do Supabase e permite listar escolas com mais de 3000 alunos simultâneos (Módulo de Fichas).
 - Motor de impressão injetado via CSS (`@media print`) garantindo fidelidade absoluta de dimensões (A4), margens e quebras de página em relação aos documentos oficiais do MEC/SEC.
+
+### 🎲 Sorteio Pro
+- Motor estatístico seguro e inteligente suportado pelo Google Gemini para randomização controlada (listas justas e sem colisão).
 
 ---
 
@@ -86,6 +91,10 @@ O sistema foi construído sob uma arquitetura **Multi-Tenant (Múltiplas Sedes)*
 - **Lucide React** (Iconografia)
 - **SweetAlert2** (Feedback visual avançado)
 - **React-Quill-New** (Editor WYSIWYG)
+
+**Qualidade de Código e Testes (QA):**
+- [Jest](https://jestjs.io/) & **React Testing Library** (Módulo para estabilidade Unitária e Test-Driven Development isolado em UI/Frontend)
+- [Playwright](https://playwright.dev/) (Módulo de End-to-End capaz de simular navegadores fantasmas rastreando toda interatividade lógica do Usuário via SSO e Rotas Privadas)
 
 **Backend & Integrações:**
 - [Supabase](https://supabase.com/) (BaaS)
@@ -148,6 +157,16 @@ src/
     ├── audit.ts                  # Função Global "Espiã" de Logs de Auditoria
     └── supabase.ts               # Instância do Banco de Dados (BaaS)
 ```
+
+---
+
+## 🧪 Testes Automatizados (Quality Assurance)
+
+O desenvolvimento contínuo (CD) do portal é blindado por uma suíte completa de testes. Certifique a vitalidade de atualizações rodando os scripts pelo seu terminal a qualquer momento:
+
+- `npm run test` : Analisa e corre todos os casos de Testes Unitários de maneira ultrarrápida (útil para validar matemática nos KPIs da Dashboard).
+- `npm run test:watch` : Abre uma sessão de verificação ativa no Terminal e testa os arquivos sempre que o desenvolvedor comandar um "CRTL + S" (modo Watcher).
+- `npm run e2e` : Ativa o ecossistema Web e delega o trajeto principal ao *Playwright* - Um fantasma virtual (Chromium) que acessa, testa fluxos de rotas protegidas verificando a resiliência estrutural. Tira radiografia (DOM) da raiz do site até a rota e acusa imediatamente em caso de Tela em Branco.
 
 ---
 
