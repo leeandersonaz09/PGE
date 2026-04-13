@@ -87,12 +87,15 @@ O sistema foi construído sob uma arquitetura **Multi-Tenant (Múltiplas Sedes)*
 - [Next.js 15.1](https://nextjs.org/) (App Router, Server & Client Components)
 - [React 19](https://react.dev/)
 - [Tailwind CSS v4](https://tailwindcss.com/) (Estilização avançada com `@custom-variant dark`)
+- **SWR (Stale-While-Revalidate)** (Gerenciamento de cache e estado modular de altíssima performance)
+- **React-Loading-Skeleton** (Loaders autônomos para redução de *Time-to-Interactive*)
 - **next-themes** (Gestão fluida de Dark/Light mode sem FOUC)
 - **Lucide React** (Iconografia)
 - **SweetAlert2** (Feedback visual avançado)
 - **React-Quill-New** (Editor WYSIWYG)
 
-**Qualidade de Código e Testes (QA):**
+**Qualidade de Código, CI/CD e Testes (QA):**
+- **GitHub Actions** (Pipeline descentralizado rodando Linter, Validação TypeScript e Suíte de Testes (E2E/Unitários) antes de cada Deploy)
 - [Jest](https://jestjs.io/) & **React Testing Library** (Módulo para estabilidade Unitária e Test-Driven Development isolado em UI/Frontend)
 - [Playwright](https://playwright.dev/) (Módulo de End-to-End capaz de simular navegadores fantasmas rastreando toda interatividade lógica do Usuário via SSO e Rotas Privadas)
 
@@ -124,6 +127,9 @@ Um dos maiores diferenciais deste projeto é a arquitetura de segurança de dado
 ## 📁 Estrutura de Diretórios (Resumo)
 
 ```text
+.github/
+└── workflows/
+    └── ci.yml                    # Definições das Rotinas de Automação de Cibersegurança + Testes (Actions)
 src/
 ├── app/
 │   ├── api/
@@ -156,6 +162,8 @@ src/
 └── lib/
     ├── audit.ts                  # Função Global "Espiã" de Logs de Auditoria
     └── supabase.ts               # Instância do Banco de Dados (BaaS)
+
+ARCHITECTURE.md                   # Log Mestre com decisões de Arquitetura do Software
 ```
 
 ---

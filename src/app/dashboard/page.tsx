@@ -11,6 +11,8 @@ import Link from "next/link";
 import { Loader2, TrendingUp, Lock, ShieldAlert, Users, Stethoscope, AlertTriangle, History, GraduationCap, MonitorPlay, ClipboardList, Mail, Printer, Dices, Settings } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, LabelList, PieChart, Pie, Cell, Legend, AreaChart, Area } from "recharts";
 import { useState, useEffect } from "react";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ModuleLink } from "@/components/dashboard/ModuleLink";
 import { UserAvatar } from "@/components/dashboard/UserAvatar";
@@ -60,12 +62,6 @@ export default function DashboardPage() {
   );
 
   const [mounted, setMounted] = useState(false);
-  const loadingDados =
-    statsLoading ||
-    seriesLoading ||
-    segmentosLoading ||
-    enfermariaLoading ||
-    loadingColigadas;
 
   const CORES_SEGMENTOS = ["#3b82f6", "#f59e0b", "#10b981"]; // Azul (EFI), Laranja (EFII), Verde (EM)
 
@@ -108,14 +104,6 @@ export default function DashboardPage() {
     );
   }
 
-  if (loadingDados) {
-    return (
-      <div className="flex items-center justify-center h-full text-blue-600 dark:text-blue-400 font-bold italic">
-        <Loader2 className="animate-spin mr-2" size={24} /> Sincronizando Dados
-        Reais...
-      </div>
-    );
-  }
   const modulosVisiveis = modulosConfig.filter((m) =>
     modulosPermitidos.includes(m.id_modulo),
   );
@@ -188,7 +176,7 @@ export default function DashboardPage() {
               {k.label}
             </p>
             <p className={`text-4xl font-black ${k.c} dark:text-white`}>
-              {k.val}
+              {statsLoading ? <Skeleton width={60} /> : k.val}
             </p>
           </div>
         ))}
@@ -223,6 +211,9 @@ export default function DashboardPage() {
             Distribuição por Séries
           </h3>
           <div className="h-72 w-full">
+            {seriesLoading ? (
+              <Skeleton height="100%" borderRadius="8px" />
+            ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={dadosSeries}
@@ -271,6 +262,7 @@ export default function DashboardPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -279,6 +271,9 @@ export default function DashboardPage() {
             Alunos por Segmento
           </h3>
           <div className="flex-1 min-h-[250px] w-full flex items-center justify-center">
+            {segmentosLoading ? (
+              <Skeleton circle className="w-40 h-40" />
+            ) : (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -311,6 +306,7 @@ export default function DashboardPage() {
                 />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -319,6 +315,9 @@ export default function DashboardPage() {
             Atendimentos da Enfermaria (Últimos 7 Dias)
           </h3>
           <div className="h-56 w-full">
+            {enfermariaLoading ? (
+               <Skeleton height="100%" borderRadius="8px" />
+            ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={dadosEnfermaria}
@@ -362,6 +361,7 @@ export default function DashboardPage() {
                 </Area>
               </AreaChart>
             </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { supabase } from '@/lib/supabase';
 import { useColigada } from '@/context/ColigadaContext';
 
@@ -9,61 +9,36 @@ interface Stats {
   locacoes: number;
 }
 
+const fetchStats = async (coligadaId: number): Promise<Stats> => {
+  const [resAlunos, resEquip, resLocacoes, resRepouso] = await Promise.all([
+    supabase.from("alunos").select("id", { count: "exact", head: true }).eq("sede_id", coligadaId),
+    supabase.from("equipamentos").select("id", { count: "exact", head: true }).eq("sede_id", coligadaId),
+    supabase.from("locacoes").select("id", { count: "exact", head: true }).eq("sede_id", coligadaId),
+    supabase.from("encaminhamentos_repouso").select("id", { count: "exact", head: true }).eq("sede_id", coligadaId),
+  ]);
+
+  if (resAlunos.error) throw resAlunos.error;
+
+  return {
+    alunos: resAlunos.count || 0,
+    equipamentos: resEquip.count || 0,
+    locacoes: resLocacoes.count || 0,
+    atendimentos: resRepouso.count || 0,
+  };
+};
+
 export function useDashboardStats(coligadaId: number | null) {
-  const [stats, setStats] = useState<Stats>({
-    alunos: 0,
-    atendimentos: 0,
-    equipamentos: 0,
-    locacoes: 0,
-  });
-  const [loading, setLoading] = useState(true);
   const { loadingColigadas } = useColigada();
 
-  useEffect(() => {
-    if (!coligadaId) {
-      setLoading(false);
-      return;
-    }
+  const { data, error, isLoading } = useSWR<Stats>(
+    coligadaId ? `dashboard-stats-${coligadaId}` : null,
+    () => fetchStats(coligadaId as number),
+    { revalidateOnFocus: false }
+  );
 
-    setLoading(true);
-
-    const loadStats = async () => {
-      try {
-        const [resAlunos, resEquip, resLocacoes, resRepouso] =
-          await Promise.all([
-            supabase
-              .from("alunos")
-              .select("id", { count: "exact", head: true })
-              .eq("sede_id", coligadaId),
-            supabase
-              .from("equipamentos")
-              .select("id", { count: "exact", head: true })
-              .eq("sede_id", coligadaId),
-            supabase
-              .from("locacoes")
-              .select("id", { count: "exact", head: true })
-              .eq("sede_id", coligadaId),
-            supabase
-              .from("encaminhamentos_repouso")
-              .select("id", { count: "exact", head: true })
-              .eq("sede_id", coligadaId),
-          ]);
-
-        setStats({
-          alunos: resAlunos.count || 0,
-          equipamentos: resEquip.count || 0,
-          locacoes: resLocacoes.count || 0,
-          atendimentos: resRepouso.count || 0,
-        });
-      } catch (e) {
-        console.error("Erro ao carregar estatísticas do dashboard:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadStats();
-  }, [coligadaId]);
-
-  return { stats, loading };
+  return {
+    stats: data || { alunos: 0, atendimentos: 0, equipamentos: 0, locacoes: 0 },
+    loading: isLoading || loadingColigadas,
+    error
+  };
 }
