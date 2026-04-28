@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import { useReactToPrint } from "react-to-print";
 import Swal from "sweetalert2";
 import {
@@ -39,16 +39,18 @@ const MODALIDADES = [
   "Karate",
   "GR",
   "Xadrez",
-  "Totó",
-  "Tênis de Mesa",
+  "Toto",
+  "Tenis de Mesa",
   "Corrida",
   "Futsal",
   "Basquete",
-  "Vôlei",
+  "Volei",
   "Jogo Cooperativo",
   "Jogo Recreativo",
   "Jogo Adaptado",
 ] as const;
+
+const LIMITE_LINHAS_POR_PAGINA = 24;
 
 const normalizarTexto = (valor: string | null | undefined) =>
   String(valor || "").trim();
@@ -65,6 +67,28 @@ const criarChaveGrupo = (aluno: Aluno) => {
   const turma = normalizarTexto(aluno.turma).toUpperCase();
 
   return `${curso}||${serie}||${turma}`;
+};
+
+const distribuirAlunosEmPaginas = (alunos: Aluno[], limite: number) => {
+  if (alunos.length <= limite) {
+    return [alunos];
+  }
+
+  const totalPaginas = Math.ceil(alunos.length / limite);
+  const tamanhoBase = Math.floor(alunos.length / totalPaginas);
+  const paginasComLinhaExtra = alunos.length % totalPaginas;
+  const paginas: Aluno[][] = [];
+  let cursor = 0;
+
+  for (let indice = 0; indice < totalPaginas; indice += 1) {
+    const tamanhoPagina =
+      tamanhoBase + (indice < paginasComLinhaExtra ? 1 : 0);
+
+    paginas.push(alunos.slice(cursor, cursor + tamanhoPagina));
+    cursor += tamanhoPagina;
+  }
+
+  return paginas;
 };
 
 export default function ListaModalidadesPage() {
@@ -126,7 +150,7 @@ export default function ListaModalidadesPage() {
         console.error(error);
         Swal.fire({
           title: "Erro ao carregar",
-          text: "Não foi possível carregar os alunos desta unidade.",
+          text: "Nao foi possivel carregar os alunos desta unidade.",
           icon: "error",
           confirmButtonColor: "#E87B35",
         });
@@ -255,8 +279,8 @@ export default function ListaModalidadesPage() {
 
     if (grupos.length > 0) {
       Swal.fire({
-        title: "Relatório carregado",
-        text: `${grupos.length} turma(s) pronta(s) para impressão.`,
+        title: "Relatorio carregado",
+        text: `${grupos.length} turma(s) pronta(s) para impressao.`,
         icon: "success",
         confirmButtonColor: "#E87B35",
       });
@@ -362,7 +386,7 @@ export default function ListaModalidadesPage() {
                   }}
                   className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-[11px] font-bold outline-none border-none focus:ring-2 focus:ring-[#E87B35]"
                 >
-                  <option value="">SÉRIE</option>
+                  <option value="">SERIE</option>
                   {seriesDisponiveis.map((serie) => (
                     <option key={serie} value={serie}>
                       {serie}
@@ -400,7 +424,7 @@ export default function ListaModalidadesPage() {
           <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="p-4 bg-slate-50 dark:bg-slate-800 flex justify-between items-center border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Turmas Disponíveis ({gruposFiltrados.length})
+                Turmas Disponiveis ({gruposFiltrados.length})
               </h3>
               <button
                 onClick={selecionarOuLimparTodas}
@@ -467,104 +491,122 @@ export default function ListaModalidadesPage() {
 
       <div className="flex justify-center p-8 print:p-0">
         <div ref={relatorioRef} className="print-area w-full max-w-[820px]">
-          {gruposParaImpressao.map((grupo) => (
-            <div
-              key={grupo.chave}
-              className="print-page bg-white text-black w-full min-h-[285mm] mb-8 shadow-2xl print:shadow-none rounded-2xl overflow-hidden"
-            >
-              <div className="border-t-[10px] border-[#E87B35] px-4 py-5">
-                <div className="flex justify-between items-center gap-4 border-b border-slate-200 pb-4">
-                  <div className="flex items-center gap-4">
-                    <Image
-                      src="/assets/logo-csp.png"
-                      alt="Logo CSP"
-                      width={180}
-                      height={46}
-                      className="h-11 w-auto object-contain"
-                    />
-                    <div>
-                      <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500">
-                        Colégio São Paulo
+          {gruposParaImpressao.map((grupo) => {
+            const paginas = distribuirAlunosEmPaginas(
+              grupo.alunos,
+              LIMITE_LINHAS_POR_PAGINA,
+            );
+
+            return paginas.map((alunosPagina, indicePagina) => (
+              <div
+                key={`${grupo.chave}-${indicePagina}`}
+                className="print-page bg-white text-black w-full min-h-[285mm] mb-8 shadow-2xl print:shadow-none rounded-2xl overflow-hidden"
+              >
+                <div className="border-t-[10px] border-[#E87B35] px-4 py-5">
+                  <div className="flex justify-between items-center gap-4 border-b border-slate-200 pb-4">
+                    <div className="flex items-center gap-4">
+                      <Image
+                        src="/assets/logo-csp.png"
+                        alt="Logo CSP"
+                        width={180}
+                        height={46}
+                        className="h-11 w-auto object-contain"
+                      />
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500">
+                          Colegio Sao Paulo
+                        </p>
+                        <h2 className="text-[18px] font-black uppercase text-[#E87B35] leading-none mt-1">
+                          Lista de Modalidades
+                        </h2>
+                        {paginas.length > 1 && (
+                          <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-400 mt-1">
+                            Continuacao • Pagina {indicePagina + 1} de {paginas.length}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right uppercase">
+                      <p className="text-[9px] font-black tracking-[0.2em] text-slate-400">
+                        Serie
                       </p>
-                      <h2 className="text-[18px] font-black uppercase text-[#E87B35] leading-none mt-1">
-                        Lista de Modalidades
-                      </h2>
+                      <p className="text-[18px] font-black text-slate-800">
+                        {grupo.serie || "---"}
+                      </p>
+                      <p className="text-[9px] font-black tracking-[0.2em] text-slate-400 mt-2">
+                        Turma
+                      </p>
+                      <p className="text-[18px] font-black text-slate-800">
+                        {grupo.turma || "---"}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right uppercase">
-                    <p className="text-[9px] font-black tracking-[0.2em] text-slate-400">
-                      Série
-                    </p>
-                    <p className="text-[18px] font-black text-slate-800">
-                      {grupo.serie || "---"}
-                    </p>
-                    <p className="text-[9px] font-black tracking-[0.2em] text-slate-400 mt-2">
-                      Turma
-                    </p>
-                    <p className="text-[18px] font-black text-slate-800">
-                      {grupo.turma || "---"}
-                    </p>
+
+                  <div className="mt-3 flex justify-between items-center text-[9px] font-black uppercase tracking-[0.15em] text-slate-500">
+                    <span>{grupo.curso || "Curso nao informado"}</span>
+                    <span>
+                      {grupo.alunos.length} aluno(s) • {alunosPagina.length} nesta
+                      pagina
+                    </span>
                   </div>
-                </div>
 
-                <div className="mt-3 flex justify-between items-center text-[9px] font-black uppercase tracking-[0.15em] text-slate-500">
-                  <span>{grupo.curso || "Curso não informado"}</span>
-                  <span>{grupo.alunos.length} aluno(s)</span>
-                </div>
-
-                <div className="mt-4 overflow-hidden rounded-xl border border-slate-300">
-                  <table
-                    className="w-full border-collapse"
-                    style={{ tableLayout: "fixed" }}
-                  >
-                    <thead>
-                      <tr className="bg-slate-100">
-                        <th className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase w-[10%]">
-                          RA
-                        </th>
-                        <th className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase w-[26%]">
-                          Nome
-                        </th>
-                        {MODALIDADES.map((modalidade) => (
-                          <th
-                            key={modalidade}
-                            className="border border-slate-300 p-0 text-[7px] font-black uppercase align-middle"
-                          >
-                            <div className="h-[84px] flex items-center justify-center">
-                              <span
-                                className="block leading-none whitespace-nowrap"
-                                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-                              >
-                                {modalidade}
-                              </span>
-                            </div>
+                  <div className="mt-4 overflow-hidden rounded-xl border border-slate-300">
+                    <table
+                      className="w-full border-collapse"
+                      style={{ tableLayout: "fixed" }}
+                    >
+                      <thead>
+                        <tr className="bg-slate-100">
+                          <th className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase w-[10%]">
+                            RA
                           </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {grupo.alunos.map((aluno) => (
-                        <tr key={aluno.id}>
-                          <td className="border border-slate-300 px-1 py-1.5 text-[7px] font-bold text-center">
-                            {aluno.id}
-                          </td>
-                          <td className="border border-slate-300 px-1.5 py-1.5 text-[7px] font-bold uppercase">
-                            {aluno.nome}
-                          </td>
+                          <th className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase w-[26%]">
+                            Nome
+                          </th>
                           {MODALIDADES.map((modalidade) => (
-                            <td
-                              key={`${aluno.id}-${modalidade}`}
-                              className="border border-slate-300 h-7"
-                            ></td>
+                            <th
+                              key={modalidade}
+                              className="border border-slate-300 p-0 text-[7px] font-black uppercase align-middle"
+                            >
+                              <div className="h-[84px] flex items-center justify-center">
+                                <span
+                                  className="block leading-none whitespace-nowrap"
+                                  style={{
+                                    writingMode: "vertical-rl",
+                                    transform: "rotate(180deg)",
+                                  }}
+                                >
+                                  {modalidade}
+                                </span>
+                              </div>
+                            </th>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {alunosPagina.map((aluno) => (
+                          <tr key={aluno.id}>
+                            <td className="border border-slate-300 px-1 py-1.5 text-[7px] font-bold text-center">
+                              {aluno.id}
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1.5 text-[7px] font-bold uppercase">
+                              {aluno.nome}
+                            </td>
+                            {MODALIDADES.map((modalidade) => (
+                              <td
+                                key={`${aluno.id}-${modalidade}`}
+                                className="border border-slate-300 h-7"
+                              ></td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ));
+          })}
         </div>
       </div>
     </div>
