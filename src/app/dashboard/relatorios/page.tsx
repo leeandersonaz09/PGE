@@ -8,6 +8,7 @@ import {
   ArrowRight,
   FileCheck,
   ClipboardList,
+  ListChecks,
 } from "lucide-react";
 
 export default function RelatoriosPage() {
@@ -93,6 +94,31 @@ export default function RelatoriosPage() {
             </p>
           </div>
           <div className="mt-6 flex items-center text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+            Acessar Módulo{" "}
+            <ArrowRight
+              size={14}
+              className="ml-1 group-hover:translate-x-1 transition-transform"
+            />
+          </div>
+        </Link>
+
+        <Link
+          href="/dashboard/relatorios/lista-modalidades"
+          className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 rounded-xl shadow-sm hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-500 transition-all group flex flex-col justify-between"
+        >
+          <div>
+            <div className="bg-amber-50 dark:bg-amber-900/30 w-12 h-12 rounded-lg flex items-center justify-center text-amber-600 dark:text-amber-400 mb-4 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+              <ListChecks size={24} />
+            </div>
+            <h2 className="text-lg font-black text-gray-800 dark:text-slate-200 mb-2">
+              Lista de Modalidades
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-slate-400 font-medium line-clamp-2">
+              Emissão de listas por turma com RA, nome e colunas para escolha
+              manual das modalidades esportivas e recreativas.
+            </p>
+          </div>
+          <div className="mt-6 flex items-center text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">
             Acessar Módulo{" "}
             <ArrowRight
               size={14}
