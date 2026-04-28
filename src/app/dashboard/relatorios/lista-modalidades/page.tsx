@@ -275,8 +275,8 @@ export default function ListaModalidadesPage() {
           __html: `
             @media print {
               @page {
-                size: A4 landscape;
-                margin: 8mm;
+                size: A4 portrait;
+                margin: 6mm;
               }
               body {
                 background: white !important;
@@ -466,71 +466,78 @@ export default function ListaModalidadesPage() {
       </div>
 
       <div className="flex justify-center p-8 print:p-0">
-        <div ref={relatorioRef} className="print-area w-full max-w-[1120px]">
+        <div ref={relatorioRef} className="print-area w-full max-w-[820px]">
           {gruposParaImpressao.map((grupo) => (
             <div
               key={grupo.chave}
-              className="print-page bg-white text-black w-full min-h-[190mm] mb-8 shadow-2xl print:shadow-none rounded-2xl overflow-hidden"
+              className="print-page bg-white text-black w-full min-h-[285mm] mb-8 shadow-2xl print:shadow-none rounded-2xl overflow-hidden"
             >
-              <div className="border-t-[10px] border-[#E87B35] px-8 py-6">
-                <div className="flex justify-between items-center gap-6 border-b border-slate-200 pb-4">
+              <div className="border-t-[10px] border-[#E87B35] px-4 py-5">
+                <div className="flex justify-between items-center gap-4 border-b border-slate-200 pb-4">
                   <div className="flex items-center gap-4">
                     <Image
                       src="/assets/logo-csp.png"
                       alt="Logo CSP"
-                      width={216}
-                      height={56}
-                      className="h-14 w-auto object-contain"
+                      width={180}
+                      height={46}
+                      className="h-11 w-auto object-contain"
                     />
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">
+                      <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500">
                         Colégio São Paulo
                       </p>
-                      <h2 className="text-[24px] font-black uppercase text-[#E87B35] leading-none mt-1">
+                      <h2 className="text-[18px] font-black uppercase text-[#E87B35] leading-none mt-1">
                         Lista de Modalidades
                       </h2>
                     </div>
                   </div>
                   <div className="text-right uppercase">
-                    <p className="text-[11px] font-black tracking-[0.25em] text-slate-400">
+                    <p className="text-[9px] font-black tracking-[0.2em] text-slate-400">
                       Série
                     </p>
-                    <p className="text-[22px] font-black text-slate-800">
+                    <p className="text-[18px] font-black text-slate-800">
                       {grupo.serie || "---"}
                     </p>
-                    <p className="text-[11px] font-black tracking-[0.25em] text-slate-400 mt-2">
+                    <p className="text-[9px] font-black tracking-[0.2em] text-slate-400 mt-2">
                       Turma
                     </p>
-                    <p className="text-[22px] font-black text-slate-800">
+                    <p className="text-[18px] font-black text-slate-800">
                       {grupo.turma || "---"}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-3 flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                <div className="mt-3 flex justify-between items-center text-[9px] font-black uppercase tracking-[0.15em] text-slate-500">
                   <span>{grupo.curso || "Curso não informado"}</span>
                   <span>{grupo.alunos.length} aluno(s)</span>
                 </div>
 
-                <div className="mt-5 overflow-hidden rounded-xl border border-slate-300">
+                <div className="mt-4 overflow-hidden rounded-xl border border-slate-300">
                   <table
                     className="w-full border-collapse"
                     style={{ tableLayout: "fixed" }}
                   >
                     <thead>
                       <tr className="bg-slate-100">
-                        <th className="border border-slate-300 px-2 py-2 text-[10px] font-black uppercase w-[8%]">
+                        <th className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase w-[10%]">
                           RA
                         </th>
-                        <th className="border border-slate-300 px-2 py-2 text-[10px] font-black uppercase w-[24%]">
+                        <th className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase w-[26%]">
                           Nome
                         </th>
                         {MODALIDADES.map((modalidade) => (
                           <th
                             key={modalidade}
-                            className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase align-middle"
+                            className="border border-slate-300 p-0 text-[7px] font-black uppercase align-middle"
                           >
-                            <span className="block leading-tight">{modalidade}</span>
+                            <div className="h-[84px] flex items-center justify-center">
+                              <span
+                                className="block leading-none whitespace-nowrap"
+                                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+                              >
+                                {modalidade}
+                              </span>
+                            </div>
                           </th>
                         ))}
                       </tr>
@@ -538,16 +545,16 @@ export default function ListaModalidadesPage() {
                     <tbody>
                       {grupo.alunos.map((aluno) => (
                         <tr key={aluno.id}>
-                          <td className="border border-slate-300 px-2 py-2 text-[9px] font-bold text-center">
+                          <td className="border border-slate-300 px-1 py-1.5 text-[7px] font-bold text-center">
                             {aluno.id}
                           </td>
-                          <td className="border border-slate-300 px-2 py-2 text-[9px] font-bold uppercase">
+                          <td className="border border-slate-300 px-1.5 py-1.5 text-[7px] font-bold uppercase">
                             {aluno.nome}
                           </td>
                           {MODALIDADES.map((modalidade) => (
                             <td
                               key={`${aluno.id}-${modalidade}`}
-                              className="border border-slate-300 h-8"
+                              className="border border-slate-300 h-7"
                             ></td>
                           ))}
                         </tr>
