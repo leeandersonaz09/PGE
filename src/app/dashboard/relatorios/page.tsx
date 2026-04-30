@@ -9,6 +9,7 @@ import {
   FileCheck,
   ClipboardList,
   ListChecks,
+  PieChart,
 } from "lucide-react";
 
 export default function RelatoriosPage() {
@@ -120,6 +121,32 @@ export default function RelatoriosPage() {
           </div>
           <div className="mt-6 flex items-center text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">
             Acessar Módulo{" "}
+            <ArrowRight
+              size={14}
+              className="ml-1 group-hover:translate-x-1 transition-transform"
+            />
+          </div>
+        </Link>
+
+        <Link
+          href="/dashboard/relatorios/apuracao-eleitoral"
+          className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 p-6 rounded-xl shadow-sm hover:shadow-lg hover:border-orange-400 dark:hover:border-orange-500 transition-all group flex flex-col justify-between"
+        >
+          <div>
+            <div className="bg-orange-50 dark:bg-orange-900/30 w-12 h-12 rounded-lg flex items-center justify-center text-orange-600 dark:text-orange-400 mb-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+              <PieChart size={24} />
+            </div>
+            <h2 className="text-lg font-black text-gray-800 dark:text-slate-200 mb-2">
+              Apura&ccedil;&atilde;o Eleitoral
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-slate-400 font-medium line-clamp-2">
+              Importa os arquivos CSV da urna, salva a elei&ccedil;&atilde;o por
+              coligada e gera relat&oacute;rio de apura&ccedil;&atilde;o com
+              impress&atilde;o em A4.
+            </p>
+          </div>
+          <div className="mt-6 flex items-center text-xs font-bold text-orange-600 dark:text-orange-400 uppercase">
+            Acessar M&oacute;dulo{" "}
             <ArrowRight
               size={14}
               className="ml-1 group-hover:translate-x-1 transition-transform"
