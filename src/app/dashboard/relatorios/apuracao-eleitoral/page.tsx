@@ -46,6 +46,12 @@ type AuditSummary = {
   votosValidosAuditoria: number | null;
   votosBrancosAuditoria: number | null;
   votosNulosAuditoria: number | null;
+  totalParticipacoesBrutas: number | null;
+  totalVotosBrutosAuditoria: number | null;
+  totalRasUnicos: number | null;
+  rasDuplicados: string[];
+  votosDescartadosDuplicidade: number;
+  auditoriaAplicada: boolean;
   alertas: string[];
 };
 
@@ -107,6 +113,15 @@ type ParsedCsvBundle = {
   votosAuditoria: Record<string, string>[];
   resumo: ApuracaoResumo;
   chartData: ChartSlice[];
+};
+
+type AuditResolvedVote = {
+  ra: string;
+  voteType: "valid" | "blank" | "null";
+  typedNumber: string | null;
+  slateId: number | null;
+  urnaId: string;
+  votedAt: string;
 };
 
 type WinnerResolution = {
@@ -312,33 +327,230 @@ const parseResultadosCsv = (rows: Record<string, string>[]) => {
   return { resultados, totalBrancos, totalNulos };
 };
 
+const mergeCsvRows = async (files: File[]) => {
+  const mergedRows: Record<string, string>[] = [];
+
+  for (const file of files) {
+    const rows = await parseCsvFile(file);
+    mergedRows.push(...rows);
+  }
+
+  return mergedRows;
+};
+
+const mergeResultadosRows = (rows: Record<string, string>[]) => {
+  const byKey = new Map<string, ResultadoChapa>();
+  let totalBrancos = 0;
+  let totalNulos = 0;
+
+  for (const row of rows) {
+    const nome = normalizeText(row.chapa || row.nome || row.lista || row.slate);
+    const numero = padNumber(row.numero || row.number);
+    const votos = parseInteger(row.totalvotosvalidos || row.totalvotos || row.votos || row.total);
+    const upperName = normalizeKey(nome);
+
+    if (!nome && votos <= 0) {
+      continue;
+    }
+
+    if (upperName.includes("votosembranco") || upperName.includes("branco")) {
+      totalBrancos += votos;
+      continue;
+    }
+
+    if (upperName.includes("votosnulos") || upperName.includes("nulo")) {
+      totalNulos += votos;
+      continue;
+    }
+
+    const key = `${numero}::${nome}`;
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.votos += votos;
+      continue;
+    }
+
+    byKey.set(key, {
+      numero,
+      nome,
+      votos,
+    });
+  }
+
+  const resultados = Array.from(byKey.values()).sort(
+    (a, b) => b.votos - a.votos || a.numero.localeCompare(b.numero),
+  );
+
+  return { resultados, totalBrancos, totalNulos };
+};
+
+const resolveAuditedVotes = ({
+  participacoes,
+  votosAuditoria,
+  resultadosBase,
+}: {
+  participacoes: Record<string, string>[];
+  votosAuditoria: Record<string, string>[];
+  resultadosBase: ResultadoChapa[];
+}) => {
+  if (participacoes.length === 0 || votosAuditoria.length === 0) {
+    return null;
+  }
+
+  const participacoesPorChave = new Map<string, string[]>();
+  for (const row of participacoes) {
+    const ra = normalizeText(row.ra);
+    const urnaId = normalizeText(row.urnaid || row.urna_id);
+    const votedAt = normalizeText(row.votedat || row.voted_at);
+    if (!ra || !urnaId || !votedAt) {
+      continue;
+    }
+
+    const key = `${urnaId}::${votedAt}`;
+    const list = participacoesPorChave.get(key) ?? [];
+    list.push(ra);
+    participacoesPorChave.set(key, list);
+  }
+
+  const slatesByNumber = new Map<string, ResultadoChapa>();
+  resultadosBase.forEach((resultado) => {
+    slatesByNumber.set(resultado.numero, resultado);
+  });
+
+  const votosComRa: AuditResolvedVote[] = [];
+  const votosSemParticipacao: string[] = [];
+
+  for (const row of votosAuditoria) {
+    const urnaId = normalizeText(row.urnaid || row.urna_id);
+    const votedAt = normalizeText(row.votedat || row.voted_at);
+    const voteTypeRaw = normalizeText(row.votetype || row.vote_type).toLowerCase();
+    const typedNumberRaw = normalizeText(row.typednumber || row.typed_number);
+    const slateIdRaw = normalizeText(row.slateid || row.slate_id);
+    const key = `${urnaId}::${votedAt}`;
+    const queue = participacoesPorChave.get(key);
+    const ra = queue?.shift() ?? "";
+
+    if (!ra) {
+      votosSemParticipacao.push(key);
+      continue;
+    }
+
+    const voteType: "valid" | "blank" | "null" =
+      voteTypeRaw === "blank" || voteTypeRaw === "null" ? voteTypeRaw : "valid";
+
+    votosComRa.push({
+      ra,
+      voteType,
+      typedNumber: typedNumberRaw ? padNumber(typedNumberRaw) : null,
+      slateId: slateIdRaw ? Number.parseInt(slateIdRaw, 10) || null : null,
+      urnaId,
+      votedAt,
+    });
+  }
+
+  const uniqueVotesByRa = new Map<string, AuditResolvedVote>();
+  const rasDuplicadosSet = new Set<string>();
+  let votosDescartadosDuplicidade = 0;
+
+  for (const voto of votosComRa) {
+    if (uniqueVotesByRa.has(voto.ra)) {
+      rasDuplicadosSet.add(voto.ra);
+      votosDescartadosDuplicidade += 1;
+      continue;
+    }
+
+    uniqueVotesByRa.set(voto.ra, voto);
+  }
+
+  const resultadosAuditadosMap = new Map<string, ResultadoChapa>();
+  resultadosBase.forEach((resultado) => {
+    resultadosAuditadosMap.set(resultado.numero, {
+      numero: resultado.numero,
+      nome: resultado.nome,
+      votos: 0,
+    });
+  });
+
+  let totalBrancosAuditados = 0;
+  let totalNulosAuditados = 0;
+
+  Array.from(uniqueVotesByRa.values()).forEach((voto) => {
+    if (voto.voteType === "blank") {
+      totalBrancosAuditados += 1;
+      return;
+    }
+
+    if (voto.voteType === "null") {
+      totalNulosAuditados += 1;
+      return;
+    }
+
+    const numero = voto.typedNumber ? padNumber(voto.typedNumber) : "";
+    const resultado = resultadosAuditadosMap.get(numero);
+    if (resultado) {
+      resultado.votos += 1;
+      return;
+    }
+
+    totalNulosAuditados += 1;
+  });
+
+  const resultadosAuditados = Array.from(resultadosAuditadosMap.values()).sort(
+    (a, b) => b.votos - a.votos || a.numero.localeCompare(b.numero),
+  );
+
+  return {
+    resultados: resultadosAuditados,
+    totalBrancos: totalBrancosAuditados,
+    totalNulos: totalNulosAuditados,
+    totalParticipacoesBrutas: participacoes.length,
+    totalVotosBrutosAuditoria: votosAuditoria.length,
+    totalRasUnicos: uniqueVotesByRa.size,
+    rasDuplicados: Array.from(rasDuplicadosSet).sort((a, b) => a.localeCompare(b)),
+    votosDescartadosDuplicidade,
+    votosSemParticipacao,
+  };
+};
+
 const buildAuditSummary = ({
   participacoes,
   votosAuditoria,
   totalValidos,
   totalBrancos,
   totalNulos,
+  auditResolution,
 }: {
   participacoes: Record<string, string>[];
   votosAuditoria: Record<string, string>[];
   totalValidos: number;
   totalBrancos: number;
   totalNulos: number;
+  auditResolution: ReturnType<typeof resolveAuditedVotes>;
 }): AuditSummary => {
   const alertas: string[] = [];
-  const totalParticipacoes = participacoes.length > 0 ? participacoes.length : null;
-  const totalVotosAuditoria = votosAuditoria.length > 0 ? votosAuditoria.length : null;
+  const totalParticipacoesBrutas = participacoes.length > 0 ? participacoes.length : null;
+  const totalVotosBrutosAuditoria = votosAuditoria.length > 0 ? votosAuditoria.length : null;
+  const totalParticipacoes =
+    auditResolution?.totalRasUnicos ?? (participacoes.length > 0 ? participacoes.length : null);
+  const totalVotosAuditoria =
+    auditResolution?.totalRasUnicos ?? (votosAuditoria.length > 0 ? votosAuditoria.length : null);
 
   const votosValidosAuditoria =
-    votosAuditoria.length > 0
+    auditResolution
+      ? auditResolution.resultados.reduce((sum, row) => sum + row.votos, 0)
+      : votosAuditoria.length > 0
       ? votosAuditoria.filter((row) => normalizeText(row.votetype) === "valid").length
       : null;
   const votosBrancosAuditoria =
-    votosAuditoria.length > 0
+    auditResolution
+      ? auditResolution.totalBrancos
+      : votosAuditoria.length > 0
       ? votosAuditoria.filter((row) => normalizeText(row.votetype) === "blank").length
       : null;
   const votosNulosAuditoria =
-    votosAuditoria.length > 0
+    auditResolution
+      ? auditResolution.totalNulos
+      : votosAuditoria.length > 0
       ? votosAuditoria.filter((row) => normalizeText(row.votetype) === "null").length
       : null;
 
@@ -371,6 +583,18 @@ const buildAuditSummary = ({
     new Set(votosAuditoria.map((row) => normalizeText(row.urnaid || row.urnaid)).filter(Boolean)),
   );
 
+  if ((auditResolution?.rasDuplicados.length ?? 0) > 0) {
+    alertas.push(
+      `${auditResolution?.rasDuplicados.length ?? 0} RA(s) com voto duplicado entre urnas. Apenas um voto por RA foi considerado.`,
+    );
+  }
+
+  if ((auditResolution?.votosSemParticipacao.length ?? 0) > 0) {
+    alertas.push(
+      `${auditResolution?.votosSemParticipacao.length ?? 0} voto(s) de auditoria nao puderam ser vinculados a uma participacao por urna/data.`,
+    );
+  }
+
   return {
     totalParticipacoes,
     totalVotosAuditoria,
@@ -379,6 +603,12 @@ const buildAuditSummary = ({
     votosValidosAuditoria,
     votosBrancosAuditoria,
     votosNulosAuditoria,
+    totalParticipacoesBrutas,
+    totalVotosBrutosAuditoria,
+    totalRasUnicos: auditResolution?.totalRasUnicos ?? null,
+    rasDuplicados: auditResolution?.rasDuplicados ?? [],
+    votosDescartadosDuplicidade: auditResolution?.votosDescartadosDuplicidade ?? 0,
+    auditoriaAplicada: Boolean(auditResolution),
     alertas,
   };
 };
@@ -394,7 +624,15 @@ const buildParsedBundle = ({
   votosRows: Record<string, string>[];
   observacao: string;
 }): ParsedCsvBundle => {
-  const { resultados, totalBrancos, totalNulos } = parseResultadosCsv(resultadosRows);
+  const baseResults = mergeResultadosRows(resultadosRows);
+  const auditResolution = resolveAuditedVotes({
+    participacoes: participacoesRows,
+    votosAuditoria: votosRows,
+    resultadosBase: baseResults.resultados,
+  });
+  const resultados = auditResolution?.resultados ?? baseResults.resultados;
+  const totalBrancos = auditResolution?.totalBrancos ?? baseResults.totalBrancos;
+  const totalNulos = auditResolution?.totalNulos ?? baseResults.totalNulos;
   const totalValidos = resultados.reduce((sum, row) => sum + row.votos, 0);
   const totalVotos = totalValidos + totalBrancos + totalNulos;
   const { vencedora, empate, chapasEmpatadas } = resolveWinner(resultados);
@@ -405,6 +643,7 @@ const buildParsedBundle = ({
     totalValidos,
     totalBrancos,
     totalNulos,
+    auditResolution,
   });
 
   const resumo: ApuracaoResumo = {
@@ -470,6 +709,29 @@ const mapSavedElectionToReport = (row: SavedElection): ElectionReport => {
         typeof row.resumo_json?.auditoria?.votosNulosAuditoria === "number"
           ? row.resumo_json.auditoria.votosNulosAuditoria
           : null,
+      totalParticipacoesBrutas:
+        typeof row.resumo_json?.auditoria?.totalParticipacoesBrutas === "number"
+          ? row.resumo_json.auditoria.totalParticipacoesBrutas
+          : row.participacoes_rows.length || null,
+      totalVotosBrutosAuditoria:
+        typeof row.resumo_json?.auditoria?.totalVotosBrutosAuditoria === "number"
+          ? row.resumo_json.auditoria.totalVotosBrutosAuditoria
+          : row.votos_rows.length || null,
+      totalRasUnicos:
+        typeof row.resumo_json?.auditoria?.totalRasUnicos === "number"
+          ? row.resumo_json.auditoria.totalRasUnicos
+          : null,
+      rasDuplicados: Array.isArray(row.resumo_json?.auditoria?.rasDuplicados)
+        ? row.resumo_json.auditoria.rasDuplicados
+        : [],
+      votosDescartadosDuplicidade:
+        typeof row.resumo_json?.auditoria?.votosDescartadosDuplicidade === "number"
+          ? row.resumo_json.auditoria.votosDescartadosDuplicidade
+          : 0,
+      auditoriaAplicada:
+        typeof row.resumo_json?.auditoria?.auditoriaAplicada === "boolean"
+          ? row.resumo_json.auditoria.auditoriaAplicada
+          : false,
       alertas: Array.isArray(row.resumo_json?.auditoria?.alertas)
         ? row.resumo_json.auditoria.alertas
         : [],
@@ -505,9 +767,9 @@ export default function ApuracaoEleitoralPage() {
   );
   const [observacao, setObservacao] = useState("");
 
-  const [resultadoFile, setResultadoFile] = useState<File | null>(null);
-  const [participacoesFile, setParticipacoesFile] = useState<File | null>(null);
-  const [votosFile, setVotosFile] = useState<File | null>(null);
+  const [resultadoFiles, setResultadoFiles] = useState<File[]>([]);
+  const [participacoesFiles, setParticipacoesFiles] = useState<File[]>([]);
+  const [votosFiles, setVotosFiles] = useState<File[]>([]);
 
   const [savedElections, setSavedElections] = useState<SavedElection[]>([]);
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
@@ -606,10 +868,10 @@ export default function ApuracaoEleitoralPage() {
   }
 
   async function handleGenerateApuracao() {
-    if (!resultadoFile) {
+    if (resultadoFiles.length === 0) {
       await Swal.fire({
         title: "Arquivo obrigatorio",
-        text: "Selecione pelo menos o resultado_local.csv para gerar a apuracao.",
+        text: "Selecione pelo menos um resultado_local.csv para gerar a apuracao.",
         icon: "warning",
         confirmButtonColor: "#E87B35",
       });
@@ -628,9 +890,9 @@ export default function ApuracaoEleitoralPage() {
 
     setGenerating(true);
     try {
-      const resultadosRows = await parseCsvFile(resultadoFile);
-      const participacoesRows = participacoesFile ? await parseCsvFile(participacoesFile) : [];
-      const votosRows = votosFile ? await parseCsvFile(votosFile) : [];
+      const resultadosRows = await mergeCsvRows(resultadoFiles);
+      const participacoesRows = participacoesFiles.length > 0 ? await mergeCsvRows(participacoesFiles) : [];
+      const votosRows = votosFiles.length > 0 ? await mergeCsvRows(votosFiles) : [];
 
       const parsed = buildParsedBundle({
         resultadosRows,
@@ -711,9 +973,9 @@ export default function ApuracaoEleitoralPage() {
 
     setSaving(true);
     try {
-      const resultadosRows = await parseCsvFile(resultadoFile as File);
-      const participacoesRows = participacoesFile ? await parseCsvFile(participacoesFile) : [];
-      const votosRows = votosFile ? await parseCsvFile(votosFile) : [];
+      const resultadosRows = await mergeCsvRows(resultadoFiles);
+      const participacoesRows = participacoesFiles.length > 0 ? await mergeCsvRows(participacoesFiles) : [];
+      const votosRows = votosFiles.length > 0 ? await mergeCsvRows(votosFiles) : [];
       const parsed = buildParsedBundle({
         resultadosRows,
         participacoesRows,
@@ -957,14 +1219,20 @@ export default function ApuracaoEleitoralPage() {
                   resultado_local.csv
                 </span>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Obrigatorio para consolidar os votos por chapa.
+                  Obrigatorio. Pode enviar varios arquivos, um por urna, para consolidar os votos por chapa.
                 </p>
                 <input
                   type="file"
                   accept=".csv"
-                  onChange={(event) => setResultadoFile(event.target.files?.[0] || null)}
+                  multiple
+                  onChange={(event) => setResultadoFiles(Array.from(event.target.files || []))}
                   className="mt-3 w-full text-[11px] font-bold"
                 />
+                {resultadoFiles.length > 0 ? (
+                  <p className="mt-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                    {resultadoFiles.length} arquivo(s) selecionado(s)
+                  </p>
+                ) : null}
               </label>
 
               <label className="block rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-4">
@@ -972,14 +1240,20 @@ export default function ApuracaoEleitoralPage() {
                   participacoes_auditoria.csv
                 </span>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Opcional. Ajuda na consistencia entre votantes e votos.
+                  Opcional. Pode enviar varios arquivos para detectar RAs duplicados entre urnas.
                 </p>
                 <input
                   type="file"
                   accept=".csv"
-                  onChange={(event) => setParticipacoesFile(event.target.files?.[0] || null)}
+                  multiple
+                  onChange={(event) => setParticipacoesFiles(Array.from(event.target.files || []))}
                   className="mt-3 w-full text-[11px] font-bold"
                 />
+                {participacoesFiles.length > 0 ? (
+                  <p className="mt-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                    {participacoesFiles.length} arquivo(s) selecionado(s)
+                  </p>
+                ) : null}
               </label>
 
               <label className="block rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-4">
@@ -987,14 +1261,20 @@ export default function ApuracaoEleitoralPage() {
                   votos_auditoria.csv
                 </span>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Opcional. Valida votos validos, brancos e nulos.
+                  Opcional. Pode enviar varios arquivos para recalcular a apuracao auditada por RA unico.
                 </p>
                 <input
                   type="file"
                   accept=".csv"
-                  onChange={(event) => setVotosFile(event.target.files?.[0] || null)}
+                  multiple
+                  onChange={(event) => setVotosFiles(Array.from(event.target.files || []))}
                   className="mt-3 w-full text-[11px] font-bold"
                 />
+                {votosFiles.length > 0 ? (
+                  <p className="mt-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                    {votosFiles.length} arquivo(s) selecionado(s)
+                  </p>
+                ) : null}
               </label>
             </div>
           </div>
@@ -1077,7 +1357,7 @@ export default function ApuracaoEleitoralPage() {
                   </div>
 
                   <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-4 mt-5">
-                    <div className="rounded-[1.5rem] border border-slate-200 dark:border-slate-800 p-4 h-[360px]">
+                    <div className="rounded-[1.5rem] border border-slate-200 dark:border-slate-800 p-4 h-[420px]">
                       <div className="flex items-center gap-2 mb-3 text-slate-600 dark:text-slate-300">
                         <PieChartIcon size={16} />
                         <span className="text-[11px] font-black uppercase tracking-[0.18em]">
@@ -1091,9 +1371,9 @@ export default function ApuracaoEleitoralPage() {
                             dataKey="value"
                             nameKey="name"
                             cx="50%"
-                            cy="46%"
-                            outerRadius={110}
-                            innerRadius={62}
+                            cy="42%"
+                            outerRadius={96}
+                            innerRadius={54}
                             paddingAngle={2}
                           >
                             {activeReport.chartData.map((slice) => (
@@ -1101,7 +1381,7 @@ export default function ApuracaoEleitoralPage() {
                             ))}
                           </Pie>
                           <Tooltip />
-                          <Legend verticalAlign="bottom" height={72} />
+                          <Legend verticalAlign="bottom" height={56} />
                         </RechartsPieChart>
                       </ResponsiveContainer>
                     </div>
@@ -1139,18 +1419,50 @@ export default function ApuracaoEleitoralPage() {
                         </p>
                         <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
                           <div>
-                            <span className="text-slate-500">Participacoes</span>
+                            <span className="text-slate-500">
+                              {activeReport.resumo.auditoria.auditoriaAplicada ? "RAs unicos" : "Participacoes"}
+                            </span>
                             <p className="font-black text-slate-800 dark:text-white">
                               {activeReport.resumo.auditoria.totalParticipacoes ?? "--"}
                             </p>
                           </div>
                           <div>
-                            <span className="text-slate-500">Votos auditoria</span>
+                            <span className="text-slate-500">
+                              {activeReport.resumo.auditoria.auditoriaAplicada ? "Votos auditados" : "Votos auditoria"}
+                            </span>
                             <p className="font-black text-slate-800 dark:text-white">
                               {activeReport.resumo.auditoria.totalVotosAuditoria ?? "--"}
                             </p>
                           </div>
                         </div>
+
+                        {activeReport.resumo.auditoria.auditoriaAplicada ? (
+                          <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+                            <div>
+                              <span className="text-slate-500">Participacoes brutas</span>
+                              <p className="font-black text-slate-800 dark:text-white">
+                                {activeReport.resumo.auditoria.totalParticipacoesBrutas ?? "--"}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Votos descartados</span>
+                              <p className="font-black text-slate-800 dark:text-white">
+                                {activeReport.resumo.auditoria.votosDescartadosDuplicidade}
+                              </p>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {activeReport.resumo.auditoria.rasDuplicados.length > 0 ? (
+                          <div className="mt-4 rounded-2xl bg-rose-50 border border-rose-200 p-3">
+                            <div className="text-rose-700 text-xs font-black uppercase">
+                              RAs com duplicidade entre urnas
+                            </div>
+                            <p className="mt-2 text-xs text-rose-800 break-words">
+                              {activeReport.resumo.auditoria.rasDuplicados.join(", ")}
+                            </p>
+                          </div>
+                        ) : null}
 
                         {activeReport.resumo.auditoria.alertas.length > 0 ? (
                           <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-3">
@@ -1450,6 +1762,26 @@ export default function ApuracaoEleitoralPage() {
                     ))}
                   </div>
                 </div>
+
+                {activeReport.resumo.auditoria.auditoriaAplicada ? (
+                  <div className="mt-5 rounded-[1.5rem] border border-slate-200 p-4 text-[12px]">
+                    <strong className="block text-slate-900 uppercase tracking-[0.16em] text-[10px] mb-2">
+                      Auditoria de duplicidade
+                    </strong>
+                    <p className="text-slate-700">
+                      {activeReport.resumo.auditoria.totalParticipacoesBrutas ?? "--"} participacoes brutas,
+                      {" "}
+                      {activeReport.resumo.auditoria.totalRasUnicos ?? "--"} RA(s) unicos considerados e
+                      {" "}
+                      {activeReport.resumo.auditoria.votosDescartadosDuplicidade} voto(s) descartado(s) por duplicidade.
+                    </p>
+                    {activeReport.resumo.auditoria.rasDuplicados.length > 0 ? (
+                      <p className="text-slate-700 mt-2">
+                        RAs com duplicidade: {activeReport.resumo.auditoria.rasDuplicados.join(", ")}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 {activeReport.observacao ? (
                   <div className="mt-5 rounded-[1.5rem] border border-slate-200 p-4 text-[12px]">
