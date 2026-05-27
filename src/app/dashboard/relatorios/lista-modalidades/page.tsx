@@ -558,13 +558,13 @@ export default function ListaModalidadesPage() {
                     >
                       <thead>
                         <tr className="bg-slate-100">
-                          <th className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase w-[26%]">
+                          <th className="border border-slate-300 px-1 py-1.5 text-[10px] font-black uppercase w-[40%]">
                             Nome
                           </th>
                           {MODALIDADES.map((modalidade) => (
                             <th
                               key={modalidade}
-                              className="border border-slate-300 p-1 text-[6px] font-black uppercase text-center align-middle leading-[1.1] break-words"
+                              className="border border-slate-300 p-0.5 text-[8px] font-black uppercase text-center align-middle leading-[1.1] break-words"
                             >
                               {modalidade}
                             </th>
@@ -574,13 +574,13 @@ export default function ListaModalidadesPage() {
                       <tbody>
                         {alunosPagina.map((aluno) => (
                           <tr key={aluno.id}>
-                            <td className="border border-slate-300 px-1.5 py-1.5 text-[7px] font-bold uppercase">
+                            <td className="border border-slate-300 px-1.5 py-1 text-[9px] font-bold uppercase">
                               {aluno.nome}
                             </td>
                             {MODALIDADES.map((modalidade) => (
                               <td
                                 key={`${aluno.id}-${modalidade}`}
-                                className="border border-slate-300 h-4"
+                                className="border border-slate-300 h-[18px]"
                               ></td>
                             ))}
                           </tr>
