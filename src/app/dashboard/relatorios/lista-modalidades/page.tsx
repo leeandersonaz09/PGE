@@ -96,6 +96,7 @@ export default function ListaModalidadesPage() {
   const { coligadaAtual } = useColigada();
   const relatorioRef = useRef<HTMLDivElement>(null);
 
+  const [orientacao, setOrientacao] = useState<"portrait" | "landscape">("landscape");
   const [loading, setLoading] = useState(false);
   const [todosAlunosSede, setTodosAlunosSede] = useState<Aluno[]>([]);
   const [turmasSelecionadas, setTurmasSelecionadas] = useState<string[]>([]);
@@ -300,7 +301,7 @@ export default function ListaModalidadesPage() {
           __html: `
             @media print {
               @page {
-                size: landscape;
+                size: ${orientacao === "portrait" ? "A4 portrait" : "landscape"};
                 margin: 6mm;
               }
               body {
@@ -339,13 +340,21 @@ export default function ListaModalidadesPage() {
               Olimpíada Interna
             </h1>
           </div>
-          <button
-            onClick={handlePrint}
-            disabled={gruposParaImpressao.length === 0}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#E87B35] text-white rounded-xl text-[10px] font-black uppercase shadow-lg transition-all active:scale-95 disabled:opacity-40"
-          >
-            <Printer size={16} /> Imprimir ({gruposParaImpressao.length})
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setOrientacao((o) => (o === "portrait" ? "landscape" : "portrait"))}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-[10px] font-black uppercase shadow-sm transition-all active:scale-95"
+            >
+              Orientacao: {orientacao === "portrait" ? "Retrato" : "Paisagem"}
+            </button>
+            <button
+              onClick={handlePrint}
+              disabled={gruposParaImpressao.length === 0}
+              className="flex items-center gap-2 px-6 py-2.5 bg-[#E87B35] text-white rounded-xl text-[10px] font-black uppercase shadow-lg transition-all active:scale-95 disabled:opacity-40"
+            >
+              <Printer size={16} /> Imprimir ({gruposParaImpressao.length})
+            </button>
+          </div>
         </div>
       </div>
 
@@ -491,7 +500,7 @@ export default function ListaModalidadesPage() {
       </div>
 
       <div className="flex justify-center p-8 print:p-0">
-        <div ref={relatorioRef} className="print-area w-full max-w-[1120px]">
+        <div ref={relatorioRef} className={`print-area w-full ${orientacao === "portrait" ? "max-w-[820px]" : "max-w-[1120px]"}`}>
           {gruposParaImpressao.map((grupo) => {
             const paginas = distribuirAlunosEmPaginas(
               grupo.alunos,
@@ -501,7 +510,9 @@ export default function ListaModalidadesPage() {
             return paginas.map((alunosPagina, indicePagina) => (
               <div
                 key={`${grupo.chave}-${indicePagina}`}
-                className="print-page bg-white text-black w-full min-h-[190mm] mb-8 shadow-2xl print:shadow-none rounded-2xl overflow-hidden"
+                className={`print-page bg-white text-black w-full mb-8 shadow-2xl print:shadow-none rounded-2xl overflow-hidden ${
+                  orientacao === "portrait" ? "min-h-[285mm]" : "min-h-[190mm]"
+                }`}
               >
                 <div className="border-t-[10px] border-[#E87B35] px-4 py-5">
                   <div className="flex justify-between items-center gap-4 border-b border-slate-200 pb-4">
@@ -558,15 +569,37 @@ export default function ListaModalidadesPage() {
                     >
                       <thead>
                         <tr className="bg-slate-100">
-                          <th className="border border-slate-300 px-1 py-1.5 text-[10px] font-black uppercase w-[40%]">
+                          <th
+                            className={`border border-slate-300 px-1 py-1.5 text-[10px] font-black uppercase ${
+                              orientacao === "portrait" ? "w-[26%]" : "w-[40%]"
+                            }`}
+                          >
                             Nome
                           </th>
                           {MODALIDADES.map((modalidade) => (
                             <th
                               key={modalidade}
-                              className="border border-slate-300 p-0.5 text-[8px] font-black uppercase text-center align-middle leading-[1.1] break-words"
+                              className={`border border-slate-300 font-black uppercase text-center align-middle ${
+                                orientacao === "portrait"
+                                  ? "p-0 text-[7px]"
+                                  : "p-0.5 text-[8px] leading-[1.1] break-words"
+                              }`}
                             >
-                              {modalidade}
+                              {orientacao === "portrait" ? (
+                                <div className="h-[84px] flex items-center justify-center">
+                                  <span
+                                    className="block leading-none whitespace-nowrap"
+                                    style={{
+                                      writingMode: "vertical-rl",
+                                      transform: "rotate(180deg)",
+                                    }}
+                                  >
+                                    {modalidade}
+                                  </span>
+                                </div>
+                              ) : (
+                                modalidade
+                              )}
                             </th>
                           ))}
                         </tr>
@@ -574,13 +607,21 @@ export default function ListaModalidadesPage() {
                       <tbody>
                         {alunosPagina.map((aluno) => (
                           <tr key={aluno.id}>
-                            <td className="border border-slate-300 px-1.5 py-1 text-[9px] font-bold uppercase">
+                            <td
+                              className={`border border-slate-300 px-1.5 uppercase ${
+                                orientacao === "portrait"
+                                  ? "py-1.5 text-[7px] font-bold"
+                                  : "py-1 text-[9px] font-bold"
+                              }`}
+                            >
                               {aluno.nome}
                             </td>
                             {MODALIDADES.map((modalidade) => (
                               <td
                                 key={`${aluno.id}-${modalidade}`}
-                                className="border border-slate-300 h-[18px]"
+                                className={`border border-slate-300 ${
+                                  orientacao === "portrait" ? "h-7" : "h-[18px]"
+                                }`}
                               ></td>
                             ))}
                           </tr>
