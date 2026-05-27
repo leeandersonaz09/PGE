@@ -300,7 +300,7 @@ export default function ListaModalidadesPage() {
           __html: `
             @media print {
               @page {
-                size: A4 portrait;
+                size: A4 landscape;
                 margin: 6mm;
               }
               body {
@@ -491,7 +491,7 @@ export default function ListaModalidadesPage() {
       </div>
 
       <div className="flex justify-center p-8 print:p-0">
-        <div ref={relatorioRef} className="print-area w-full max-w-[820px]">
+        <div ref={relatorioRef} className="print-area w-full max-w-[1120px]">
           {gruposParaImpressao.map((grupo) => {
             const paginas = distribuirAlunosEmPaginas(
               grupo.alunos,
@@ -501,7 +501,7 @@ export default function ListaModalidadesPage() {
             return paginas.map((alunosPagina, indicePagina) => (
               <div
                 key={`${grupo.chave}-${indicePagina}`}
-                className="print-page bg-white text-black w-full min-h-[285mm] mb-8 shadow-2xl print:shadow-none rounded-2xl overflow-hidden"
+                className="print-page bg-white text-black w-full min-h-[190mm] mb-8 shadow-2xl print:shadow-none rounded-2xl overflow-hidden"
               >
                 <div className="border-t-[10px] border-[#E87B35] px-4 py-5">
                   <div className="flex justify-between items-center gap-4 border-b border-slate-200 pb-4">
