@@ -36,6 +36,7 @@ type GrupoTurma = {
 };
 
 const MODALIDADES = [
+  "Dança",
   "Karate",
   "GR",
   "Xadrez",
@@ -335,7 +336,7 @@ export default function ListaModalidadesPage() {
             </Link>
             <h1 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tighter flex items-center gap-2">
               <FileSpreadsheet className="text-[#E87B35]" />
-              Lista de Modalidades
+              Olimpíada Interna
             </h1>
           </div>
           <button
@@ -557,28 +558,15 @@ export default function ListaModalidadesPage() {
                     >
                       <thead>
                         <tr className="bg-slate-100">
-                          <th className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase w-[10%]">
-                            RA
-                          </th>
                           <th className="border border-slate-300 px-1 py-2 text-[8px] font-black uppercase w-[26%]">
                             Nome
                           </th>
                           {MODALIDADES.map((modalidade) => (
                             <th
                               key={modalidade}
-                              className="border border-slate-300 p-0 text-[7px] font-black uppercase align-middle"
+                              className="border border-slate-300 p-1 text-[6px] font-black uppercase text-center align-middle leading-[1.1] break-words"
                             >
-                              <div className="h-[84px] flex items-center justify-center">
-                                <span
-                                  className="block leading-none whitespace-nowrap"
-                                  style={{
-                                    writingMode: "vertical-rl",
-                                    transform: "rotate(180deg)",
-                                  }}
-                                >
-                                  {modalidade}
-                                </span>
-                              </div>
+                              {modalidade}
                             </th>
                           ))}
                         </tr>
@@ -586,16 +574,13 @@ export default function ListaModalidadesPage() {
                       <tbody>
                         {alunosPagina.map((aluno) => (
                           <tr key={aluno.id}>
-                            <td className="border border-slate-300 px-1 py-1.5 text-[7px] font-bold text-center">
-                              {aluno.id}
-                            </td>
                             <td className="border border-slate-300 px-1.5 py-1.5 text-[7px] font-bold uppercase">
                               {aluno.nome}
                             </td>
                             {MODALIDADES.map((modalidade) => (
                               <td
                                 key={`${aluno.id}-${modalidade}`}
-                                className="border border-slate-300 h-7"
+                                className="border border-slate-300 h-4"
                               ></td>
                             ))}
                           </tr>
