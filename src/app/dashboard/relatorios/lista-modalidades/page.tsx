@@ -51,7 +51,7 @@ const MODALIDADES = [
   "Jogo Adaptado",
 ] as const;
 
-const LIMITE_LINHAS_POR_PAGINA = 38;
+const LIMITE_LINHAS_POR_PAGINA = 24;
 
 const normalizarTexto = (valor: string | null | undefined) =>
   String(valor || "").trim();
