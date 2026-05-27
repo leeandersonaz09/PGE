@@ -1380,7 +1380,12 @@ export default function ApuracaoEleitoralPage() {
                               <Cell key={slice.name} fill={slice.color} />
                             ))}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip
+                            formatter={(value: any) => [
+                              `${value} (${((Number(value) / (activeReport.resumo.totalVotos || 1)) * 100).toFixed(1)}%)`,
+                              "Votos",
+                            ]}
+                          />
                           <Legend verticalAlign="bottom" height={56} />
                         </RechartsPieChart>
                       </ResponsiveContainer>
@@ -1514,7 +1519,8 @@ export default function ApuracaoEleitoralPage() {
                               {resultado.nome}
                             </td>
                             <td className="px-4 py-3 text-sm font-black text-slate-800 dark:text-white text-right">
-                              {resultado.votos}
+                              {resultado.votos} (
+                              {((resultado.votos / (activeReport.resumo.totalVotos || 1)) * 100).toFixed(1)}%)
                             </td>
                           </tr>
                         ))}
@@ -1732,7 +1738,10 @@ export default function ApuracaoEleitoralPage() {
                             ></span>
                             <span className="truncate">{slice.name}</span>
                           </div>
-                          <strong>{slice.value}</strong>
+                          <strong>
+                            {slice.value} (
+                            {((slice.value / (activeReport.resumo.totalVotos || 1)) * 100).toFixed(1)}%)
+                          </strong>
                         </div>
                       ))}
                     </div>
@@ -1756,7 +1765,8 @@ export default function ApuracaoEleitoralPage() {
                           {resultado.nome}
                         </div>
                         <div className="px-4 py-3 border-t text-right font-black text-slate-900">
-                          {resultado.votos}
+                          {resultado.votos} (
+                          {((resultado.votos / (activeReport.resumo.totalVotos || 1)) * 100).toFixed(1)}%)
                         </div>
                       </React.Fragment>
                     ))}
