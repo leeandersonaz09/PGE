@@ -10,6 +10,8 @@
   NEXT_USE_NETLIFY_EDGE = "true"
   # Garante que o Next.js trate o ambiente como produção estrita
   NODE_ENV = "production"
+  # Garante que dependências de build (TypeScript, PostCSS, etc.) sejam instaladas
+  NPM_FLAGS = "--include=dev"
 
 # --- CONFIGURAÇÕES DE ROTEAMENTO E CACHE ---
 
