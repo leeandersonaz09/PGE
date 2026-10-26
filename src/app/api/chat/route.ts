@@ -1,6 +1,11 @@
-import { createServerClient, type CookieOptions, type CookieMethodsServer } from "@supabase/ssr";
+import {
+  createServerClient,
+  type CookieOptions,
+  type CookieMethodsServer,
+} from "@supabase/ssr";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { cookies } from "next/headers";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 type ChatMessage = {
   role: "user" | "assistant" | "model";
@@ -17,21 +22,37 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 async function getServerSupabase() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
-  const cookieOptions: CookieMethodsServer & { get: any; set: any; remove: any } = {
+  const cookieOptions = {
     get: (name: string) => cookieStore.get(name)?.value,
+    getAll: () => cookieStore.getAll(),
     set: (name: string, value: string, options: CookieOptions) => {
       try {
-        cookieStore.set({ name, value, ...options, path: "/" });
-      } catch {}
+        cookieStore.set({ name, value, ...options });
+      } catch (error) {
+        // Ignorar erro silenciosamente caso seja executado num contexto de leitura
+      }
+    },
+    setAll: (
+      cookiesToSet: { name: string; value: string; options: CookieOptions }[],
+    ) => {
+      try {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set({ name, value, ...options });
+        });
+      } catch (error) {
+        // Ignorar erro
+      }
     },
     remove: (name: string, options: CookieOptions) => {
       try {
-        cookieStore.set({ name, value: "", ...options, path: "/" });
-      } catch {}
+        cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+      } catch (error) {
+        // Ignorar erro
+      }
     },
-  };
+  } as CookieMethodsServer;
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -325,31 +346,38 @@ async function callOpenRouter(messages: ChatMessage[], profile: UserProfile) {
   const formattedMessages = [
     { role: "system", content: systemPrompt },
     ...messages.map((m) => ({
-      role: m.role,
+      role: m.role === "model" ? "assistant" : m.role,
       content: m.content,
     })),
   ];
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-      "HTTP-Referer": process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost",
-      "X-Title": "Portal PGE - CPD-Bot",
+  const response = await fetch(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer":
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost",
+        "X-Title": "Portal PGE - CPD-Bot",
+      },
+      body: JSON.stringify({
+        model: "anthropic/claude-3.5-sonnet:latest",
+        messages: formattedMessages,
+      }),
     },
-    body: JSON.stringify({
-      model: "anthropic/claude-3.5-sonnet:latest",  // Modelo de alta qualidade
-      messages: formattedMessages,
-    }),
-  });
+  );
 
   if (!response.ok) {
     const errData = await response.text();
-    throw new Error(`OpenRouter error: ${response.status} - ${errData}`);
+    throw new Error(`OpenRouter error: ${response.status} ${errData}`);
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content || "Não consegui gerar uma resposta.";
+  return (
+    data.choices?.[0]?.message?.content || "Não consegui gerar uma resposta."
+  );
 }
 
 // --- FUNÇÃO PARA GEMINI (fallback) ---
@@ -433,8 +461,6 @@ export async function POST(req: Request) {
         : null,
     );
 
-    const pgeSystemPrompt = buildSystemPrompt(resolvedProfile);
-
     const messages: ChatMessage[] = normalizedMessages;
 
     let responseText: string;
@@ -442,12 +468,18 @@ export async function POST(req: Request) {
     // Tenta OpenRouter primeiro, cai para Gemini se der erro
     try {
       responseText = await callOpenRouter(messages, resolvedProfile);
-    } catch (openRouterError) {
-      console.warn("OpenRouter falhou, caindo para Gemini:", openRouterError.message);
+    } catch (openRouterError: any) {
+      console.warn(
+        "OpenRouter falhou, caindo para Gemini:",
+        openRouterError?.message || openRouterError,
+      );
       try {
         responseText = await callGemini(messages, resolvedProfile);
-      } catch (geminiError) {
-        console.error("Gemini também falhou:", geminiError.message);
+      } catch (geminiError: any) {
+        console.error(
+          "Gemini também falhou:",
+          geminiError?.message || geminiError,
+        );
         responseText = `${resolvedProfile.displayName || "Usuário"}, desculpe, o serviço de IA está temporariamente indisponível. Tente novamente em alguns instantes.`;
       }
     }
@@ -488,12 +520,9 @@ export async function POST(req: Request) {
 
     const fallbackMessage =
       process.env.NODE_ENV === "development"
-        ? `Erro: ${error.message}`
+        ? `Erro: ${error?.message || error}`
         : "Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.";
 
-    return NextResponse.json(
-      { error: fallbackMessage },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: fallbackMessage }, { status: 500 });
   }
 }
