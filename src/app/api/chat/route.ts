@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -14,8 +13,16 @@ type UserProfile = {
   displayName: string | null;
 };
 
+const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || "";
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+
+// Apenas modelos de alta precisão (70B+) no OpenRouter
+const TOP_OPENROUTER_FREE_MODELS = [
+  "deepseek/deepseek-chat:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen-2.5-72b-instruct:free",
+];
 
 async function getServerSupabase() {
   const cookieStore = await cookies();
@@ -311,92 +318,182 @@ Seu papel é fazer o usuário entender rapidamente:
 `.trim();
 }
 
-async function callOpenRouter(messages: ChatMessage[], profile: UserProfile) {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error("OPENROUTER_API_KEY não configurada");
+// --- 1. CHAMADA À MISTRAL AI (Principal - Máxima Precisão e Cota Alta) ---
+async function callMistral(
+  formattedMessages: { role: string; content: string }[],
+) {
+  if (!MISTRAL_API_KEY) {
+    throw new Error("MISTRAL_API_KEY não configurada");
   }
 
-  const systemPrompt = buildSystemPrompt(profile);
+  // Tenta primeiro o Mistral Large (máxima inteligência); se ocupado, usa o Mistral Small
+  const mistralModels = ["mistral-large-latest", "mistral-small-latest"];
 
-  const formattedMessages = [
-    { role: "system", content: systemPrompt },
-    ...messages.map((m) => ({
-      role: m.role === "model" ? "assistant" : m.role,
-      content: m.content,
-    })),
-  ];
+  for (const model of mistralModels) {
+    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${MISTRAL_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: formattedMessages,
+        temperature: 0.05, // Temperatura baixíssima para máxima fidelidade às regras do PGE
+        max_tokens: 1400,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content?.trim();
+      if (content) return content;
+    } else {
+      const errText = await response.text();
+      console.warn(`Mistral (${model}) falhou:`, response.status, errText);
+    }
+  }
+
+  throw new Error("Modelos da Mistral indisponíveis no momento.");
+}
+
+// --- 2. CHAMADA AO GROQ (Reserva de Alta Precisão - Apenas 70B) ---
+async function callGroq(
+  formattedMessages: { role: string; content: string }[],
+) {
+  if (!GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY não configurada");
+  }
 
   const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
+    "https://api.groq.com/openai/v1/chat/completions",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer":
-          process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost",
-        "X-Title": "Portal PGE - CPD-Bot",
+        Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        // Usa o roteador gratuito automático do OpenRouter (nunca falha por falta de créditos)
-        model: "openrouter/free",
+        model: "llama-3.3-70b-versatile",
         messages: formattedMessages,
+        temperature: 0.05,
+        max_tokens: 1400,
       }),
     },
   );
 
   if (!response.ok) {
-    const errData = await response.text();
-    throw new Error(`OpenRouter error: ${response.status} ${errData}`);
+    const errText = await response.text();
+    throw new Error(`Groq (70B) error: ${response.status} ${errText}`);
   }
 
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content?.trim();
 
   if (!content) {
-    throw new Error("OpenRouter retornou uma resposta vazia.");
+    throw new Error("Groq retornou resposta vazia.");
   }
 
   return content;
 }
-async function callGemini(messages: ChatMessage[], profile: UserProfile) {
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY não configurada");
+
+// --- 3. CHAMADA AO OPENROUTER FREE (Último Recurso) ---
+async function callOpenRouterFree(
+  formattedMessages: { role: string; content: string }[],
+) {
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY não configurada");
   }
 
-  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-  const systemPrompt = buildSystemPrompt(profile);
-  const previousMessages = messages.slice(0, -1).slice(-12);
-
-  const chat = model.startChat({
-    history: [
-      { role: "user", parts: [{ text: systemPrompt }] },
-      {
-        role: "model",
-        parts: [
-          {
-            text: profile.displayName
-              ? `Entendido. Sou o CPD-Bot e vou atender ${profile.displayName} de forma clara, profissional e natural.`
-              : "Entendido. Sou o CPD-Bot e vou orientar o usuário de forma clara, profissional e objetiva.",
-          },
-        ],
-      },
-      ...previousMessages.map((m) => ({
-        role: m.role === "user" ? "user" : "model",
-        parts: [{ text: m.content }],
-      })),
-    ],
-    generationConfig: {
-      maxOutputTokens: 1400,
-      temperature: 0.15,
-      topP: 0.9,
+  const payloads = [
+    {
+      models: TOP_OPENROUTER_FREE_MODELS,
+      messages: formattedMessages,
+      temperature: 0.05,
+      max_tokens: 1400,
     },
-  });
+    {
+      model: "openrouter/free",
+      messages: formattedMessages,
+      temperature: 0.05,
+      max_tokens: 1400,
+    },
+  ];
 
-  const result = await chat.sendMessage(messages[messages.length - 1].content);
-  return result.response.text()?.trim() || "";
+  for (const payload of payloads) {
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "HTTP-Referer":
+            process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost",
+          "X-Title": "Portal PGE - CPD-Bot",
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content?.trim();
+      if (content) return content;
+    } else {
+      const errText = await response.text();
+      if (errText.includes("free-models-per-day")) {
+        break;
+      }
+    }
+  }
+
+  throw new Error("OpenRouter Free indisponível ou limite diário atingido.");
+}
+
+// --- ORQUESTRADOR DE IA ---
+async function generateAIResponse(
+  messages: ChatMessage[],
+  profile: UserProfile,
+) {
+  const systemPrompt = buildSystemPrompt(profile);
+  const recentMessages = messages.slice(-12);
+
+  const formattedMessages = [
+    { role: "system", content: systemPrompt },
+    ...recentMessages.map((m) => ({
+      role: m.role === "model" ? "assistant" : m.role,
+      content: m.content,
+    })),
+  ];
+
+  // 1ª Opção: Mistral AI (mistral-large-latest -> mistral-small-latest)
+  if (MISTRAL_API_KEY) {
+    try {
+      return await callMistral(formattedMessages);
+    } catch (mistralError) {
+      console.warn(
+        "Mistral falhou, tentando próximo provedor:",
+        (mistralError as Error)?.message,
+      );
+    }
+  }
+
+  // 2ª Opção: Groq (Llama 3.3 70B)
+  if (GROQ_API_KEY) {
+    try {
+      return await callGroq(formattedMessages);
+    } catch (groqError) {
+      console.warn(
+        "Groq falhou, tentando OpenRouter:",
+        (groqError as Error)?.message,
+      );
+    }
+  }
+
+  // 3ª Opção: OpenRouter Free
+  return await callOpenRouterFree(formattedMessages);
 }
 
 export async function POST(req: Request) {
@@ -438,22 +535,13 @@ export async function POST(req: Request) {
     let responseText = "";
 
     try {
-      responseText = await callOpenRouter(normalizedMessages, resolvedProfile);
-    } catch (openRouterError) {
-      console.warn(
-        "OpenRouter falhou, caindo para Gemini:",
-        (openRouterError as Error)?.message,
+      responseText = await generateAIResponse(
+        normalizedMessages,
+        resolvedProfile,
       );
-      try {
-        responseText = await callGemini(normalizedMessages, resolvedProfile);
-      } catch (geminiError) {
-        console.error(
-          "Gemini também falhou:",
-          (geminiError as Error)?.message,
-        );
-        //responseText = `${resolvedProfile.displayName || "Usuário"}, desculpe, o serviço de IA está temporariamente indisponível. Tente novamente em alguns instantes.`;
-        responseText = `Erro OR: ${(openRouterError as Error)?.message} | Erro Gemini: ${(geminiError as Error)?.message}`;
-      }
+    } catch (aiError) {
+      console.error("Falha geral nas IAs:", (aiError as Error)?.message);
+      responseText = `${resolvedProfile.displayName || "Usuário"}, os servidores de IA estão temporariamente ocupados. Tente novamente em alguns instantes.`;
     }
 
     if (!responseText?.trim()) {
@@ -495,9 +583,6 @@ export async function POST(req: Request) {
         ? `Erro: ${(error as Error)?.message}`
         : "Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.";
 
-    return NextResponse.json(
-      { error: fallbackMessage },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: fallbackMessage }, { status: 500 });
   }
 }
