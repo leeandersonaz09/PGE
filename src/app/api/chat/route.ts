@@ -14,6 +14,7 @@ type UserProfile = {
   displayName: string | null;
 };
 
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 async function getServerSupabase() {
@@ -310,51 +311,88 @@ Seu papel é fazer o usuário entender rapidamente:
 `.trim();
 }
 
-function formatGeminiError(error: any): { message: string; status: number } {
-  const rawMessage =
-    error?.message || error?.toString?.() || "Erro interno do servidor.";
-
-  if (
-    rawMessage.includes("429") ||
-    rawMessage.toLowerCase().includes("quota exceeded") ||
-    rawMessage.toLowerCase().includes("too many requests")
-  ) {
-    return {
-      message:
-        "O assistente está temporariamente indisponível por limite de uso da API de IA. Aguarde alguns instantes e tente novamente.",
-      status: 429,
-    };
+async function callOpenRouter(messages: ChatMessage[], profile: UserProfile) {
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY não configurada");
   }
 
-  if (
-    rawMessage.toLowerCase().includes("api key") ||
-    rawMessage.toLowerCase().includes("permission denied") ||
-    rawMessage.toLowerCase().includes("unauthorized")
-  ) {
-    return {
-      message:
-        "A configuração da API de IA está inválida ou sem permissão. Verifique a variável GEMINI_API_KEY.",
-      status: 500,
-    };
+  const systemPrompt = buildSystemPrompt(profile);
+
+  const formattedMessages = [
+    { role: "system", content: systemPrompt },
+    ...messages.map((m) => ({
+      role: m.role === "model" ? "assistant" : m.role,
+      content: m.content,
+    })),
+  ];
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      "HTTP-Referer": process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost",
+      "X-Title": "Portal PGE - CPD-Bot",
+    },
+    body: JSON.stringify({
+      model: "anthropic/claude-3.5-sonnet:latest",
+      messages: formattedMessages,
+    }),
+  });
+
+  if (!response.ok) {
+    const errData = await response.text();
+    throw new Error(`OpenRouter error: ${response.status} ${errData}`);
   }
 
-  return {
-    message: rawMessage,
-    status: 500,
-  };
+  const data = await response.json();
+  return (
+    data.choices?.[0]?.message?.content || "Não consegui gerar uma resposta."
+  );
+}
+
+async function callGemini(messages: ChatMessage[], profile: UserProfile) {
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY não configurada");
+  }
+
+  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+  const systemPrompt = buildSystemPrompt(profile);
+  const previousMessages = messages.slice(0, -1).slice(-12);
+
+  const chat = model.startChat({
+    history: [
+      { role: "user", parts: [{ text: systemPrompt }] },
+      {
+        role: "model",
+        parts: [
+          {
+            text: profile.displayName
+              ? `Entendido. Sou o CPD-Bot e vou atender ${profile.displayName} de forma clara, profissional e natural.`
+              : "Entendido. Sou o CPD-Bot e vou orientar o usuário de forma clara, profissional e objetiva.",
+          },
+        ],
+      },
+      ...previousMessages.map((m) => ({
+        role: m.role === "user" ? "user" : "model",
+        parts: [{ text: m.content }],
+      })),
+    ],
+    generationConfig: {
+      maxOutputTokens: 1400,
+      temperature: 0.15,
+      topP: 0.9,
+    },
+  });
+
+  const result = await chat.sendMessage(messages[messages.length - 1].content);
+  return result.response.text()?.trim() || "";
 }
 
 export async function POST(req: Request) {
   try {
-    if (!GEMINI_API_KEY) {
-      return NextResponse.json(
-        {
-          error: "A variável de ambiente GEMINI_API_KEY não está configurada.",
-        },
-        { status: 500 },
-      );
-    }
-
     const body = await req.json();
     const normalizedMessages = normalizeMessages(body?.messages);
 
@@ -389,42 +427,27 @@ export async function POST(req: Request) {
         : null,
     );
 
-    const pgeSystemPrompt = buildSystemPrompt(resolvedProfile);
+    let responseText = "";
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    try {
+      responseText = await callOpenRouter(normalizedMessages, resolvedProfile);
+    } catch (openRouterError) {
+      console.warn(
+        "OpenRouter falhou, caindo para Gemini:",
+        (openRouterError as Error)?.message,
+      );
+      try {
+        responseText = await callGemini(normalizedMessages, resolvedProfile);
+      } catch (geminiError) {
+        console.error(
+          "Gemini também falhou:",
+          (geminiError as Error)?.message,
+        );
+        responseText = `${resolvedProfile.displayName || "Usuário"}, desculpe, o serviço de IA está temporariamente indisponível. Tente novamente em alguns instantes.`;
+      }
+    }
 
-    const previousMessages = normalizedMessages.slice(0, -1).slice(-12);
-
-    const chat = model.startChat({
-      history: [
-        { role: "user", parts: [{ text: pgeSystemPrompt }] },
-        {
-          role: "model",
-          parts: [
-            {
-              text: resolvedProfile.displayName
-                ? `Entendido. Sou o CPD-Bot e vou atender ${resolvedProfile.displayName} de forma clara, profissional e natural.`
-                : "Entendido. Sou o CPD-Bot e vou orientar o usuário de forma clara, profissional e objetiva.",
-            },
-          ],
-        },
-        ...previousMessages.map((m) => ({
-          role: m.role === "user" ? "user" : "model",
-          parts: [{ text: m.content }],
-        })),
-      ],
-      generationConfig: {
-        maxOutputTokens: 1400,
-        temperature: 0.15,
-        topP: 0.9,
-      },
-    });
-
-    const result = await chat.sendMessage(userMessage);
-    let responseText = result.response.text()?.trim() || "";
-
-    if (!responseText) {
+    if (!responseText?.trim()) {
       responseText = resolvedProfile.displayName
         ? `${resolvedProfile.displayName}, não consegui gerar uma resposta agora. Tente novamente.`
         : "Não consegui gerar uma resposta agora. Tente novamente.";
@@ -458,11 +481,14 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Erro no chat da IA:", error);
 
-    const formattedError = formatGeminiError(error);
+    const fallbackMessage =
+      process.env.NODE_ENV === "development"
+        ? `Erro: ${(error as Error)?.message}`
+        : "Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.";
 
     return NextResponse.json(
-      { error: formattedError.message },
-      { status: formattedError.status },
+      { error: fallbackMessage },
+      { status: 500 },
     );
   }
 }
