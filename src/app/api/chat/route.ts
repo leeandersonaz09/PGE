@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -32,7 +33,7 @@ async function getServerSupabase() {
             cookieStore.set({ name, value, ...options, path: "/" });
           } catch {}
         },
-        remove(name: string, value: string, options: CookieOptions) {
+        remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: "", ...options, path: "/" });
           } catch {}
@@ -443,11 +444,11 @@ export async function POST(req: Request) {
     try {
       responseText = await callOpenRouter(messages, resolvedProfile);
     } catch (openRouterError) {
-      console.warn("OpenRouter falhou, caindo para Gemini:", openRouterError.message);
+      console.warn("OpenRouter falhou, caindo para Gemini:", (openRouterError as Error)?.message);
       try {
         responseText = await callGemini(messages, resolvedProfile);
       } catch (geminiError) {
-        console.error("Gemini também falhou:", geminiError.message);
+        console.error("Gemini também falhou:", (geminiError as Error)?.message);
         responseText = `${resolvedProfile.displayName || "Usuário"}, desculpe, o serviço de IA está temporariamente indisponível. Tente novamente em alguns instantes.`;
       }
     }
