@@ -1,29 +1,29 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient, type CookieMethodsServer } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 async function getServerSupabase() {
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
+
+  const cookiesConfig: CookieMethodsServer & { get: any; set: any; remove: any } = {
+    get: (name: string) => cookieStore.get(name)?.value,
+    set: (name: string, value: string, options: any) => {
+      try {
+        cookieStore.set({ name, value, ...options, path: "/" });
+      } catch {}
+    },
+    remove: (name: string, options: any) => {
+      try {
+        cookieStore.set({ name, value: "", ...options, path: "/" });
+      } catch {}
+    },
+  };
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options, path: "/" });
-          } catch {}
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: "", ...options, path: "/" });
-          } catch {}
-        },
-      },
+      cookies: cookiesConfig,
     },
   );
 }
@@ -44,7 +44,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Buscar preferências do usuário
     const { data, error } = await supabase
       .from("usuario_preferencias")
       .select("*")
@@ -52,11 +51,9 @@ export async function GET(req: NextRequest) {
       .single();
 
     if (error && error.code !== "PGRST116") {
-      // PGRST116 = "No rows returned"
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Retornar cor atual (padrão se não existir)
     const corPadrao = "#0d9488";
     const cor = data?.cor_conselho || corPadrao;
 
@@ -95,7 +92,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verificar se já existem preferências
     const { data: existentes, error: checkError } = await supabase
       .from("usuario_preferencias")
       .select("id")
@@ -105,7 +101,6 @@ export async function POST(req: NextRequest) {
     let result;
 
     if (existentes) {
-      // Atualizar existentes
       const { data, error } = await supabase
         .from("usuario_preferencias")
         .update({ cor_conselho: cor, atualizado_em: new Date().toISOString() })
@@ -118,7 +113,6 @@ export async function POST(req: NextRequest) {
       }
       result = data;
     } else {
-      // Inserir novos
       const { data, error } = await supabase
         .from("usuario_preferencias")
         .insert({
