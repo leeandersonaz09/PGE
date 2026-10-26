@@ -326,19 +326,24 @@ async function callOpenRouter(messages: ChatMessage[], profile: UserProfile) {
     })),
   ];
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-      "HTTP-Referer": process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost",
-      "X-Title": "Portal PGE - CPD-Bot",
+  const response = await fetch(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer":
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost",
+        "X-Title": "Portal PGE - CPD-Bot",
+      },
+      body: JSON.stringify({
+        // Usa o roteador gratuito automático do OpenRouter (nunca falha por falta de créditos)
+        model: "openrouter/free",
+        messages: formattedMessages,
+      }),
     },
-    body: JSON.stringify({
-      model: "anthropic/claude-3.5-sonnet:latest",
-      messages: formattedMessages,
-    }),
-  });
+  );
 
   if (!response.ok) {
     const errData = await response.text();
@@ -346,11 +351,14 @@ async function callOpenRouter(messages: ChatMessage[], profile: UserProfile) {
   }
 
   const data = await response.json();
-  return (
-    data.choices?.[0]?.message?.content || "Não consegui gerar uma resposta."
-  );
-}
+  const content = data.choices?.[0]?.message?.content?.trim();
 
+  if (!content) {
+    throw new Error("OpenRouter retornou uma resposta vazia.");
+  }
+
+  return content;
+}
 async function callGemini(messages: ChatMessage[], profile: UserProfile) {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY não configurada");
