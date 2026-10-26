@@ -6,11 +6,15 @@ interface Props {
   placeholder?: string;
 }
 
-export default function BuscaAluno({ value, onChange, placeholder = "Busque por nome ou RA..." }: Props) {
+export default function BuscaAluno({
+  value,
+  onChange,
+  placeholder = "Busque por nome ou RA...",
+}: Props) {
   return (
     <div className="relative flex items-center">
       <Search
-        size={16}
+        size={15}
         className="absolute left-3 text-gray-400 dark:text-slate-500 pointer-events-none"
       />
       <input
@@ -22,6 +26,7 @@ export default function BuscaAluno({ value, onChange, placeholder = "Busque por 
       />
       {value && (
         <button
+          type="button"
           onClick={() => onChange("")}
           className="absolute right-2 p-0.5 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-400 hover:text-red-500"
           title="Limpar busca"
