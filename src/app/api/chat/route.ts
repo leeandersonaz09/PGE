@@ -451,7 +451,8 @@ export async function POST(req: Request) {
           "Gemini também falhou:",
           (geminiError as Error)?.message,
         );
-        responseText = `${resolvedProfile.displayName || "Usuário"}, desculpe, o serviço de IA está temporariamente indisponível. Tente novamente em alguns instantes.`;
+        //responseText = `${resolvedProfile.displayName || "Usuário"}, desculpe, o serviço de IA está temporariamente indisponível. Tente novamente em alguns instantes.`;
+        responseText = `Erro OR: ${(openRouterError as Error)?.message} | Erro Gemini: ${(geminiError as Error)?.message}`;
       }
     }
 
