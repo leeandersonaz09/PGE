@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronUp,
   Palette,
+  Check,
 } from "lucide-react";
 import BuscaAluno from "@/components/conselho/BuscaAluno";
 import ParecerConselho from "@/components/conselho/ParecerConselho";
@@ -55,6 +56,7 @@ export default function ConselhoNotasPage() {
   // Cor customizada do card e seletor
   const [corConselho, setCorConselho] = useState("#0d9488");
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [isSavingColor, setIsSavingColor] = useState(false);
 
   // Função para gerar cor mais escura dinamicamente para o degradê
   const getCorDegradeFinal = (hexCor: string): string => {
@@ -82,15 +84,22 @@ export default function ConselhoNotasPage() {
 
   // --- BUSCA INICIAL NO SUPABASE ---
   useEffect(() => {
-    carregarDadosDoBanco();
+    // Carrega do localStorage primeiro (sempre a fonte mais recente)
+    if (typeof window !== "undefined") {
+      const cachedColor = localStorage.getItem("pge_cor_conselho");
+      if (cachedColor) {
+        setCorConselho(cachedColor);
+        return; // Não carrega do Supabase se já tiver no localStorage
+      }
+    }
+
+    // Se não tiver no localStorage, carrega do Supabase
     carregarPreferenciaCor();
   }, []);
 
   const carregarPreferenciaCor = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -101,19 +110,28 @@ export default function ConselhoNotasPage() {
 
       if (!error && data?.cor_conselho) {
         setCorConselho(data.cor_conselho);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("pge_cor_conselho", data.cor_conselho);
+        }
       }
-    } catch {
-      // Fallback silencioso
+    } catch (e) {
+      console.error("Erro ao carregar preferência de cor:", e);
     }
   };
 
   const salvarPreferenciaCor = async (novaCor: string) => {
     setCorConselho(novaCor);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pge_cor_conselho", novaCor);
+    }
+    setIsSavingColor(true);
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsSavingColor(false);
+        return;
+      }
 
       await supabase
         .from("usuario_preferencias")
@@ -125,8 +143,11 @@ export default function ConselhoNotasPage() {
           },
           { onConflict: "user_id" }
         );
-    } catch {
-      // Fallback silencioso
+    } catch (e) {
+      console.error("Erro ao salvar preferência de cor:", e);
+    } finally {
+      // Pequeno delay para feedback visual
+      setTimeout(() => setIsSavingColor(false), 600);
     }
   };
 
@@ -665,12 +686,20 @@ export default function ConselhoNotasPage() {
               title="Mudar cor da barra do card"
               className="flex items-center gap-1.5 px-2.5 py-1.5 border dark:border-slate-700 rounded-md bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 font-bold transition-colors"
             >
-              <Palette size={13} style={{ color: corConselho }} /> Cor
+              {isSavingColor ? (
+                <Loader2 size={13} className="animate-spin text-teal-500" />
+              ) : (
+                <Palette size={13} style={{ color: corConselho }} />
+              )}
+              Cor
             </button>
             {colorPickerOpen && (
               <div className="absolute right-0 top-full mt-1 p-3 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 z-50 flex flex-col gap-2 w-48">
-                <span className="text-[11px] font-bold text-gray-600 dark:text-slate-300">
-                  Cor da Barra do Card:
+                <span className="text-[11px] font-bold text-gray-600 dark:text-slate-300 flex justify-between items-center">
+                  Cores do Painel
+                  {isSavingColor && (
+                    <Loader2 size={10} className="animate-spin" />
+                  )}
                 </span>
                 <div className="flex items-center gap-2">
                   <input
@@ -679,10 +708,23 @@ export default function ConselhoNotasPage() {
                     onChange={(e) => salvarPreferenciaCor(e.target.value)}
                     className="w-full h-8 cursor-pointer rounded border border-gray-300 dark:border-slate-600 bg-transparent"
                   />
-                  <span className="text-xs font-mono text-gray-500">{corConselho}</span>
+                  <span className="text-xs font-mono text-gray-500">
+                    {corConselho}
+                  </span>
                 </div>
                 <div className="grid grid-cols-5 gap-1.5 pt-1">
-                  {["#0d9488", "#3b82f6", "#8b5cf6", "#f43f5e", "#f59e0b", "#10b981", "#6366f1", "#ec4899", "#14b8a6", "#64748b"].map((c) => (
+                  {[
+                    "#0d9488",
+                    "#3b82f6",
+                    "#8b5cf6",
+                    "#FF002B",
+                    "#fb5700",
+                    "#10b981",
+                    "#6366f1",
+                    "#ec4899",
+                    "#14b8a6",
+                    "#64748b",
+                  ].map((c) => (
                     <button
                       key={c}
                       type="button"
@@ -690,9 +732,16 @@ export default function ConselhoNotasPage() {
                         salvarPreferenciaCor(c);
                         setColorPickerOpen(false);
                       }}
-                      className="w-6 h-6 rounded-full border border-white shadow-sm hover:scale-110 transition-transform"
+                      className="w-6 h-6 rounded-full border border-white shadow-sm hover:scale-110 transition-all flex items-center justify-center"
                       style={{ backgroundColor: c }}
-                    />
+                    >
+                      {corConselho === c && (
+                        <Check
+                          size={10}
+                          className="text-white drop-shadow-md"
+                        />
+                      )}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -707,7 +756,8 @@ export default function ConselhoNotasPage() {
               className="flex items-center gap-1.5 px-2.5 py-1.5 border dark:border-slate-700 rounded-md bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 font-bold transition-colors"
             >
               <Filter size={13} />
-              Disciplinas ({selectedDisciplines.length}/{disciplinesOrder.length})
+              Disciplinas ({selectedDisciplines.length}/
+              {disciplinesOrder.length})
               <ChevronDown size={13} />
             </button>
             {disciplineFilterOpen && (
@@ -796,7 +846,7 @@ export default function ConselhoNotasPage() {
           <div className="w-full max-w-5xl bg-white dark:bg-slate-800 rounded-xl shadow-md border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col h-full max-h-full">
             {/* Cabeçalho do Card com degradê dinâmico baseado na cor escolhida */}
             <div
-              className="p-5 flex gap-6 items-center text-white shrink-0 transition-colors duration-300"
+              className="p-5 flex gap-6 items-center text-white shrink-0 transition-all duration-500"
               style={{
                 background: `linear-gradient(to right, ${corConselho}, ${getCorDegradeFinal(corConselho)})`,
               }}
@@ -805,7 +855,7 @@ export default function ConselhoNotasPage() {
                 className="w-20 h-20 rounded-full bg-white dark:bg-slate-700 border-4 border-white/30 overflow-hidden cursor-pointer shadow-inner flex-shrink-0 relative group"
                 onClick={() => {
                   setModalImgSrc(
-                    currentStudent.full_foto_url || currentStudent.foto_url
+                    currentStudent.full_foto_url || currentStudent.foto_url,
                   );
                   setModalOpen(true);
                 }}
@@ -840,17 +890,17 @@ export default function ConselhoNotasPage() {
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-xs text-white/90 font-bold mb-1">
-                  Status de Recuperação
+              <div className="text-right border-l border-white/20 pl-6 ml-2">
+                <div className="text-[10px] text-white/70 font-black uppercase tracking-wider mb-1">
+                  Situação
                 </div>
                 {statusCount >= 5 ? (
-                  <div className="bg-red-600 text-white font-bold px-4 py-1.5 rounded-lg shadow-sm border border-red-400 text-sm">
+                  <div className="bg-red-600/90 backdrop-blur-sm text-white font-black px-4 py-1.5 rounded-lg shadow-lg border border-white/20 text-xs uppercase tracking-tighter">
                     Recuperação ({statusCount})
                   </div>
                 ) : (
-                  <div className="bg-emerald-600 text-white font-bold px-4 py-1.5 rounded-lg shadow-sm border border-emerald-400 text-sm">
-                    Conselho ({statusCount})
+                  <div className="bg-emerald-600/90 backdrop-blur-sm text-white font-black px-4 py-1.5 rounded-lg shadow-lg border border-white/20 text-xs uppercase tracking-tighter">
+                    Apto Conselho ({statusCount})
                   </div>
                 )}
               </div>
@@ -991,8 +1041,8 @@ export default function ConselhoNotasPage() {
                         prev.map((s) =>
                           s.cd_aluno === currentStudent.cd_aluno
                             ? { ...s, parecer: parecerJson }
-                            : s
-                        )
+                            : s,
+                        ),
                       );
                     }}
                   />
